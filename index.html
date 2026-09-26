@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Мастер авансового отчета</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <!-- Библиотека генерации настоящего Excel файла прямо в телефоне -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <style>
     :root {
@@ -72,7 +71,6 @@
     .addr-row .main-addr { flex: 2; position: relative; }
     .addr-row .sub-obj { flex: 1.2; }
 
-    /* Выпадающие подсказки ФИАС */
     .suggest-box {
       position: absolute; top: 100%; left: 0; right: 0;
       background: #ffffff; border: 1px solid var(--border); border-radius: 8px;
@@ -99,6 +97,15 @@
       background: rgba(0,0,0,0.85); color: white; padding: 8px 16px; border-radius: 20px;
       font-size: 13px; display: none; z-index: 9999;
     }
+
+    @media print {
+      body { background: white; padding: 0; }
+      .wrapper { max-width: 100%; }
+      .demo-bar, .nav-bar, #emp_box_card, .step-content:not(#step-4) { display: none !important; }
+      #step-4 { display: block !important; }
+      .card { box-shadow: none; border: none; padding: 0; margin-bottom: 20px; }
+      .table-scroll { overflow: visible; }
+    }
   </style>
 </head>
 <body>
@@ -113,10 +120,9 @@
     <button type="button" onclick="loadDemoScenario()">Заполнить ДЕМО</button>
   </div>
 
-  <!-- ШАГ 1: ПАСПОРТ И СПРАВОЧНИК СОТРУДНИКОВ -->
   <div id="step-1" class="step-content active">
     
-    <div class="card" style="background:#eef7ff; border:1px solid #cce5ff;">
+    <div class="card" id="emp_box_card" style="background:#eef7ff; border:1px solid #cce5ff;">
       <h3>👤 Справочник сотрудников</h3>
       <div class="field">
         <label>Выбрать из списка для автозаполнения:</label>
@@ -187,7 +193,6 @@
     <button type="button" class="btn btn-primary" onclick="goToStep(2)">Далее: Ввод расходов →</button>
   </div>
 
-  <!-- ШАГ 2: ВВОД РАСХОДОВ -->
   <div id="step-2" class="step-content">
     <div class="card">
       <h2>2. Добавление расходов</h2>
@@ -200,7 +205,6 @@
         <button type="button" class="btn btn-secondary" onclick="openExpense('misc')">🛒 Прочее</button>
       </div>
 
-      <!-- ВСПЛЫВАЮЩИЙ БЛОК ВВОДА -->
       <div id="add-box" style="display:none; background:#f2f2f7; padding:12px; border-radius:12px; margin-bottom:12px;">
         <h3 id="add-title">Добавить расход</h3>
         <div class="field">
@@ -208,7 +212,6 @@
           <input type="date" id="e_date">
         </div>
 
-        <!-- ТРАНСПОРТ -->
         <div id="box-transport" style="display:none;">
           <div class="field">
             <label>Маршрут (Город — Город)</label>
@@ -263,7 +266,6 @@
           </div>
         </div>
 
-        <!-- ТАКСИ С ПОДСКАЗКАМИ ФИАС (DaData) -->
         <div id="box-taxi" style="display:none;">
           <div class="grid-2">
             <div class="field"><label>Номер чека *</label><input type="text" id="e_taxi_no" placeholder="303"></div>
@@ -302,7 +304,6 @@
           </div>
         </div>
 
-        <!-- ПРОЖИВАНИЕ -->
         <div id="box-hotel" style="display:none;">
           <div class="field">
             <label>Форма бизнеса</label>
@@ -317,7 +318,6 @@
           </div>
         </div>
 
-        <!-- ПРОЧЕЕ -->
         <div id="box-misc" style="display:none;">
           <div class="grid-2">
             <div class="field"><label>Номер чека *</label><input type="text" id="e_misc_no"></div>
@@ -342,7 +342,6 @@
     </div>
   </div>
 
-  <!-- ШАГ 3: САМОПРОВЕРКА РАСХОДОВ -->
   <div id="step-3" class="step-content">
     <div class="card">
       <h2>3. Проверка расходов по документам</h2>
@@ -363,11 +362,13 @@
     </div>
   </div>
 
-  <!-- ШАГ 4: ГОТОВЫЙ ОТЧЕТ И СКАЧИВАНИЕ EXCEL -->
   <div id="step-4" class="step-content">
-    <div class="nav-bar" style="margin-bottom:10px;">
-      <button type="button" class="btn btn-secondary" onclick="goToStep(3)">← Назад к проверке</button>
-      <button type="button" class="btn btn-green" onclick="downloadExcelDirectly()">📥 Скачать Excel (.xlsx)</button>
+    <div class="nav-bar" style="margin-bottom:10px; display:flex; flex-direction:column; gap:8px;">
+      <div style="display:flex; gap:8px; width:100%;">
+        <button type="button" class="btn btn-secondary" style="flex:1;" onclick="goToStep(3)">← Назад</button>
+        <button type="button" class="btn btn-green" style="flex:2;" onclick="downloadExcelDirectly()">📥 Скачать Excel (.xlsx)</button>
+      </div>
+      <button type="button" class="btn btn-primary" onclick="window.print()">📄 Сохранить в PDF / Распечатать</button>
     </div>
 
     <div class="card" style="padding:10px;">
@@ -392,9 +393,14 @@
 
 <script>
   let tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
-  if (tg) { tg.ready(); tg.expand(); }
+  if (tg) { 
+    try {
+      tg.ready(); 
+      tg.expand(); 
+    } catch(e){}
+  }
 
-  // ОБНОВЛЕННЫЙ РАБОЧИЙ API-КЛЮЧ DADATA (ФИАС / ГАР)
+  // API-КЛЮЧ DADATA (ФИАС / ГАР)
   const DADATA_API_KEY = "74443bebf6f911f3792509fa4ad680d6977c3e14";
 
   let store = {
@@ -404,7 +410,7 @@
   let curCategory = '';
   let fiasTimer = null;
 
-  // --- СПРАВОЧНИК СОТРУДНИКОВ (localStorage) ---
+  // СПРАВОЧНИК СОТРУДНИКОВ
   function getEmployees() {
     const saved = localStorage.getItem("my_company_employees");
     if (saved) {
@@ -428,7 +434,7 @@
 
   function onEmployeeSelect() {
     const sel = document.getElementById("emp_select");
-    if (!sel.value) return;
+    if (sel.value === "") return;
     const emp = getEmployees()[sel.value];
     if (emp) {
       document.getElementById("p_fio").value = emp.fio;
@@ -536,18 +542,33 @@
   }
 
   function goToStep(s) {
-    if (s === 2) {
-      if (!document.getElementById('p_fio').value.trim() || !document.getElementById('p_city').value.trim()) {
-        showToast('Заполните ФИО и Город'); return;
+    try {
+      if (s === 2) {
+        if (!document.getElementById('p_fio').value.trim() || !document.getElementById('p_city').value.trim()) {
+          showToast('Заполните ФИО и Город'); return;
+        }
+        savePassport(); 
+        renderExpenseList();
       }
-      savePassport(); renderExpenseList();
-    }
-    if (s === 3) { savePassport(); renderDetailedReview(); }
-    if (s === 4) { renderFinal(); }
+      if (s === 3) { 
+        savePassport(); 
+        renderDetailedReview(); 
+      }
+      if (s === 4) { 
+        savePassport();
+        renderFinal(); 
+      }
 
-    document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
-    document.getElementById('step-' + s).classList.add('active');
-    window.scrollTo(0,0);
+      document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
+      const target = document.getElementById('step-' + s);
+      if (target) {
+        target.classList.add('active');
+        window.scrollTo(0,0);
+      }
+    } catch(err) {
+      console.error("Ошибка перехода на шаг:", err);
+      showToast("Ошибка: " + err.message);
+    }
   }
 
   function autoCalcDays() {
@@ -569,14 +590,16 @@
     const days = parseInt(document.getElementById('p_days').value) || 0;
     const rate = parseFloat(document.getElementById('p_rate').value) || 0;
     store.passport = {
-      fio: document.getElementById('p_fio').value.trim(),
-      role: document.getElementById('p_role').value.trim() || 'Сотрудник',
+      fio: document.getElementById('p_fio').value.trim() || 'Сотрудник',
+      role: document.getElementById('p_role').value.trim() || 'Инженер',
       tab: document.getElementById('p_tab').value.trim() || '—',
-      city: document.getElementById('p_city').value.trim(),
-      dStart: document.getElementById('p_date_start').value,
-      dEnd: document.getElementById('p_date_end').value,
+      city: document.getElementById('p_city').value.trim() || 'Красноярск',
+      dStart: document.getElementById('p_date_start').value || '',
+      dEnd: document.getElementById('p_date_end').value || '',
       advance: parseFloat(document.getElementById('p_advance').value) || 0,
-      days: days, rate: rate, dailyTotal: days * rate
+      days: days, 
+      rate: rate, 
+      dailyTotal: days * rate
     };
   }
 
@@ -672,7 +695,7 @@
       <div style="display:flex; justify-content:space-between; align-items:center; background:#fff; padding:6px 10px; border-radius:8px; margin-bottom:5px; border:1px solid #e5e5ea;">
         <div><strong>${e.name}</strong><br><small style="color:#8e8e93;">${e.date} | № ${e.no}</small></div>
         <div style="display:flex; align-items:center; gap:6px;">
-          <strong>${e.sum.toLocaleString('ru-RU')} ₽</strong>
+          <strong>${Number(e.sum).toLocaleString('ru-RU')} ₽</strong>
           <button type="button" class="btn btn-danger" onclick="delExp('${e.id}')">✕</button>
         </div>
       </div>
@@ -706,8 +729,8 @@
     `;
 
     const thereExp = store.expenses.filter(e => e.dir === 'there');
-    const thereSum = thereExp.reduce((s,e) => s + e.sum, 0);
-    let thereDetails = thereExp.map(e => `&nbsp;&nbsp;— ${e.name}: <strong>${e.sum.toLocaleString('ru-RU')} ₽</strong> (док. № ${e.no})`).join('<br>');
+    const thereSum = thereExp.reduce((s,e) => s + Number(e.sum || 0), 0);
+    let thereDetails = thereExp.map(e => `&nbsp;&nbsp;— ${e.name}: <strong>${Number(e.sum).toLocaleString('ru-RU')} ₽</strong> (док. № ${e.no})`).join('<br>');
     box.innerHTML += `
       <div class="review-item">
         <div class="review-header">
@@ -723,8 +746,8 @@
     `;
 
     const hotelExp = store.expenses.filter(e => e.cat === 'hotel');
-    const hotelSum = hotelExp.reduce((s,e) => s + e.sum, 0);
-    let hotelDetails = hotelExp.map(e => `&nbsp;&nbsp;— ${e.name}: <strong>${e.sum.toLocaleString('ru-RU')} ₽</strong> (договор/чек № ${e.no})`).join('<br>');
+    const hotelSum = hotelExp.reduce((s,e) => s + Number(e.sum || 0), 0);
+    let hotelDetails = hotelExp.map(e => `&nbsp;&nbsp;— ${e.name}: <strong>${Number(e.sum).toLocaleString('ru-RU')} ₽</strong> (договор/чек № ${e.no})`).join('<br>');
     box.innerHTML += `
       <div class="review-item">
         <div class="review-header">
@@ -739,9 +762,9 @@
       </div>
     `;
 
-    const taxiSum = store.taxis.reduce((s,t) => s + t.sum, 0);
+    const taxiSum = store.taxis.reduce((s,t) => s + Number(t.sum || 0), 0);
     let taxiDetails = store.taxis.map((t, idx) => 
-      `&nbsp;&nbsp;${idx+1}) <strong>${t.date}</strong> | ${t.route} — <strong>${t.sum.toLocaleString('ru-RU')} ₽</strong> <em>(${t.purpose})</em>`
+      `&nbsp;&nbsp;${idx+1}) <strong>${t.date}</strong> | ${t.route} — <strong>${Number(t.sum).toLocaleString('ru-RU')} ₽</strong> <em>(${t.purpose})</em>`
     ).join('<br>');
     box.innerHTML += `
       <div class="review-item">
@@ -758,8 +781,8 @@
     `;
 
     const backExp = store.expenses.filter(e => e.dir === 'back');
-    const backSum = backExp.reduce((s,e) => s + e.sum, 0);
-    let backDetails = backExp.map(e => `&nbsp;&nbsp;— ${e.name}: <strong>${e.sum.toLocaleString('ru-RU')} ₽</strong> (док. № ${e.no})`).join('<br>');
+    const backSum = backExp.reduce((s,e) => s + Number(e.sum || 0), 0);
+    let backDetails = backExp.map(e => `&nbsp;&nbsp;— ${e.name}: <strong>${Number(e.sum).toLocaleString('ru-RU')} ₽</strong> (док. № ${e.no})`).join('<br>');
     box.innerHTML += `
       <div class="review-item">
         <div class="review-header">
@@ -787,7 +810,7 @@
       </div>
     `;
 
-    const total = store.expenses.reduce((s,e)=>s+e.sum,0) + p.dailyTotal;
+    const total = store.expenses.reduce((s,e)=>s + Number(e.sum || 0), 0) + p.dailyTotal;
     const diff = p.advance - total;
 
     let narrative = `Мы проверили и утвердили следующие расходы:<br>`;
@@ -813,78 +836,144 @@
 
   function renderFinal() {
     const p = store.passport;
-    const total = store.expenses.reduce((s,e)=>s+e.sum,0) + p.dailyTotal;
-    const diff = p.advance - total;
+    const total = store.expenses.reduce((s,e)=>s + Number(e.sum || 0), 0) + (p.dailyTotal || 0);
+    const diff = (p.advance || 0) - total;
 
-    document.querySelector('#tbl_pass tbody').innerHTML = `
-      <tr><th style="width:25%;">Сотрудник</th><td><strong>${p.fio}</strong></td><th style="width:25%;">Должность / Таб</th><td>${p.role} / ${p.tab}</td></tr>
-      <tr><th>Город</th><td>${p.city}</td><th>Сроки</th><td>${p.dStart} — ${p.dEnd} (${p.days} дн.)</td></tr>
-      <tr><th>Аванс</th><td>${p.advance.toLocaleString('ru-RU')} ₽</td><th>Итого факт</th><td><strong>${total.toLocaleString('ru-RU')} ₽</strong></td></tr>
-      <tr style="background:#f9f9fb;"><th>Суточные</th><td>${p.dailyTotal.toLocaleString('ru-RU')} ₽</td><th>Итог</th><td><strong>${diff < 0 ? 'Перерасход: '+Math.abs(diff).toLocaleString('ru-RU')+' ₽' : 'Остаток: '+diff.toLocaleString('ru-RU')+' ₽'}</strong></td></tr>
-    `;
+    // Паспорт
+    const tblPass = document.querySelector('#tbl_pass tbody');
+    if (tblPass) {
+      tblPass.innerHTML = `
+        <tr><th style="width:25%;">Сотрудник</th><td><strong>${p.fio}</strong></td><th style="width:25%;">Должность / Таб</th><td>${p.role} / ${p.tab}</td></tr>
+        <tr><th>Город</th><td>${p.city}</td><th>Сроки</th><td>${p.dStart} — ${p.dEnd} (${p.days} дн.)</td></tr>
+        <tr><th>Аванс</th><td>${(p.advance || 0).toLocaleString('ru-RU')} ₽</td><th>Итого факт</th><td><strong>${total.toLocaleString('ru-RU')} ₽</strong></td></tr>
+        <tr style="background:#f9f9fb;"><th>Суточные</th><td>${(p.dailyTotal || 0).toLocaleString('ru-RU')} ₽</td><th>Итог</th><td><strong>${diff < 0 ? 'Перерасход: '+Math.abs(diff).toLocaleString('ru-RU')+' ₽' : 'Остаток: '+diff.toLocaleString('ru-RU')+' ₽'}</strong></td></tr>
+      `;
+    }
 
-    const sorted = [...store.expenses].sort((a,b) => new Date(a.date) - new Date(b.date));
+    // АО-1
+    const sorted = [...store.expenses].sort((a,b) => new Date(a.date || 0) - new Date(b.date || 0));
     const tb = document.querySelector('#tbl_ao1 tbody');
-    tb.innerHTML = sorted.map((e, i) => `<tr><td class="text-center">${i+1}</td><td>${e.date}</td><td>${e.no}</td><td>${e.name}</td><td class="text-right">${e.sum.toLocaleString('ru-RU', {minimumFractionDigits:2})}</td></tr>`).join('');
-    tb.innerHTML += `
-      <tr><td class="text-center">${sorted.length+1}</td><td></td><td></td><td><strong>Авансовый отчет суточные за ${p.days} дн.</strong></td><td class="text-right"><strong>${p.dailyTotal.toLocaleString('ru-RU', {minimumFractionDigits:2})}</strong></td></tr>
-      <tr style="background:#f2f2f7; font-weight:700;"><td colspan="4" class="text-right">ИТОГО:</td><td class="text-right">${total.toLocaleString('ru-RU', {minimumFractionDigits:2})}</td></tr>
-    `;
+    if (tb) {
+      let rowsHtml = sorted.map((e, i) => `
+        <tr>
+          <td class="text-center">${i+1}</td>
+          <td>${e.date || ''}</td>
+          <td>${e.no || ''}</td>
+          <td>${e.name || ''}</td>
+          <td class="text-right">${Number(e.sum || 0).toLocaleString('ru-RU', {minimumFractionDigits:2})}</td>
+        </tr>
+      `).join('');
 
-    if (store.taxis.length > 0) {
-      document.getElementById('card_taxi').style.display = 'block';
-      document.querySelector('#tbl_taxi tbody').innerHTML = store.taxis.map(t => `<tr><td>${t.date}</td><td>${t.route}</td><td>${t.purpose}</td><td class="text-right">${t.sum.toLocaleString('ru-RU', {minimumFractionDigits:2})}</td></tr>`).join('');
-    } else {
-      document.getElementById('card_taxi').style.display = 'none';
+      rowsHtml += `
+        <tr>
+          <td class="text-center">${sorted.length+1}</td>
+          <td></td>
+          <td></td>
+          <td><strong>Авансовый отчет суточные за ${p.days} дн.</strong></td>
+          <td class="text-right"><strong>${Number(p.dailyTotal || 0).toLocaleString('ru-RU', {minimumFractionDigits:2})}</strong></td>
+        </tr>
+        <tr style="background:#f2f2f7; font-weight:700;">
+          <td colspan="4" class="text-right">ИТОГО:</td>
+          <td class="text-right">${total.toLocaleString('ru-RU', {minimumFractionDigits:2})}</td>
+        </tr>
+      `;
+      tb.innerHTML = rowsHtml;
+    }
+
+    // Такси
+    const cardTaxi = document.getElementById('card_taxi');
+    const tbTaxi = document.querySelector('#tbl_taxi tbody');
+    if (store.taxis.length > 0 && tbTaxi && cardTaxi) {
+      cardTaxi.style.display = 'block';
+      tbTaxi.innerHTML = store.taxis.map(t => `
+        <tr>
+          <td>${t.date || ''}</td>
+          <td>${t.route || ''}</td>
+          <td>${t.purpose || ''}</td>
+          <td class="text-right">${Number(t.sum || 0).toLocaleString('ru-RU', {minimumFractionDigits:2})}</td>
+        </tr>
+      `).join('');
+    } else if (cardTaxi) {
+      cardTaxi.style.display = 'none';
     }
   }
 
-  // СКАЧИВАНИЕ EXCEL ПРЯМО НА ТЕЛЕФОНЕ
+  // СКАЧИВАНИЕ EXCEL С СИСТЕМНЫМ МЕНЮ "ПОДЕЛИТЬСЯ / СОХРАНИТЬ"
   function downloadExcelDirectly() {
-    const p = store.passport;
-    const sorted = [...store.expenses].sort((a,b) => new Date(a.date) - new Date(b.date));
-    const total = sorted.reduce((s,e)=>s+e.sum,0) + p.dailyTotal;
-    const diff = p.advance - total;
+    try {
+      const p = store.passport;
+      const sorted = [...store.expenses].sort((a,b) => new Date(a.date || 0) - new Date(b.date || 0));
+      const total = sorted.reduce((s,e)=>s + Number(e.sum || 0), 0) + (p.dailyTotal || 0);
+      const diff = (p.advance || 0) - total;
 
-    const wb = XLSX.utils.book_new();
+      const wb = XLSX.utils.book_new();
 
-    // Лист 1: АО-1
-    const ao1Data = [
-      ["СВЕДЕНИЯ О КОМАНДИРОВКЕ И РАСХОДАХ К АО-1"],
-      ["Подотчетное лицо:", p.fio, "", "Должность / Таб №:", `${p.role} / ${p.tab}`],
-      ["Город командировки:", p.city, "", "Сроки нахождения:", `${p.dStart} — ${p.dEnd} (${p.days} дн.)`],
-      ["Получено авансом (руб.):", p.advance, "", "Итог расчета:", diff < 0 ? `Перерасход: ${Math.abs(diff)} руб.` : `Остаток: ${diff} руб.`],
-      [],
-      ["№", "Дата", "Номер документа", "Наименование документа (расхода)", "Сумма (руб.)"]
-    ];
-
-    sorted.forEach((e, idx) => {
-      ao1Data.push([idx + 1, e.date, e.no, e.name, e.sum]);
-    });
-
-    ao1Data.push([sorted.length + 1, "", "", `Авансовый отчет суточные за ${p.days} дн.`, p.dailyTotal]);
-    ao1Data.push(["", "", "", "ИТОГО ПО ОТЧЕТУ:", total]);
-
-    const ws1 = XLSX.utils.aoa_to_sheet(ao1Data);
-    ws1['!cols'] = [{wch: 5}, {wch: 12}, {wch: 18}, {wch: 45}, {wch: 15}];
-    XLSX.utils.book_append_sheet(wb, ws1, "Оборотная сторона АО-1");
-
-    // Лист 2: Такси
-    if (store.taxis.length > 0) {
-      const taxiData = [
-        ["Дата", "Маршрут (Точка А — Точка Б)", "Цель служебной поездки", "Сумма (руб.)"]
+      // Лист 1: АО-1
+      const ao1Data = [
+        ["СВЕДЕНИЯ О КОМАНДИРОВКЕ И РАСХОДАХ К АО-1"],
+        ["Подотчетное лицо:", p.fio, "", "Должность / Таб №:", `${p.role} / ${p.tab}`],
+        ["Город командировки:", p.city, "", "Сроки нахождения:", `${p.dStart} — ${p.dEnd} (${p.days} дн.)`],
+        ["Получено авансом (руб.):", p.advance, "", "Итог расчета:", diff < 0 ? `Перерасход: ${Math.abs(diff)} руб.` : `Остаток: ${diff} руб.`],
+        [],
+        ["№", "Дата", "Номер документа", "Наименование документа (расхода)", "Сумма (руб.)"]
       ];
-      store.taxis.forEach(t => {
-        taxiData.push([t.date, t.route, t.purpose, t.sum]);
-      });
-      const ws2 = XLSX.utils.aoa_to_sheet(taxiData);
-      ws2['!cols'] = [{wch: 12}, {wch: 45}, {wch: 35}, {wch: 14}];
-      XLSX.utils.book_append_sheet(wb, ws2, "Детализация такси");
-    }
 
-    const fileName = `Авансовый_отчет_${p.fio.replace(/\s+/g, '_')}.xlsx`;
-    XLSX.writeFile(wb, fileName);
-    showToast("Файл Excel сохранен!");
+      sorted.forEach((e, idx) => {
+        ao1Data.push([idx + 1, e.date, e.no, e.name, Number(e.sum || 0)]);
+      });
+
+      ao1Data.push([sorted.length + 1, "", "", `Авансовый отчет суточные за ${p.days} дн.`, Number(p.dailyTotal || 0)]);
+      ao1Data.push(["", "", "", "ИТОГО ПО ОТЧЕТУ:", total]);
+
+      const ws1 = XLSX.utils.aoa_to_sheet(ao1Data);
+      ws1['!cols'] = [{wch: 5}, {wch: 12}, {wch: 18}, {wch: 45}, {wch: 15}];
+      XLSX.utils.book_append_sheet(wb, ws1, "Оборотная сторона АО-1");
+
+      // Лист 2: Такси
+      if (store.taxis.length > 0) {
+        const taxiData = [
+          ["Дата", "Маршрут (Точка А — Точка Б)", "Цель служебной поездки", "Сумма (руб.)"]
+        ];
+        store.taxis.forEach(t => {
+          taxiData.push([t.date, t.route, t.purpose, Number(t.sum || 0)]);
+        });
+        const ws2 = XLSX.utils.aoa_to_sheet(taxiData);
+        ws2['!cols'] = [{wch: 12}, {wch: 45}, {wch: 35}, {wch: 14}];
+        XLSX.utils.book_append_sheet(wb, ws2, "Детализация такси");
+      }
+
+      const fileName = `Авансовый_отчет_${(p.fio || 'сотрудника').replace(/\s+/g, '_')}.xlsx`;
+      
+      // Генерация бинарного Blob файла
+      const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+
+      // Если мобильный браузер поддерживает системное меню "Поделиться" (iOS/Android Share Sheet)
+      if (navigator.canShare && navigator.canShare({ files: [new File([blob], fileName, { type: blob.type })] })) {
+        const file = new File([blob], fileName, { type: blob.type });
+        navigator.share({
+          files: [file],
+          title: 'Авансовый отчет',
+          text: `Авансовый отчет: ${p.fio}`
+        }).catch(() => {
+          // Если пользователь закрыл меню
+        });
+      } else {
+        // Стандартный fallback-метод через ссылку
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+      }
+      showToast("Файл готов!");
+    } catch(err) {
+      console.error("Ошибка сохранения Excel:", err);
+      showToast("Не удалось сохранить Excel: " + err.message);
+    }
   }
 
   // ДЕМО (Омск ↔ Красноярск)
