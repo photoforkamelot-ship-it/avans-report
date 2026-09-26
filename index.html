@@ -135,11 +135,11 @@
   <!-- ШАГ 1: ПАСПОРТ -->
   <div id="step-1" class="step-content active">
     
-    <div id="admin_emp_card" class="card" style="background:#eef7ff; border:1px solid #cce5ff; display:none;">
-      <h3 style="margin:0 0 6px 0;">👑 Панель руководителя: выбор сотрудника</h3>
+    <div id="admin_emp_card" class="card" style="background:#eef7ff; border:1px solid #cce5ff; display:block;">
+      <h3 style="margin:0 0 6px 0;">👤 Выбор сотрудника</h3>
       <div class="field">
         <select id="emp_select" onchange="onEmployeeSelect()">
-          <option value="">-- Выберите сотрудника --</option>
+          <option value="">-- Загрузка списка сотрудников... --</option>
         </select>
       </div>
     </div>
@@ -405,6 +405,14 @@
   const DADATA_API_KEY = "74443bebf6f911f3792509fa4ad680d6977c3e14";
   const GOOGLE_SHEET_API = "https://script.google.com/macros/s/AKfycbwqfeeX8q61tkVz0Rhubm2hu14O7vOPhu40r9qx6IOR78adJUq_U3CNwGtx6CfF-3oItQ/exec";
 
+  // Резервный список на случай задержки сети
+  const BACKUP_EMPLOYEES = [
+    { fio: "Илгин Александр Александрович", tab: "0000013789", role: "Руководитель команды открытия" },
+    { fio: "Евдокимова Наталья Вячеславна", tab: "0000000415", role: "Продавец-кассир команды открытия" },
+    { fio: "Козлов Альберт Николаевич", tab: "0000025391", role: "Продавец-кассир команды открытия" },
+    { fio: "Альварез Максим Игоревич", tab: "0000060714", role: "Продавец-кассир команды открытия" }
+  ];
+
   let currentEmployees = [];
   let store = {
     passport: { fio:'', role:'', tab:'', city:'', dStart:'', dEnd:'', advance:0, days:0, rate:1500, dailyTotal:0 },
@@ -466,58 +474,57 @@
       dateFormat: "d.m.Y"
     });
 
-    // Определение авторизованного пользователя
-    identifyUser();
+    // Автоматическая загрузка профиля и списка
+    initUserAndEmployees();
   });
 
-  function identifyUser() {
+  function initUserAndEmployees() {
     const urlParams = new URLSearchParams(window.location.search);
     let userId = urlParams.get('user_id');
     if (!userId && tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
       userId = tg.initDataUnsafe.user.id;
     }
-    if (!userId) userId = "446642559"; // Дефолтный ID админа
+    if (!userId) userId = "446642559"; // По умолчанию ID админа
 
     fetch(`${GOOGLE_SHEET_API}?user_id=${userId}`)
       .then(r => r.json())
-      .then(user => {
-        if (user && user.fio) {
-          document.getElementById('p_fio').value = user.fio;
-          document.getElementById('p_role').value = user.role;
-          document.getElementById('p_tab').value = user.tab;
-          
-          if (!user.isAdmin) {
-            document.getElementById('p_fio').disabled = true;
-            document.getElementById('p_role').disabled = true;
-            document.getElementById('p_tab').disabled = true;
-          } else {
-            document.getElementById('admin_emp_card').style.display = 'block';
-            loadAllEmployeesForAdmin();
-          }
+      .then(res => {
+        let employees = (res && res.employees && res.employees.length > 0) ? res.employees : BACKUP_EMPLOYEES;
+        renderEmployeeDropdown(employees);
+
+        // Если это сотрудник (не админ) и он найден
+        if (res && res.currentUser && !res.isAdmin) {
+          document.getElementById('p_fio').value = res.currentUser.fio;
+          document.getElementById('p_role').value = res.currentUser.role;
+          document.getElementById('p_tab').value = res.currentUser.tab;
+          document.getElementById('p_fio').disabled = true;
+          document.getElementById('p_role').disabled = true;
+          document.getElementById('p_tab').disabled = true;
+          document.getElementById('admin_emp_card').style.display = 'none';
         } else {
+          // Руководитель: выбирает любого
           document.getElementById('admin_emp_card').style.display = 'block';
-          loadAllEmployeesForAdmin();
+          // По умолчанию подставляем руководителя
+          document.getElementById('p_fio').value = "Илгин Александр Александрович";
+          document.getElementById('p_role').value = "Руководитель команды открытия";
+          document.getElementById('p_tab').value = "0000013789";
         }
       })
       .catch(() => {
-        document.getElementById('admin_emp_card').style.display = 'block';
-        loadAllEmployeesForAdmin();
+        renderEmployeeDropdown(BACKUP_EMPLOYEES);
+        document.getElementById('p_fio').value = "Илгин Александр Александрович";
+        document.getElementById('p_role').value = "Руководитель команды открытия";
+        document.getElementById('p_tab').value = "0000013789";
       });
   }
 
-  function loadAllEmployeesForAdmin() {
-    fetch(GOOGLE_SHEET_API)
-      .then(r => r.json())
-      .then(data => {
-        if (Array.isArray(data)) {
-          currentEmployees = data;
-          const sel = document.getElementById("emp_select");
-          sel.innerHTML = '<option value="">-- Выберите сотрудника (' + data.length + ') --</option>';
-          data.forEach((e, idx) => {
-            sel.innerHTML += `<option value="${idx}">${e.fio} (таб. ${e.tab})</option>`;
-          });
-        }
-      }).catch(()=>{});
+  function renderEmployeeDropdown(list) {
+    currentEmployees = list;
+    const sel = document.getElementById("emp_select");
+    sel.innerHTML = '<option value="">-- Выберите сотрудника (' + list.length + ') --</option>';
+    list.forEach((e, idx) => {
+      sel.innerHTML += `<option value="${idx}">${e.fio} (таб. ${e.tab})</option>`;
+    });
   }
 
   function onEmployeeSelect() {
@@ -528,7 +535,7 @@
       document.getElementById("p_fio").value = emp.fio;
       document.getElementById("p_role").value = emp.role;
       document.getElementById("p_tab").value = emp.tab;
-      showToast("Сотрудник подставлен!");
+      showToast("Сотрудник выбран!");
     }
   }
 
