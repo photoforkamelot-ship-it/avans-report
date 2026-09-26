@@ -66,12 +66,11 @@
     .checkbox-row input { width: 18px; height: 18px; margin: 0; }
     .sub-box { background: #f9f9fb; border-left: 3px solid var(--primary); padding: 10px; border-radius: 0 8px 8px 0; margin-bottom: 8px; display: none; }
 
-    /* Поля точки А и Б с объектом */
     .addr-row { display: flex; gap: 8px; position: relative; }
     .addr-row .main-addr { flex: 2; position: relative; }
     .addr-row .sub-obj { flex: 1.2; }
 
-    /* Автоподсказки адресов */
+    /* Выпадающий список подсказок ФИАС */
     .suggest-box {
       position: absolute;
       top: 100%;
@@ -83,7 +82,7 @@
       box-shadow: 0 4px 14px rgba(0,0,0,0.15);
       z-index: 1000;
       display: none;
-      max-height: 180px;
+      max-height: 200px;
       overflow-y: auto;
       margin-top: 2px;
     }
@@ -92,6 +91,7 @@
       font-size: 13px;
       border-bottom: 1px solid #f2f2f7;
       cursor: pointer;
+      line-height: 1.4;
     }
     .suggest-item:hover, .suggest-item:active {
       background: #f2f2f7;
@@ -223,7 +223,7 @@
           <input type="date" id="e_date">
         </div>
 
-        <!-- ТРАНСПОРТ: САМОЛЕТ / АВТОБУС / ПОЕЗД -->
+        <!-- ТРАНСПОРТ -->
         <div id="box-transport" style="display:none;">
           <div class="field">
             <label>Маршрут (Город — Город)</label>
@@ -278,7 +278,7 @@
           </div>
         </div>
 
-        <!-- ТАКСИ С АДРЕСНЫМ КЛАССИФИКАТОРОМ -->
+        <!-- ТАКСИ С ФИАС ПОДСКАЗКАМИ -->
         <div id="box-taxi" style="display:none;">
           <div class="grid-2">
             <div class="field"><label>Номер чека *</label><input type="text" id="e_taxi_no" placeholder="303"></div>
@@ -290,7 +290,7 @@
             <label>Точка А (Откуда) *</label>
             <div class="addr-row">
               <div class="main-addr">
-                <input type="text" id="e_taxi_from" placeholder="Начните вводить адрес (улица, дом)..." autocomplete="off" oninput="fetchAddressSuggestions(this, 'sug_a')">
+                <input type="text" id="e_taxi_from" placeholder="Начните вводить адрес (улица, дом)..." autocomplete="off" oninput="fetchFiasSuggestions(this, 'sug_a')">
                 <div id="sug_a" class="suggest-box"></div>
               </div>
               <div class="sub-obj">
@@ -304,7 +304,7 @@
             <label>Точка Б (Куда) *</label>
             <div class="addr-row">
               <div class="main-addr">
-                <input type="text" id="e_taxi_to" placeholder="Начните вводить адрес (улица, дом)..." autocomplete="off" oninput="fetchAddressSuggestions(this, 'sug_b')">
+                <input type="text" id="e_taxi_to" placeholder="Начните вводить адрес (улица, дом)..." autocomplete="off" oninput="fetchFiasSuggestions(this, 'sug_b')">
                 <div id="sug_b" class="suggest-box"></div>
               </div>
               <div class="sub-obj">
@@ -359,7 +359,7 @@
     </div>
   </div>
 
-  <!-- ШАГ 3: РАЗВЕРНУТАЯ САМОПРОВЕРКА РАСХОДОВ -->
+  <!-- ШАГ 3: САМОПРОВЕРКА РАСХОДОВ -->
   <div id="step-3" class="step-content">
     <div class="card">
       <h2>3. Проверка расходов по документам</h2>
@@ -411,12 +411,15 @@
   let tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
   if (tg) { tg.ready(); tg.expand(); }
 
+  // API Ключ DaData (ФИАС / ГАР)
+  const DADATA_API_KEY = "E5b8d39f7346de993a0ace3b88e99953cbb2e8a9";
+
   let store = {
     passport: { fio:'', role:'', tab:'', city:'', dStart:'', dEnd:'', advance:0, days:0, rate:1500, dailyTotal:0 },
     expenses: [], taxis: []
   };
   let curCategory = '';
-  let addrTimer = null;
+  let fiasTimer = null;
 
   window.addEventListener('DOMContentLoaded', () => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -425,15 +428,9 @@
     if (urlParams.has('tab')) document.getElementById('p_tab').value = urlParams.get('tab');
   });
 
-  // ПОИСК И АДРЕСНЫЙ СПРАВОЧНИК
-  const localAddrPresets = [
-    "ул. Взлетная, д. 1", "ул. Взлетная, д. 5", "ул. Ленина, д. 12",
-    "ул. Мира, д. 10", "ул. Цветочная, д. 3", "Аэропорт Омск-Центральный",
-    "Аэропорт Красноярск (Емельяново)", "Автовокзал Омск", "Автовокзал Красноярск"
-  ];
-
-  function fetchAddressSuggestions(input, listId) {
-    clearTimeout(addrTimer);
+  // ИНТЕГРАЦИЯ С DADATA (ФИАС / ГАР)
+  function fetchFiasSuggestions(input, listId) {
+    clearTimeout(fiasTimer);
     const query = input.value.trim();
     const box = document.getElementById(listId);
 
@@ -442,53 +439,49 @@
       return;
     }
 
-    addrTimer = setTimeout(() => {
-      // 1. Поиск в локальном справочнике
-      const matched = localAddrPresets.filter(a => a.toLowerCase().includes(query.toLowerCase()));
-      
-      // 2. Параллельный запрос к открытому справочнику OpenStreetMap
+    fiasTimer = setTimeout(() => {
       const city = document.getElementById('p_city').value.trim();
-      const searchQuery = city ? `${city}, ${query}` : query;
-      const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=5&countrycodes=ru&q=${encodeURIComponent(searchQuery)}`;
+      const payload = {
+        query: query,
+        count: 5
+      };
 
-      fetch(url)
-        .then(res => res.json())
-        .then(data => {
-          let items = [...matched];
-          if (data && data.length > 0) {
-            data.forEach(d => {
-              const a = d.address;
-              const street = a.road || '';
-              const house = a.house_number ? 'д. ' + a.house_number : '';
-              if (street) {
-                const fullStr = [a.city || a.town || city, street, house].filter(Boolean).join(', ');
-                if (!items.includes(fullStr)) items.push(fullStr);
-              }
-            });
-          }
-          renderAddressSuggestions(items, input.id, listId);
-        })
-        .catch(() => {
-          renderAddressSuggestions(matched, input.id, listId);
-        });
+      // Фильтрация подсказок по городу командировки
+      if (city) {
+        payload.locations = [{ city: city }];
+      }
+
+      fetch("https://suggestions.dadata.ru/suggestions/api/4_1/rs/suggest/address", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "Authorization": "Token " + DADATA_API_KEY
+        },
+        body: JSON.stringify(payload)
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (!data.suggestions || data.suggestions.length === 0) {
+          box.style.display = 'none';
+          return;
+        }
+
+        box.innerHTML = data.suggestions.map(s => `
+          <div class="suggest-item" onclick="chooseFiasAddress('${input.id}', '${listId}', '${s.value.replace(/'/g, "\\'")}')">
+            📍 ${s.value}
+          </div>
+        `).join('');
+        box.style.display = 'block';
+      })
+      .catch(err => {
+        console.error("Ошибка ФИАС DaData:", err);
+        box.style.display = 'none';
+      });
     }, 250);
   }
 
-  function renderAddressSuggestions(list, inputId, listId) {
-    const box = document.getElementById(listId);
-    if (!list || list.length === 0) {
-      box.style.display = 'none';
-      return;
-    }
-    box.innerHTML = list.slice(0, 6).map(addr => `
-      <div class="suggest-item" onclick="chooseAddress('${inputId}', '${listId}', '${addr.replace(/'/g, "\\'")}')">
-        📍 ${addr}
-      </div>
-    `).join('');
-    box.style.display = 'block';
-  }
-
-  function chooseAddress(inputId, listId, val) {
+  function chooseFiasAddress(inputId, listId, val) {
     document.getElementById(inputId).value = val;
     document.getElementById(listId).style.display = 'none';
   }
