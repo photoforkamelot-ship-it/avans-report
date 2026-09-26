@@ -8,7 +8,7 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   
-  <!-- Библиотека красивого календаря-диапазона (Flatpickr) -->
+  <!-- Календарь Flatpickr с русской локализацией -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/airbnb.css">
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
@@ -193,10 +193,10 @@
         <input type="text" id="p_city" placeholder="Красноярск">
       </div>
 
-      <!-- ЕДИНОЕ ПОЛЕ КАЛЕНДАРЯ-ДИАПАЗОНА -->
+      <!-- ЕДИНОЕ ПОЛЕ КАЛЕНДАРЯ-ДИАПАЗОНА С ФОРМАТОМ ДД.ММ.ГГГГ -->
       <div class="field">
         <label>Период командировки (Выезд ➔ Приезд) <span class="req-star">*</span></label>
-        <input type="text" id="p_date_range" class="range-input" placeholder="Выберите даты в календаре..." readonly>
+        <input type="text" id="p_date_range" class="range-input" placeholder="Нажмите для выбора дат..." readonly>
         <input type="hidden" id="p_date_start">
         <input type="hidden" id="p_date_end">
       </div>
@@ -239,7 +239,7 @@
         <h3 id="add-title">Добавить расход</h3>
         <div class="field">
           <label>Дата документа <span class="req-star">*</span></label>
-          <input type="date" id="e_date">
+          <input type="text" id="e_date" placeholder="ДД.ММ.ГГГГ" readonly style="background:#fff; cursor:pointer;">
         </div>
 
         <div id="box-transport" style="display:none;">
@@ -393,7 +393,7 @@
     </div>
   </div>
 
-  <!-- ШАГ 4: ГОТОВЫЙ ОТЧЕТ И СКАЧИВАНИЕ -->
+  <!-- ШАГ 4: ГОТОВЫЙ ОТЧЕТ И СКАЧИВАНИЕ С АВТОМАТИЧЕСКИМ СОХРАНЕНИЕМ -->
   <div id="step-4" class="step-content">
     <div class="nav-bar" style="margin-bottom:10px; display:flex; flex-direction:column; gap:8px;">
       <div style="display:flex; gap:6px; width:100%;">
@@ -401,7 +401,7 @@
         <button type="button" id="btn_excel" class="btn btn-green" style="flex:2;" onclick="downloadExcelAndNotify()">📥 Скачать Excel (.xlsx)</button>
       </div>
       <button type="button" id="btn_pdf" class="btn btn-primary" onclick="generatePdfAndNotify()">📄 Сохранить в PDF</button>
-      <div style="text-align:center; font-size:11px; color:#8e8e93;">При скачивании отчёт автоматически сохранится в реестр руководителя.</div>
+      <div style="text-align:center; font-size:11px; color:#8e8e93;">При скачивании отчёт автоматически сохраняется в реестр руководителя.</div>
     </div>
 
     <div id="printable_report">
@@ -447,25 +447,31 @@
   };
   let curCategory = '';
   let fiasTimer = null;
-  let datePickerInstance = null;
+  let datePickerRange = null;
+  let datePickerExpense = null;
 
-  function formatDateRu(dStr) {
+  // Функция строгого форматирования в ДД.ММ.ГГГГ
+  function formatRuDateString(dStr) {
     if (!dStr) return '';
+    dStr = String(dStr).trim();
+    if (dStr.includes('.')) return dStr;
     const parts = dStr.split('-');
-    if (parts.length === 3) return `${parts[2]}.${parts[1]}.${parts[0]}`;
+    if (parts.length === 3) {
+      return `${parts[2].padStart(2, '0')}.${parts[1].padStart(2, '0')}.${parts[0]}`;
+    }
     return dStr;
   }
 
-  function formatFlatpickrDate(d) {
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
+  function formatFlatpickrToRu(d) {
     const day = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}.${month}.${year}`;
   }
 
-  // ИНИЦИАЛИЗАЦИЯ ДИАПАЗОННОГО КАЛЕНДАРЯ FLATPICKR
   window.addEventListener('DOMContentLoaded', () => {
-    datePickerInstance = flatpickr("#p_date_range", {
+    // 1. Инициализация диапазонного календаря периода
+    datePickerRange = flatpickr("#p_date_range", {
       mode: "range",
       locale: "ru",
       dateFormat: "d.m.Y",
@@ -478,20 +484,25 @@
           const start = selectedDates[0];
           const end = selectedDates[1];
 
-          document.getElementById('p_date_start').value = formatFlatpickrDate(start);
-          document.getElementById('p_date_end').value = formatFlatpickrDate(end);
+          document.getElementById('p_date_start').value = formatFlatpickrToRu(start);
+          document.getElementById('p_date_end').value = formatFlatpickrToRu(end);
 
           const diffDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
           document.getElementById('p_days').value = diffDays > 0 ? diffDays : 1;
-          
           calcDaily();
         } else if (selectedDates.length === 1) {
-          document.getElementById('p_date_start').value = formatFlatpickrDate(selectedDates[0]);
+          document.getElementById('p_date_start').value = formatFlatpickrToRu(selectedDates[0]);
           document.getElementById('p_date_end').value = "";
           document.getElementById('p_days').value = 1;
           calcDaily();
         }
       }
+    });
+
+    // 2. Инициализация календаря для даты чеков/расходов в формате ДД.ММ.ГГГГ
+    datePickerExpense = flatpickr("#e_date", {
+      locale: "ru",
+      dateFormat: "d.m.Y"
     });
 
     loadEmployeesFromGoogle();
@@ -782,8 +793,8 @@
       role: document.getElementById('p_role').value.trim() || 'Инженер',
       tab: document.getElementById('p_tab').value.trim() || '—',
       city: document.getElementById('p_city').value.trim() || 'Красноярск',
-      dStart: document.getElementById('p_date_start').value || '',
-      dEnd: document.getElementById('p_date_end').value || '',
+      dStart: formatRuDateString(document.getElementById('p_date_start').value),
+      dEnd: formatRuDateString(document.getElementById('p_date_end').value),
       advance: parseFloat(document.getElementById('p_advance').value) || 0,
       days: days, 
       rate: rate, 
@@ -838,7 +849,7 @@
       return;
     }
 
-    const date = document.getElementById('e_date').value;
+    const date = formatRuDateString(document.getElementById('e_date').value);
 
     if (['plane','bus','train'].includes(curCategory)) {
       const no = document.getElementById('e_ticket_no').value.trim();
@@ -898,7 +909,7 @@
     if (store.expenses.length === 0) { box.innerHTML = 'Пока ничего не добавлено.'; return; }
     box.innerHTML = store.expenses.map(e => `
       <div style="display:flex; justify-content:space-between; align-items:center; background:#fff; padding:6px 8px; border-radius:8px; margin-bottom:5px; border:1px solid #e5e5ea;">
-        <div><strong>${e.name}</strong><br><small style="color:#8e8e93;">${formatDateRu(e.date)} | № ${e.no}</small></div>
+        <div><strong>${e.name}</strong><br><small style="color:#8e8e93;">${formatRuDateString(e.date)} | № ${e.no}</small></div>
         <div style="display:flex; align-items:center; gap:6px;">
           <strong>${Number(e.sum).toLocaleString('ru-RU')} ₽</strong>
           <button type="button" class="btn btn-danger" onclick="delExp('${e.id}')">✕</button>
@@ -927,7 +938,7 @@
         </div>
         <div style="font-size:12px; line-height:1.4;">
           • <strong>Сотрудник:</strong> ${p.fio} (${p.role}, таб. № ${p.tab})<br>
-          • <strong>Командировка:</strong> г. ${p.city} с ${formatDateRu(p.dStart)} по ${formatDateRu(p.dEnd)} (${p.days} дн.)<br>
+          • <strong>Командировка:</strong> г. ${p.city} с ${formatRuDateString(p.dStart)} по ${formatRuDateString(p.dEnd)} (${p.days} дн.)<br>
           • <strong>Запрошено авансом:</strong> <span style="font-weight:700; color:var(--primary);">${p.advance.toLocaleString('ru-RU')} ₽</span>
         </div>
       </div>
@@ -935,7 +946,7 @@
 
     const thereExp = store.expenses.filter(e => e.dir === 'there');
     const thereSum = thereExp.reduce((s,e) => s + Number(e.sum || 0), 0);
-    let thereDetails = thereExp.map(e => `&nbsp;&nbsp;— ${e.name}: <strong>${Number(e.sum).toLocaleString('ru-RU')} ₽</strong> (${formatDateRu(e.date)}, док. № ${e.no})`).join('<br>');
+    let thereDetails = thereExp.map(e => `&nbsp;&nbsp;— ${e.name}: <strong>${Number(e.sum).toLocaleString('ru-RU')} ₽</strong> (${formatRuDateString(e.date)}, док. № ${e.no})`).join('<br>');
     box.innerHTML += `
       <div class="review-item">
         <div class="review-header">
@@ -952,7 +963,7 @@
 
     const hotelExp = store.expenses.filter(e => e.cat === 'hotel');
     const hotelSum = hotelExp.reduce((s,e) => s + Number(e.sum || 0), 0);
-    let hotelDetails = hotelExp.map(e => `&nbsp;&nbsp;— ${e.name}: <strong>${Number(e.sum).toLocaleString('ru-RU')} ₽</strong> (${formatDateRu(e.date)}, док. № ${e.no})`).join('<br>');
+    let hotelDetails = hotelExp.map(e => `&nbsp;&nbsp;— ${e.name}: <strong>${Number(e.sum).toLocaleString('ru-RU')} ₽</strong> (${formatRuDateString(e.date)}, док. № ${e.no})`).join('<br>');
     box.innerHTML += `
       <div class="review-item">
         <div class="review-header">
@@ -969,7 +980,7 @@
 
     const taxiSum = store.taxis.reduce((s,t) => s + Number(t.sum || 0), 0);
     let taxiDetails = store.taxis.map((t, idx) => 
-      `&nbsp;&nbsp;${idx+1}) <strong>${formatDateRu(t.date)}</strong> | ${t.route} — <strong>${Number(t.sum).toLocaleString('ru-RU')} ₽</strong> <em>(${t.purpose})</em>`
+      `&nbsp;&nbsp;${idx+1}) <strong>${formatRuDateString(t.date)}</strong> | ${t.route} — <strong>${Number(t.sum).toLocaleString('ru-RU')} ₽</strong> <em>(${t.purpose})</em>`
     ).join('<br>');
     box.innerHTML += `
       <div class="review-item">
@@ -987,7 +998,7 @@
 
     const backExp = store.expenses.filter(e => e.dir === 'back');
     const backSum = backExp.reduce((s,e) => s + Number(e.sum || 0), 0);
-    let backDetails = backExp.map(e => `&nbsp;&nbsp;— ${e.name}: <strong>${Number(e.sum).toLocaleString('ru-RU')} ₽</strong> (${formatDateRu(e.date)}, док. № ${e.no})`).join('<br>');
+    let backDetails = backExp.map(e => `&nbsp;&nbsp;— ${e.name}: <strong>${Number(e.sum).toLocaleString('ru-RU')} ₽</strong> (${formatRuDateString(e.date)}, док. № ${e.no})`).join('<br>');
     box.innerHTML += `
       <div class="review-item">
         <div class="review-header">
@@ -1019,11 +1030,11 @@
     const diff = p.advance - total;
 
     let narrative = `Сводные данные командировки:<br>`;
-    narrative += `<strong>${formatDateRu(p.dStart)}</strong> выезд в <strong>г. ${p.city}</strong>. `;
+    narrative += `<strong>${formatRuDateString(p.dStart)}</strong> выезд в <strong>г. ${p.city}</strong>. `;
     if (thereExp.length > 0) narrative += `Затраты на проезд составили ${thereSum.toLocaleString('ru-RU')} ₽. `;
     if (hotelExp.length > 0) narrative += `Проживание: <strong>${hotelSum.toLocaleString('ru-RU')} ₽</strong>. `;
     if (store.taxis.length > 0) narrative += `Такси: ${store.taxis.length} поездок на ${taxiSum.toLocaleString('ru-RU')} ₽. `;
-    if (backExp.length > 0) narrative += `<strong>${formatDateRu(p.dEnd)}</strong> возвращение домой (${backSum.toLocaleString('ru-RU')} ₽). `;
+    if (backExp.length > 0) narrative += `<strong>${formatRuDateString(p.dEnd)}</strong> возвращение домой (${backSum.toLocaleString('ru-RU')} ₽). `;
     narrative += `Суточные за <strong>${p.days} дн.</strong>: <strong>${p.dailyTotal.toLocaleString('ru-RU')} ₽</strong>.<br><br>`;
     
     narrative += `<strong>Всего расходов:</strong> ${total.toLocaleString('ru-RU')} ₽<br>`;
@@ -1050,7 +1061,7 @@
         <tr><th style="width:30%;">Сотрудник</th><td><strong>${p.fio}</strong></td></tr>
         <tr><th>Должность / Таб</th><td>${p.role} / ${p.tab}</td></tr>
         <tr><th>Город</th><td>г. ${p.city}</td></tr>
-        <tr><th>Срок командировки</th><td>${formatDateRu(p.dStart)} — ${formatDateRu(p.dEnd)} (${p.days} дн.)</td></tr>
+        <tr><th>Срок командировки</th><td>${formatRuDateString(p.dStart)} — ${formatRuDateString(p.dEnd)} (${p.days} дн.)</td></tr>
         <tr><th>Аванс полученный</th><td>${(p.advance || 0).toLocaleString('ru-RU')} ₽</td></tr>
         <tr><th>Суточные (${p.days} дн.)</th><td>${(p.dailyTotal || 0).toLocaleString('ru-RU')} ₽</td></tr>
         <tr><th>Итого факт расходов</th><td><strong>${total.toLocaleString('ru-RU')} ₽</strong></td></tr>
@@ -1058,13 +1069,21 @@
       `;
     }
 
-    const sorted = [...store.expenses].sort((a,b) => new Date(a.date || 0) - new Date(b.date || 0));
+    const sorted = [...store.expenses].sort((a,b) => {
+      const parseD = str => {
+        if (!str) return 0;
+        const p = str.split('.');
+        return p.length === 3 ? new Date(`${p[2]}-${p[1]}-${p[0]}`) : new Date(str);
+      };
+      return parseD(a.date) - parseD(b.date);
+    });
+
     const tb = document.querySelector('#tbl_ao1 tbody');
     if (tb) {
       let rowsHtml = sorted.map((e, i) => `
         <tr>
           <td class="text-center">${i+1}</td>
-          <td>${formatDateRu(e.date)}</td>
+          <td>${formatRuDateString(e.date)}</td>
           <td>${e.no || ''}</td>
           <td>${e.name || ''}</td>
           <td class="text-right">${Number(e.sum || 0).toLocaleString('ru-RU', {minimumFractionDigits:2})}</td>
@@ -1093,7 +1112,7 @@
       cardTaxi.style.display = 'block';
       tbTaxi.innerHTML = store.taxis.map(t => `
         <tr>
-          <td>${formatDateRu(t.date)}</td>
+          <td>${formatRuDateString(t.date)}</td>
           <td>${t.route || ''}</td>
           <td>${t.purpose || ''}</td>
           <td class="text-right">${Number(t.sum || 0).toLocaleString('ru-RU', {minimumFractionDigits:2})}</td>
@@ -1110,11 +1129,10 @@
     document.getElementById('p_tab').value = "0000013789";
     document.getElementById('p_city').value = "Красноярск";
     
-    // Заполнение календаря диапазона
-    document.getElementById('p_date_start').value = "2026-10-01";
-    document.getElementById('p_date_end').value = "2026-10-18";
-    if (datePickerInstance) {
-      datePickerInstance.setDate(["2026-10-01", "2026-10-18"]);
+    document.getElementById('p_date_start').value = "01.10.2026";
+    document.getElementById('p_date_end').value = "18.10.2026";
+    if (datePickerRange) {
+      datePickerRange.setDate(["01.10.2026", "18.10.2026"]);
     }
     
     document.getElementById('p_advance').value = "80000";
@@ -1130,23 +1148,23 @@
     savePassport();
 
     store.expenses = [
-      { id: 'd1', date: '2026-10-01', no: '4212136762', name: 'Чек, Маршрутная квитанция, Авиабилет (Омск - Красноярск)', sum: 11500, dir: 'there', cat: 'plane', route: 'Омск - Красноярск' },
-      { id: 'd2', date: '2026-10-01', no: '5841', name: 'Чек (сервисный сбор)', sum: 1290, dir: 'there', cat: 'plane', route: 'Омск - Красноярск' },
-      { id: 'd3', date: '2026-10-02', no: 'ДОГ-205e', name: 'Чек, Договор Аренда квартиры (проживание)', sum: 54000, cat: 'hotel' },
-      { id: 'd4', date: '2026-10-18', no: 'КД010247', name: 'Билет Автобус (Красноярск - Омск)', sum: 4200, dir: 'back', cat: 'bus', route: 'Красноярск - Омск' },
-      { id: 'd5', date: '2026-10-18', no: 'БАГ-3107', name: 'Багаж Автобус (Красноярск - Омск)', sum: 800, dir: 'back', cat: 'bus', route: 'Красноярск - Омск' },
-      { id: 'd6', date: '2026-10-18', no: 'ПОЛ-192', name: 'Чек (страхование)', sum: 500, dir: 'back', cat: 'bus', route: 'Красноярск - Омск' },
-      { id: 'd7', date: '2026-10-01', no: '303', name: 'Чек, услуги такси', sum: 780, cat: 'taxi' },
-      { id: 'd8', date: '2026-10-01', no: '206', name: 'Чек, услуги такси', sum: 920, cat: 'taxi' },
-      { id: 'd9', date: '2026-10-18', no: '412', name: 'Чек, услуги такси', sum: 450, cat: 'taxi' },
-      { id: 'd10', date: '2026-10-18', no: '119', name: 'Чек, услуги такси', sum: 390, cat: 'taxi' }
+      { id: 'd1', date: '01.10.2026', no: '4212136762', name: 'Чек, Маршрутная квитанция, Авиабилет (Омск - Красноярск)', sum: 11500, dir: 'there', cat: 'plane', route: 'Омск - Красноярск' },
+      { id: 'd2', date: '01.10.2026', no: '5841', name: 'Чек (сервисный сбор)', sum: 1290, dir: 'there', cat: 'plane', route: 'Омск - Красноярск' },
+      { id: 'd3', date: '02.10.2026', no: 'ДОГ-205e', name: 'Чек, Договор Аренда квартиры (проживание)', sum: 54000, cat: 'hotel' },
+      { id: 'd4', date: '18.10.2026', no: 'КД010247', name: 'Билет Автобус (Красноярск - Омск)', sum: 4200, dir: 'back', cat: 'bus', route: 'Красноярск - Омск' },
+      { id: 'd5', date: '18.10.2026', no: 'БАГ-3107', name: 'Багаж Автобус (Красноярск - Омск)', sum: 800, dir: 'back', cat: 'bus', route: 'Красноярск - Омск' },
+      { id: 'd6', date: '18.10.2026', no: 'ПОЛ-192', name: 'Чек (страхование)', sum: 500, dir: 'back', cat: 'bus', route: 'Красноярск - Омск' },
+      { id: 'd7', date: '01.10.2026', no: '303', name: 'Чек, услуги такси', sum: 780, cat: 'taxi' },
+      { id: 'd8', date: '01.10.2026', no: '206', name: 'Чек, услуги такси', sum: 920, cat: 'taxi' },
+      { id: 'd9', date: '18.10.2026', no: '412', name: 'Чек, услуги такси', sum: 450, cat: 'taxi' },
+      { id: 'd10', date: '18.10.2026', no: '119', name: 'Чек, услуги такси', sum: 390, cat: 'taxi' }
     ];
 
     store.taxis = [
-      { date: '2026-10-01', no: '303', sum: 780, route: 'г. Омск, ул. Ленина, д. 12 (Дом) — Аэропорт Омск-Центральный (Аэропорт)', purpose: 'Поездка в аэропорт вылета' },
-      { date: '2026-10-01', no: '206', sum: 920, route: 'Аэропорт Красноярск (Аэропорт) — г. Красноярск, ул. Взлетная, д. 5 (Апартаменты)', purpose: 'Проезд из аэропорта к месту проживания' },
-      { date: '2026-10-18', no: '412', sum: 450, route: 'г. Красноярск, ул. Взлетная, д. 5 (Апартаменты) — Автовокзал Красноярск (Автовокзал)', purpose: 'Проезд на автовокзал' },
-      { date: '2026-10-18', no: '119', sum: 390, route: 'Автовокзал Омск (Автовокзал) — г. Омск, ул. Ленина, д. 12 (Дом)', purpose: 'Возвращение с вокзала домой' }
+      { date: '01.10.2026', no: '303', sum: 780, route: 'г. Омск, ул. Ленина, д. 12 (Дом) — Аэропорт Омск-Центральный (Аэропорт)', purpose: 'Поездка в аэропорт вылета' },
+      { date: '01.10.2026', no: '206', sum: 920, route: 'Аэропорт Красноярск (Аэропорт) — г. Красноярск, ул. Взлетная, д. 5 (Апартаменты)', purpose: 'Проезд из аэропорта к месту проживания' },
+      { date: '18.10.2026', no: '412', sum: 450, route: 'г. Красноярск, ул. Взлетная, д. 5 (Апартаменты) — Автовокзал Красноярск (Автовокзал)', purpose: 'Проезд на автовокзал' },
+      { date: '18.10.2026', no: '119', sum: 390, route: 'Автовокзал Омск (Автовокзал) — г. Омск, ул. Ленина, д. 12 (Дом)', purpose: 'Возвращение с вокзала домой' }
     ];
 
     goToStep(2);
@@ -1189,7 +1207,7 @@
 
     try {
       const p = store.passport;
-      const sorted = [...store.expenses].sort((a,b) => new Date(a.date || 0) - new Date(b.date || 0));
+      const sorted = [...store.expenses];
       const total = sorted.reduce((s,e)=>s + Number(e.sum || 0), 0) + (p.dailyTotal || 0);
       const diff = (p.advance || 0) - total;
 
@@ -1201,7 +1219,7 @@
         ["Должность:", p.role],
         ["Табельный номер:", p.tab],
         ["Город командировки:", p.city],
-        ["Срок командировки:", `${formatDateRu(p.dStart)} — ${formatDateRu(p.dEnd)} (${p.days} дней)`],
+        ["Срок командировки:", `${formatRuDateString(p.dStart)} — ${formatRuDateString(p.dEnd)} (${p.days} дней)`],
         ["Количество суток:", p.days],
         ["Получено авансом (руб.):", p.advance],
         ["Суточные (руб.):", `${p.dailyTotal} (${p.rate} руб./сутки)`],
@@ -1212,7 +1230,7 @@
       ];
 
       sorted.forEach((e, idx) => {
-        ao1Data.push([idx + 1, formatDateRu(e.date), e.no, e.name, Number(e.sum || 0)]);
+        ao1Data.push([idx + 1, formatRuDateString(e.date), e.no, e.name, Number(e.sum || 0)]);
       });
 
       ao1Data.push([sorted.length + 1, "", "", `Авансовый отчет суточные за ${p.days} дн.`, Number(p.dailyTotal || 0)]);
@@ -1228,7 +1246,7 @@
           ["Дата", "Маршрут поездки (Точка А — Точка Б)", "Служебная цель поездки", "Сумма (руб.)"]
         ];
         store.taxis.forEach(t => {
-          taxiData.push([formatDateRu(t.date), t.route, t.purpose, Number(t.sum || 0)]);
+          taxiData.push([formatRuDateString(t.date), t.route, t.purpose, Number(t.sum || 0)]);
         });
         const ws2 = XLSX.utils.aoa_to_sheet(taxiData);
         ws2['!cols'] = [{wch: 14}, {wch: 50}, {wch: 35}, {wch: 14}];
@@ -1256,7 +1274,7 @@
         document.body.removeChild(a);
         setTimeout(() => URL.revokeObjectURL(url), 2000);
       }
-      showToast("✅ Excel скачан и отправлен руководителю!");
+      showToast("✅ Excel скачан и сохранен в реестр!");
     } catch(err) {
       showToast("Ошибка формирования Excel: " + err.message);
     } finally {
@@ -1270,7 +1288,7 @@
   function generatePdfAndNotify() {
     const btn = document.getElementById("btn_pdf");
     btn.disabled = true;
-    btn.innerText = "⏳ Формирование PDF и сохранение...";
+    btn.innerText = "⏳ Сохранение...";
 
     sendReportToCloudInBackground();
 
@@ -1305,7 +1323,7 @@
           document.body.removeChild(a);
           setTimeout(() => URL.revokeObjectURL(url), 2000);
         }
-        showToast("✅ PDF готов и отправлен руководителю!");
+        showToast("✅ PDF готов и сохранен в реестр!");
       }).catch(function(){
         showToast("Не удалось создать PDF");
       }).finally(function(){
