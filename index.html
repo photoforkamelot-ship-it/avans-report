@@ -3,1341 +3,602 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Мастер авансового отчета (АО-1)</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            brand: {
-              50: '#eff6ff',
-              100: '#dbeafe',
-              500: '#3b82f6',
-              600: '#2563eb',
-              700: '#1d4ed8'
-            }
-          }
-        }
-      }
-    }
-  </script>
+  <title>Мастер авансового отчета</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
-    /* Базовые оптимизации под мобильные touch-экраны и Telegram WebView */
-    * {
-      -webkit-tap-highlight-color: transparent;
-      touch-action: manipulation;
+    :root {
+      --primary: #007aff;
+      --bg: #f2f2f7;
+      --card: #ffffff;
+      --text: #000;
+      --border: #d1d1d6;
+      --success: #34c759;
+      --danger: #ff3b30;
+      --warning: #ff9500;
     }
-    input, select, textarea, button {
-      font-size: 16px !important; /* Предотвращает нежелательный зум в iOS Safari */
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body {
+      margin: 0; padding: 12px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg); color: var(--text);
     }
-    .custom-scroll::-webkit-scrollbar {
-      height: 6px;
-      width: 6px;
+    .wrapper { max-width: 650px; margin: 0 auto; }
+    
+    .demo-bar {
+      background: linear-gradient(135deg, #ff9500, #ff5e3a);
+      color: white; padding: 10px 14px; border-radius: 12px;
+      margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;
     }
-    .custom-scroll::-webkit-scrollbar-thumb {
-      background: #cbd5e1;
-      border-radius: 4px;
+    .demo-bar button {
+      background: #fff; color: #d84315; font-weight: 700; border: none;
+      padding: 7px 12px; border-radius: 8px; font-size: 13px; cursor: pointer;
     }
-    @media print {
-      body { background: #ffffff !important; padding: 0 !important; }
-      .no-print { display: none !important; }
-      .print-only { display: block !important; }
-      .page-break { page-break-before: always; }
-      table { border-collapse: collapse !important; width: 100% !important; font-size: 11pt !important; }
-      th, td { border: 1px solid #000000 !important; padding: 6px 8px !important; }
+    .card { background: var(--card); border-radius: 12px; padding: 15px; margin-bottom: 12px; }
+    h2 { font-size: 17px; margin: 0 0 10px 0; }
+    h3 { font-size: 14px; margin: 0 0 6px 0; }
+    
+    .field { margin-bottom: 10px; display: flex; flex-direction: column; position: relative; }
+    .field label { font-size: 12px; font-weight: 600; color: #555; margin-bottom: 4px; }
+    .field input, .field select {
+      height: 42px; padding: 0 10px; font-size: 14px;
+      border: 1px solid var(--border); border-radius: 8px; outline: none; background: #fff;
+    }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    
+    .btn {
+      height: 44px; display: flex; align-items: center; justify-content: center;
+      border-radius: 10px; font-size: 15px; font-weight: 600; border: none; cursor: pointer; width: 100%;
+    }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-secondary { background: #e5e5ea; color: #1c1c1e; }
+    .btn-green { background: var(--success); color: white; }
+    .btn-danger { background: #ffe5e5; color: var(--danger); height: 30px; font-size: 12px; border-radius: 6px; width: auto; padding: 0 8px; }
+
+    .nav-bar { display: flex; gap: 8px; margin-top: 12px; }
+    .step-content { display: none; }
+    .step-content.active { display: block; }
+
+    .checkbox-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 13px; cursor: pointer; }
+    .checkbox-row input { width: 18px; height: 18px; margin: 0; }
+    .sub-box { background: #f9f9fb; border-left: 3px solid var(--primary); padding: 8px; border-radius: 0 8px 8px 0; margin-bottom: 8px; display: none; }
+
+    .addr-row { display: flex; gap: 6px; }
+    .addr-row input:first-child { flex: 2; }
+    .addr-row input:last-child { flex: 1.2; }
+
+    .table-scroll { width: 100%; overflow-x: auto; margin: 10px 0; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 480px; background: white; }
+    th, td { border: 1px solid #000; padding: 6px 8px; text-align: left; }
+    th { background: #f2f2f7; font-weight: 600; }
+    .text-right { text-align: right; }
+    .text-center { text-align: center; }
+
+    #toast {
+      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+      background: rgba(0,0,0,0.85); color: white; padding: 8px 16px; border-radius: 20px;
+      font-size: 13px; display: none; z-index: 9999;
     }
   </style>
 </head>
-<body class="bg-slate-100 text-slate-800 antialiased min-h-screen p-3 sm:p-6 pb-20">
+<body>
 
-  <!-- Уведомления Toast (без alert) -->
-  <div id="toast-container" class="fixed top-4 right-4 left-4 sm:left-auto sm:w-96 z-50 pointer-events-none space-y-2"></div>
+<div class="wrapper">
+  
+  <div class="demo-bar">
+    <div>
+      <div style="font-weight: 700; font-size: 13px;">⚡ Демо: Омск ↔ Красноярск</div>
+      <div style="font-size: 11px; opacity: 0.9;">18 дней, самолет, автобус, такси, квартира</div>
+    </div>
+    <button type="button" onclick="loadDemoScenario()">Заполнить ДЕМО</button>
+  </div>
 
-  <!-- Главный контейнер -->
-  <main class="max-w-4xl mx-auto bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-    
-    <!-- Шапка и демо-кнопка -->
-    <header class="bg-gradient-to-r from-blue-700 to-indigo-800 p-4 sm:p-6 text-white no-print">
-      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
-          <span class="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-500/30 text-blue-100 border border-blue-400/30 mb-1">Форма № АО-1</span>
-          <h1 class="text-xl sm:text-2xl font-bold tracking-tight">Мастер авансового отчета</h1>
-          <p class="text-xs sm:text-sm text-blue-100/90 mt-0.5">Формирование реестра расходов, расчета аванса и детализации такси</p>
+  <!-- ШАГ 1: ПАСПОРТ -->
+  <div id="step-1" class="step-content active">
+    <div class="card">
+      <h2>1. Сведения о командировке</h2>
+      <div class="field">
+        <label>ФИО сотрудника *</label>
+        <input type="text" id="p_fio" placeholder="Иванов Иван Иванович">
+      </div>
+      <div class="grid-2">
+        <div class="field">
+          <label>Должность</label>
+          <input type="text" id="p_role" placeholder="Инженер">
         </div>
-        <button type="button" id="btn-demo-load" class="inline-flex items-center justify-center gap-2 bg-amber-400 hover:bg-amber-300 text-slate-900 font-bold px-4 py-2.5 rounded-xl shadow-md transition active:scale-95 text-sm">
-          <span>⚡ Заполнить ДЕМО-данными</span>
-        </button>
+        <div class="field">
+          <label>Таб. номер</label>
+          <input type="text" id="p_tab" placeholder="1042">
+        </div>
+      </div>
+      <div class="field">
+        <label>Город командировки *</label>
+        <input type="text" id="p_city" placeholder="Красноярск">
+      </div>
+      <div class="grid-2">
+        <div class="field">
+          <label>Дата выезда *</label>
+          <input type="date" id="p_date_start" onchange="autoCalcDays()">
+        </div>
+        <div class="field">
+          <label>Дата приезда *</label>
+          <input type="date" id="p_date_end" onchange="autoCalcDays()">
+        </div>
+      </div>
+      <div class="field">
+        <label>Получено авансом под отчет (₽) *</label>
+        <input type="number" id="p_advance" placeholder="0" value="0">
+      </div>
+      <div class="grid-2">
+        <div class="field">
+          <label>Количество суток</label>
+          <input type="number" id="p_days" value="0" oninput="calcDaily()">
+        </div>
+        <div class="field">
+          <label>Тариф суточных (₽/сутки)</label>
+          <input type="number" id="p_rate" value="1500" oninput="calcDaily()">
+        </div>
+      </div>
+      <div style="font-size: 13px; font-weight: 600; color: #444; margin-top: 4px;">
+        Итого суточные: <span id="lbl_daily_total" style="color:var(--primary); font-size:15px;">0</span> ₽
+      </div>
+    </div>
+    <button type="button" class="btn btn-primary" onclick="goToStep(2)">Далее: Ввод расходов →</button>
+  </div>
+
+  <!-- ШАГ 2: ВВОД РАСХОДОВ -->
+  <div id="step-2" class="step-content">
+    <div class="card">
+      <h2>2. Добавление расходов</h2>
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 10px;">
+        <button type="button" class="btn btn-secondary" onclick="openExpense('plane')">✈️ Самолёт</button>
+        <button type="button" class="btn btn-secondary" onclick="openExpense('bus')">🚌 Автобус</button>
+        <button type="button" class="btn btn-secondary" onclick="openExpense('train')">🚆 Поезд</button>
+        <button type="button" class="btn btn-secondary" onclick="openExpense('taxi')">🚕 Такси</button>
+        <button type="button" class="btn btn-secondary" onclick="openExpense('hotel')">🏨 Отель</button>
+        <button type="button" class="btn btn-secondary" onclick="openExpense('misc')">🛒 Прочее</button>
       </div>
 
-      <!-- Прогресс-бар шагов -->
-      <nav class="flex items-center justify-between mt-6 pt-4 border-t border-blue-600/40 text-xs sm:text-sm font-medium">
-        <div id="nav-step-1" class="flex items-center gap-1.5 text-white font-bold">
-          <span class="w-6 h-6 rounded-full bg-white text-blue-700 flex items-center justify-center text-xs">1</span>
-          <span class="hidden sm:inline">Паспорт</span>
-        </div>
-        <div class="h-0.5 flex-1 bg-blue-500/40 mx-2"></div>
-        <div id="nav-step-2" class="flex items-center gap-1.5 text-blue-200">
-          <span class="w-6 h-6 rounded-full bg-blue-600/60 text-white flex items-center justify-center text-xs">2</span>
-          <span class="hidden sm:inline">Расходы</span>
-        </div>
-        <div class="h-0.5 flex-1 bg-blue-500/40 mx-2"></div>
-        <div id="nav-step-3" class="flex items-center gap-1.5 text-blue-200">
-          <span class="w-6 h-6 rounded-full bg-blue-600/60 text-white flex items-center justify-center text-xs">3</span>
-          <span class="hidden sm:inline">Проверка</span>
-        </div>
-        <div class="h-0.5 flex-1 bg-blue-500/40 mx-2"></div>
-        <div id="nav-step-4" class="flex items-center gap-1.5 text-blue-200">
-          <span class="w-6 h-6 rounded-full bg-blue-600/60 text-white flex items-center justify-center text-xs">4</span>
-          <span class="hidden sm:inline">Отчет</span>
-        </div>
-      </nav>
-    </header>
-
-    <div class="p-4 sm:p-6">
-      
-      <!-- ================= ШАГ 1: ПАСПОРТ ================= -->
-      <section id="step-1" class="space-y-5">
-        <div class="border-b border-slate-150 pb-3">
-          <h2 class="text-lg font-bold text-slate-800">1. Сведения о командировке и авансе</h2>
-          <p class="text-xs text-slate-500">Укажите сотрудника, город, сроки и сумму выданных под отчет средств</p>
+      <!-- ВСПЛЫВАЮЩИЙ БЛОК -->
+      <div id="add-box" style="display:none; background:#f2f2f7; padding:10px; border-radius:10px;">
+        <h3 id="add-title">Добавить расход</h3>
+        <div class="field">
+          <label>Дата документа *</label>
+          <input type="date" id="e_date">
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">ФИО подотчетного лица *</label>
-            <input type="text" id="p-fio" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" placeholder="Иванов Иван Иванович">
+        <div id="box-transport" style="display:none;">
+          <div class="field">
+            <label>Маршрут (Город — Город)</label>
+            <input type="text" id="e_route" placeholder="Омск - Красноярск">
           </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Должность *</label>
-            <input type="text" id="p-role" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" placeholder="Ведущий инженер">
+          <div class="field">
+            <label>Направление</label>
+            <select id="e_dir">
+              <option value="there">Туда (в командировку)</option>
+              <option value="back">Обратно (домой)</option>
+            </select>
           </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Табельный номер</label>
-            <input type="text" id="p-tab" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" placeholder="1042">
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Город назначения *</label>
-            <input type="text" id="p-city" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" placeholder="Красноярск">
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Дата начала (выезд) *</label>
-            <input type="date" id="p-start-date" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
-          </div>
-          <div>
-            <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Дата окончания (приезд) *</label>
-            <input type="date" id="p-end-date" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
-          </div>
-        </div>
-
-        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4">
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div>
-              <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Сумма аванса (₽) *</label>
-              <input type="number" id="p-advance" step="0.01" min="0" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-semibold text-slate-900" placeholder="80000">
-              <span class="text-[11px] text-slate-400">Общая сумма по заявкам на ДС</span>
+          <div class="grid-2">
+            <div class="field">
+              <label>Номер билета *</label>
+              <input type="text" id="e_ticket_no">
             </div>
-            <div>
-              <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Тариф суточных (₽/сутки)</label>
-              <input type="number" id="p-daily-rate" step="100" min="0" value="1500" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-semibold text-slate-900">
+            <div class="field">
+              <label>Сумма тарифа (₽) *</label>
+              <input type="number" id="e_ticket_sum">
             </div>
-            <div>
-              <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Количество суток</label>
-              <div class="flex items-center gap-2">
-                <input type="number" id="p-days" min="1" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white font-bold text-slate-900" placeholder="18">
-              </div>
-              <span class="text-[11px] text-blue-600 font-medium" id="p-daily-subtotal">Итого: 0 ₽</span>
+          </div>
+
+          <label class="checkbox-row">
+            <input type="checkbox" id="chk_fee" onchange="toggleBox('sub_fee')"> В чеке есть сервисный сбор / комиссия
+          </label>
+          <div id="sub_fee" class="sub-box">
+            <div class="grid-2">
+              <div class="field"><label>Чек сбора</label><input type="text" id="e_fee_no"></div>
+              <div class="field"><label>Сумма сбора (₽)</label><input type="number" id="e_fee_sum"></div>
+            </div>
+          </div>
+
+          <label class="checkbox-row">
+            <input type="checkbox" id="chk_bag" onchange="toggleBox('sub_bag')"> Оплачивался багаж
+          </label>
+          <div id="sub_bag" class="sub-box">
+            <div class="grid-2">
+              <div class="field"><label>Квитанция багажа</label><input type="text" id="e_bag_no"></div>
+              <div class="field"><label>Сумма багажа (₽)</label><input type="number" id="e_bag_sum"></div>
+            </div>
+          </div>
+
+          <label class="checkbox-row">
+            <input type="checkbox" id="chk_ins" onchange="toggleBox('sub_ins')"> Включена страховка
+          </label>
+          <div id="sub_ins" class="sub-box">
+            <div class="grid-2">
+              <div class="field"><label>Полис/чек страховки</label><input type="text" id="e_ins_no"></div>
+              <div class="field"><label>Сумма страховки (₽)</label><input type="number" id="e_ins_sum"></div>
             </div>
           </div>
         </div>
 
-        <div class="pt-2">
-          <button type="button" id="btn-to-step-2" class="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold py-3.5 px-6 rounded-xl shadow-md transition flex items-center justify-center gap-2">
-            <span>Перейти к добавлению расходов</span>
-            <span>→</span>
-          </button>
-        </div>
-      </section>
-
-      <!-- ================= ШАГ 2: РАСХОДЫ ================= -->
-      <section id="step-2" class="hidden space-y-6">
-        <div class="border-b border-slate-150 pb-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-          <div>
-            <h2 class="text-lg font-bold text-slate-800">2. Добавление подтверждающих расходов</h2>
-            <p class="text-xs text-slate-500">Выберите тип расхода для создания корректных позиций в форме АО-1</p>
+        <div id="box-taxi" style="display:none;">
+          <div class="grid-2">
+            <div class="field"><label>Номер чека *</label><input type="text" id="e_taxi_no"></div>
+            <div class="field"><label>Сумма (₽) *</label><input type="number" id="e_taxi_sum"></div>
           </div>
-          <div class="text-xs font-semibold px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 border border-blue-200 inline-block self-start sm:self-auto">
-            Позиций: <span id="badge-exp-count">0</span>
-          </div>
-        </div>
-
-        <!-- Кнопки выбора категории -->
-        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
-          <button type="button" onclick="openExpenseType('plane')" class="flex flex-col items-center justify-center p-3 rounded-xl border border-slate-200 bg-white hover:bg-blue-50 hover:border-blue-300 active:scale-95 transition text-center group">
-            <span class="text-2xl mb-1 group-hover:scale-110 transition">✈️</span>
-            <span class="text-xs font-semibold text-slate-700 group-hover:text-blue-700">Самолёт</span>
-          </button>
-          <button type="button" onclick="openExpenseType('bus')" class="flex flex-col items-center justify-center p-3 rounded-xl border border-slate-200 bg-white hover:bg-blue-50 hover:border-blue-300 active:scale-95 transition text-center group">
-            <span class="text-2xl mb-1 group-hover:scale-110 transition">🚌</span>
-            <span class="text-xs font-semibold text-slate-700 group-hover:text-blue-700">Автобус</span>
-          </button>
-          <button type="button" onclick="openExpenseType('train')" class="flex flex-col items-center justify-center p-3 rounded-xl border border-slate-200 bg-white hover:bg-blue-50 hover:border-blue-300 active:scale-95 transition text-center group">
-            <span class="text-2xl mb-1 group-hover:scale-110 transition">🚆</span>
-            <span class="text-xs font-semibold text-slate-700 group-hover:text-blue-700">Поезд / ЖД</span>
-          </button>
-          <button type="button" onclick="openExpenseType('taxi')" class="flex flex-col items-center justify-center p-3 rounded-xl border border-slate-200 bg-white hover:bg-blue-50 hover:border-blue-300 active:scale-95 transition text-center group">
-            <span class="text-2xl mb-1 group-hover:scale-110 transition">🚕</span>
-            <span class="text-xs font-semibold text-slate-700 group-hover:text-blue-700">Такси</span>
-          </button>
-          <button type="button" onclick="openExpenseType('hotel')" class="flex flex-col items-center justify-center p-3 rounded-xl border border-slate-200 bg-white hover:bg-blue-50 hover:border-blue-300 active:scale-95 transition text-center group">
-            <span class="text-2xl mb-1 group-hover:scale-110 transition">🏨</span>
-            <span class="text-xs font-semibold text-slate-700 group-hover:text-blue-700">Проживание</span>
-          </button>
-          <button type="button" onclick="openExpenseType('misc')" class="flex flex-col items-center justify-center p-3 rounded-xl border border-slate-200 bg-white hover:bg-blue-50 hover:border-blue-300 active:scale-95 transition text-center group">
-            <span class="text-2xl mb-1 group-hover:scale-110 transition">🛒</span>
-            <span class="text-xs font-semibold text-slate-700 group-hover:text-blue-700">Хозтовары</span>
-          </button>
-        </div>
-
-        <!-- Динамическая плашка ввода расхода -->
-        <div id="expense-modal-box" class="hidden bg-slate-50 border-2 border-blue-400/60 rounded-2xl p-4 sm:p-5 shadow-sm space-y-4">
-          <div class="flex items-center justify-between border-b border-slate-200 pb-2">
-            <h3 id="form-type-heading" class="font-bold text-slate-800 text-sm sm:text-base flex items-center gap-2"></h3>
-            <button type="button" onclick="closeExpenseForm()" class="text-slate-400 hover:text-slate-600 font-bold text-lg px-2">✕</button>
-          </div>
-
-          <!-- Общие поля даты и направления -->
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div>
-              <label class="block text-xs font-semibold text-slate-600 mb-1">Дата документа *</label>
-              <input type="date" id="exp-date" class="w-full px-3 py-2 bg-white rounded-lg border border-slate-300 text-sm">
-            </div>
-            <div id="wrap-exp-route">
-              <label class="block text-xs font-semibold text-slate-600 mb-1">Маршрут (Город — Город)</label>
-              <input type="text" id="exp-route" class="w-full px-3 py-2 bg-white rounded-lg border border-slate-300 text-sm" placeholder="Томск — Красноярск">
-            </div>
-            <div id="wrap-exp-dir">
-              <label class="block text-xs font-semibold text-slate-600 mb-1">Направление</label>
-              <select id="exp-dir" class="w-full px-3 py-2 bg-white rounded-lg border border-slate-300 text-sm">
-                <option value="there">Туда (в командировку)</option>
-                <option value="back">Обратно (домой)</option>
-                <option value="internal">Внутри командировки</option>
-              </select>
+          <div class="field">
+            <label>Точка А (Откуда) *</label>
+            <div class="addr-row">
+              <input type="text" id="e_taxi_from" placeholder="Адрес точки А">
+              <input type="text" id="e_taxi_obj_a" placeholder="Объект: Дом">
             </div>
           </div>
-
-          <!-- Блок: Билет (Самолет / Автобус / Поезд) -->
-          <div id="block-tickets" class="hidden space-y-3">
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label id="lbl-ticket-no" class="block text-xs font-semibold text-slate-600 mb-1">Номер билета / квитанции *</label>
-                <input type="text" id="t-num" class="w-full px-3 py-2 bg-white rounded-lg border border-slate-300 text-sm" placeholder="4212136762070">
-              </div>
-              <div>
-                <label class="block text-xs font-semibold text-slate-600 mb-1">Сумма билета (₽) *</label>
-                <input type="number" id="t-sum" step="0.01" min="0" class="w-full px-3 py-2 bg-white rounded-lg border border-slate-300 text-sm font-semibold" placeholder="11500">
-              </div>
-            </div>
-
-            <!-- Дополнительные переключатели -->
-            <div class="pt-2 border-t border-slate-200 space-y-2">
-              <span class="block text-xs font-bold text-slate-700">Дополнительные составляющие чека / квитанции:</span>
-              
-              <!-- Багаж -->
-              <label class="flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer">
-                <input type="checkbox" id="chk-bag" onchange="toggleExtra('box-bag')" class="rounded text-blue-600 w-4 h-4">
-                <span>Отдельная оплата багажа</span>
-              </label>
-              <div id="box-bag" class="hidden pl-6 grid grid-cols-1 sm:grid-cols-2 gap-3 py-1">
-                <input type="text" id="bag-num" placeholder="Номер багажной квитанции" class="px-3 py-1.5 bg-white rounded-lg border border-slate-300 text-xs">
-                <input type="number" id="bag-sum" step="0.01" placeholder="Сумма багажа (₽)" class="px-3 py-1.5 bg-white rounded-lg border border-slate-300 text-xs font-medium">
-              </div>
-
-              <!-- Сервисный сбор / комиссия -->
-              <label class="flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer">
-                <input type="checkbox" id="chk-fee" onchange="toggleExtra('box-fee')" class="rounded text-blue-600 w-4 h-4">
-                <span>Сервисные сборы / комиссии агентства</span>
-              </label>
-              <div id="box-fee" class="hidden pl-6 grid grid-cols-1 sm:grid-cols-2 gap-3 py-1">
-                <input type="text" id="fee-num" placeholder="Номер чека на сбор (если отдельный)" class="px-3 py-1.5 bg-white rounded-lg border border-slate-300 text-xs">
-                <input type="number" id="fee-sum" step="0.01" placeholder="Сумма сбора (₽)" class="px-3 py-1.5 bg-white rounded-lg border border-slate-300 text-xs font-medium">
-              </div>
-
-              <!-- Страховка -->
-              <label class="flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer">
-                <input type="checkbox" id="chk-ins" onchange="toggleExtra('box-ins')" class="rounded text-blue-600 w-4 h-4">
-                <span>Добровольное страхование пассажира</span>
-              </label>
-              <div id="box-ins" class="hidden pl-6 grid grid-cols-1 sm:grid-cols-2 gap-3 py-1">
-                <input type="text" id="ins-num" placeholder="Номер страхового полиса" class="px-3 py-1.5 bg-white rounded-lg border border-slate-300 text-xs">
-                <input type="number" id="ins-sum" step="0.01" placeholder="Сумма страховки (₽)" class="px-3 py-1.5 bg-white rounded-lg border border-slate-300 text-xs font-medium">
-              </div>
+          <div class="field">
+            <label>Точка Б (Куда) *</label>
+            <div class="addr-row">
+              <input type="text" id="e_taxi_to" placeholder="Адрес точки Б">
+              <input type="text" id="e_taxi_obj_b" placeholder="Объект: Аэропорт">
             </div>
           </div>
-
-          <!-- Блок: Такси -->
-          <div id="block-taxi" class="hidden space-y-3">
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label class="block text-xs font-semibold text-slate-600 mb-1">Номер электронного чека *</label>
-                <input type="text" id="taxi-num" class="w-full px-3 py-2 bg-white rounded-lg border border-slate-300 text-sm" placeholder="969">
-              </div>
-              <div>
-                <label class="block text-xs font-semibold text-slate-600 mb-1">Стоимость поездки (₽) *</label>
-                <input type="number" id="taxi-sum" step="0.01" min="0" class="w-full px-3 py-2 bg-white rounded-lg border border-slate-300 text-sm font-semibold" placeholder="780">
-              </div>
-            </div>
-
-            <!-- Адрес А с объектом -->
-            <div>
-              <label class="block text-xs font-semibold text-slate-600 mb-1">Точка А (Откуда) *</label>
-              <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 relative">
-                <div class="sm:col-span-2 relative">
-                  <input type="text" id="taxi-addr-a" oninput="suggestAddress(this, 'sug-a')" autocomplete="off" class="w-full px-3 py-2 bg-white rounded-lg border border-slate-300 text-sm" placeholder="г. Томск, ул. Ленина, д. 15">
-                  <div id="sug-a" class="hidden absolute top-full left-0 right-0 bg-white border border-slate-300 rounded-lg shadow-lg z-30 max-h-36 overflow-y-auto text-xs"></div>
-                </div>
-                <div>
-                  <input type="text" id="taxi-obj-a" class="w-full px-3 py-2 bg-white rounded-lg border border-slate-300 text-sm" placeholder="Объект: Дом / Аэропорт">
-                </div>
-              </div>
-            </div>
-
-            <!-- Адрес Б с объектом -->
-            <div>
-              <label class="block text-xs font-semibold text-slate-600 mb-1">Точка Б (Куда) *</label>
-              <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 relative">
-                <div class="sm:col-span-2 relative">
-                  <input type="text" id="taxi-addr-b" oninput="suggestAddress(this, 'sug-b')" autocomplete="off" class="w-full px-3 py-2 bg-white rounded-lg border border-slate-300 text-sm" placeholder="г. Красноярск, ул. Мира, д. 45">
-                  <div id="sug-b" class="hidden absolute top-full left-0 right-0 bg-white border border-slate-300 rounded-lg shadow-lg z-30 max-h-36 overflow-y-auto text-xs"></div>
-                </div>
-                <div>
-                  <input type="text" id="taxi-obj-b" class="w-full px-3 py-2 bg-white rounded-lg border border-slate-300 text-sm" placeholder="Объект: Апартаменты">
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <label class="block text-xs font-semibold text-slate-600 mb-1">Служебная цель поездки *</label>
-              <input type="text" id="taxi-purpose" class="w-full px-3 py-2 bg-white rounded-lg border border-slate-300 text-sm" placeholder="Поездка до аэропорта / Переезд к объекту">
-            </div>
-          </div>
-
-          <!-- Блок: Проживание -->
-          <div id="block-hotel" class="hidden space-y-3">
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label class="block text-xs font-semibold text-slate-600 mb-1">Где проживали? *</label>
-                <select id="h-type" class="w-full px-3 py-2 bg-white rounded-lg border border-slate-300 text-sm">
-                  <option value="Аренда квартиры">Аренда квартиры</option>
-                  <option value="Гостиница">Гостиница / Отель</option>
-                </select>
-              </div>
-              <div>
-                <label class="block text-xs font-semibold text-slate-600 mb-1">Форма бизнеса арендодателя *</label>
-                <select id="h-biz" onchange="renderHotelNotice()" class="w-full px-3 py-2 bg-white rounded-lg border border-slate-300 text-sm">
-                  <option value="self">Самозанятый (Плательщик НПД)</option>
-                  <option value="corp">Юр. лицо / ИП (Гостиница)</option>
-                </select>
-              </div>
-            </div>
-
-            <!-- Динамическая памятка -->
-            <div id="h-notice-box" class="p-3 rounded-xl text-xs leading-relaxed border"></div>
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label class="block text-xs font-semibold text-slate-600 mb-1">Номер договора / счёта / чека *</label>
-                <input type="text" id="h-num" class="w-full px-3 py-2 bg-white rounded-lg border border-slate-300 text-sm" placeholder="205eog8p4f">
-              </div>
-              <div>
-                <label class="block text-xs font-semibold text-slate-600 mb-1">Сумма за проживание (₽) *</label>
-                <input type="number" id="h-sum" step="0.01" min="0" class="w-full px-3 py-2 bg-white rounded-lg border border-slate-300 text-sm font-semibold" placeholder="54000">
-              </div>
-            </div>
-          </div>
-
-          <!-- Блок: Хозтовары -->
-          <div id="block-misc" class="hidden space-y-3">
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label class="block text-xs font-semibold text-slate-600 mb-1">Номер чека *</label>
-                <input type="text" id="m-num" class="w-full px-3 py-2 bg-white rounded-lg border border-slate-300 text-sm" placeholder="4521">
-              </div>
-              <div>
-                <label class="block text-xs font-semibold text-slate-600 mb-1">Наименование покупки *</label>
-                <input type="text" id="m-name" class="w-full px-3 py-2 bg-white rounded-lg border border-slate-300 text-sm" placeholder="Канцелярские товары">
-              </div>
-              <div>
-                <label class="block text-xs font-semibold text-slate-600 mb-1">Сумма (₽) *</label>
-                <input type="number" id="m-sum" step="0.01" min="0" class="w-full px-3 py-2 bg-white rounded-lg border border-slate-300 text-sm font-semibold" placeholder="1250">
-              </div>
-            </div>
-          </div>
-
-          <!-- Кнопка подтверждения добавления расхода -->
-          <div class="flex justify-end gap-2 pt-2 border-t border-slate-200">
-            <button type="button" onclick="closeExpenseForm()" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-200 transition">Отмена</button>
-            <button type="button" id="btn-save-expense" class="px-5 py-2 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-sm active:scale-95 transition">Добавить в отчёт</button>
+          <div class="field">
+            <label>Цель поездки *</label>
+            <input type="text" id="e_taxi_purpose" placeholder="Поездка в аэропорт / в отель">
           </div>
         </div>
 
-        <!-- Таблица добавленных расходов -->
-        <div class="space-y-2">
-          <div class="flex items-center justify-between text-xs text-slate-500 font-semibold px-1">
-            <span>Список подтверждающих записей:</span>
-            <span id="badge-total-sum" class="text-blue-700 font-bold">Сумма: 0 ₽</span>
+        <div id="box-hotel" style="display:none;">
+          <div class="field">
+            <label>Форма бизнеса</label>
+            <select id="e_hotel_biz">
+              <option value="self">Самозанятый (Аренда квартиры)</option>
+              <option value="corp">ИП / ООО (Гостиница)</option>
+            </select>
           </div>
-
-          <div class="overflow-x-auto border border-slate-200 rounded-xl custom-scroll bg-white">
-            <table class="w-full text-left text-xs border-collapse">
-              <thead class="bg-slate-50 text-slate-600 border-b border-slate-200 font-semibold">
-                <tr>
-                  <th class="py-2.5 px-3 w-24">Дата</th>
-                  <th class="py-2.5 px-3 w-36">Номер док.</th>
-                  <th class="py-2.5 px-3">Наименование расхода</th>
-                  <th class="py-2.5 px-3 text-right w-28">Сумма (₽)</th>
-                  <th class="py-2.5 px-3 text-center w-16">Удалить</th>
-                </tr>
-              </thead>
-              <tbody id="tbody-expenses" class="divide-y divide-slate-150">
-                <tr>
-                  <td colspan="5" class="py-6 text-center text-slate-400">Расходы пока не добавлены. Воспользуйтесь кнопками категорий выше.</td>
-                </tr>
-              </tbody>
-            </table>
+          <div class="grid-2">
+            <div class="field"><label>Номер договора/чека *</label><input type="text" id="e_hotel_no"></div>
+            <div class="field"><label>Сумма (₽) *</label><input type="number" id="e_hotel_sum"></div>
           </div>
         </div>
 
-        <!-- Нижние кнопки навигации шага 2 -->
-        <div class="flex flex-col sm:flex-row justify-between gap-3 pt-2">
-          <button type="button" onclick="goToStep(1)" class="px-5 py-3 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-100 font-semibold text-sm transition">
-            ← Назад к паспорту
-          </button>
-          <button type="button" id="btn-to-step-3" class="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm shadow-md transition flex items-center justify-center gap-1.5">
-            <span>Перейти к самопроверке</span>
-            <span>→</span>
-          </button>
-        </div>
-      </section>
-
-      <!-- ================= ШАГ 3: САМОПРОВЕРКА ================= -->
-      <section id="step-3" class="hidden space-y-6">
-        <div class="border-b border-slate-150 pb-3">
-          <h2 class="text-lg font-bold text-slate-800">3. Самопроверка данных перед формированием</h2>
-          <p class="text-xs text-slate-500">Пожалуйста, разложите документы в хронологическом порядке и сверьте блоки</p>
-        </div>
-
-        <!-- Карточки сверки -->
-        <div class="space-y-3" id="review-cards-list"></div>
-
-        <!-- Текстовое связное резюме -->
-        <div class="bg-indigo-50/70 border border-indigo-200 rounded-2xl p-4 sm:p-5 space-y-2">
-          <div class="flex items-center gap-2 text-indigo-900 font-bold text-sm">
-            <span>💬</span>
-            <span>Итоговый связный отчет командировки:</span>
+        <div id="box-misc" style="display:none;">
+          <div class="grid-2">
+            <div class="field"><label>Номер чека *</label><input type="text" id="e_misc_no"></div>
+            <div class="field"><label>Сумма (₽) *</label><input type="number" id="e_misc_sum"></div>
           </div>
-          <p id="narrative-text" class="text-xs sm:text-sm text-indigo-950 leading-relaxed font-normal"></p>
+          <div class="field"><label>Наименование расхода *</label><input type="text" id="e_misc_name" placeholder="Хозтовары"></div>
         </div>
 
-        <!-- Навигация шага 3 -->
-        <div class="flex flex-col sm:flex-row justify-between gap-3 pt-2">
-          <button type="button" onclick="goToStep(2)" class="px-5 py-3 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-100 font-semibold text-sm transition">
-            ← Вернуться к списку расходов
-          </button>
-          <button type="button" id="btn-to-step-4" class="px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md transition flex items-center justify-center gap-2">
-            <span>🚀 Всё верно! Сформировать отчёт</span>
-          </button>
+        <div style="display:flex; gap:8px; margin-top:8px;">
+          <button type="button" class="btn btn-primary" onclick="saveExpense()">Сохранить</button>
+          <button type="button" class="btn btn-secondary" onclick="closeExpense()">Отмена</button>
         </div>
-      </section>
+      </div>
 
-      <!-- ================= ШАГ 4: ФИНАЛЬНЫЙ ОТЧЕТ ================= -->
-      <section id="step-4" class="hidden space-y-8">
-        
-        <!-- Верхние кнопки действий (Экспорт/Печать) -->
-        <div class="no-print flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
-          <button type="button" onclick="goToStep(3)" class="px-4 py-2 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-100 text-xs font-semibold transition">
-            ← Вернуться к проверке
-          </button>
-          <div class="flex items-center gap-2">
-            <button type="button" onclick="exportCSV()" class="flex-1 sm:flex-initial px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm transition flex items-center justify-center gap-1.5">
-              <span>📊 Экспорт в Excel (CSV)</span>
-            </button>
-            <button type="button" onclick="window.print()" class="flex-1 sm:flex-initial px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold shadow-sm transition flex items-center justify-center gap-1.5">
-              <span>🖨️ Печать / PDF</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- 1. ТАБЛИЦА ПАСПОРТА И ФИНАНСОВОГО РАСЧЕТА -->
-        <div class="space-y-2">
-          <h3 class="text-sm sm:text-base font-bold text-slate-900 uppercase tracking-tight">1. Сведения о командировке и расчет с подотчетным лицом</h3>
-          <div class="overflow-x-auto border border-black rounded-lg">
-            <table class="w-full text-xs text-left border-collapse bg-white">
-              <tbody>
-                <tr class="border-b border-black">
-                  <th class="p-2 bg-slate-100 font-bold w-1/4 border-r border-black">ФИО сотрудника</th>
-                  <td id="out-fio" class="p-2 font-semibold w-1/4 border-r border-black">—</td>
-                  <th class="p-2 bg-slate-100 font-bold w-1/4 border-r border-black">Должность / Таб. №</th>
-                  <td id="out-role-tab" class="p-2 w-1/4">—</td>
-                </tr>
-                <tr class="border-b border-black">
-                  <th class="p-2 bg-slate-100 font-bold border-r border-black">Город назначения</th>
-                  <td id="out-city" class="p-2 border-r border-black">—</td>
-                  <th class="p-2 bg-slate-100 font-bold border-r border-black">Сроки командировки</th>
-                  <td id="out-dates" class="p-2">—</td>
-                </tr>
-                <tr class="border-b border-black">
-                  <th class="p-2 bg-slate-100 font-bold border-r border-black">Получено авансом под отчет</th>
-                  <td id="out-advance" class="p-2 font-bold border-r border-black">0,00 ₽</td>
-                  <th class="p-2 bg-slate-100 font-bold border-r border-black">Всего израсходовано</th>
-                  <td id="out-total-spent" class="p-2 font-bold">0,00 ₽</td>
-                </tr>
-                <tr class="bg-slate-50">
-                  <th class="p-2 bg-slate-200 font-bold border-r border-black">Суточные (из общей суммы)</th>
-                  <td id="out-daily-info" class="p-2 border-r border-black">0,00 ₽</td>
-                  <th class="p-2 bg-slate-200 font-bold border-r border-black">Результат расчета</th>
-                  <td id="out-balance" class="p-2 font-black">—</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- 2. ТАБЛИЦА ОБОРОТНОЙ СТОРОНЫ АО-1 -->
-        <div class="space-y-2">
-          <h3 class="text-sm sm:text-base font-bold text-slate-900 uppercase tracking-tight">2. Оборотная сторона формы № АО-1 (Реестр расходов)</h3>
-          <div class="overflow-x-auto border border-black rounded-lg">
-            <table class="w-full text-xs text-left border-collapse bg-white">
-              <thead class="bg-slate-100 border-b border-black text-slate-900 font-bold">
-                <tr>
-                  <th class="p-2 text-center w-12 border-r border-black">№</th>
-                  <th class="p-2 w-28 border-r border-black">Дата</th>
-                  <th class="p-2 w-44 border-r border-black">Номер документа</th>
-                  <th class="p-2 border-r border-black">Наименование документа (расхода)</th>
-                  <th class="p-2 text-right w-32">Сумма (₽)</th>
-                </tr>
-              </thead>
-              <tbody id="out-ao1-tbody" class="divide-y divide-black">
-                <!-- Генерируется скриптом -->
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- 3. ДЕТАЛИЗАЦИЯ ТАКСИ (СТРОГО 4 КОЛОНКИ) -->
-        <div id="out-taxi-wrapper" class="space-y-2">
-          <h3 class="text-sm sm:text-base font-bold text-slate-900 uppercase tracking-tight">3. Детализация служебных поездок на такси</h3>
-          <div class="overflow-x-auto border border-black rounded-lg">
-            <table class="w-full text-xs text-left border-collapse bg-white">
-              <thead class="bg-slate-100 border-b border-black text-slate-900 font-bold">
-                <tr>
-                  <th class="p-2 w-28 border-r border-black">Дата</th>
-                  <th class="p-2 border-r border-black">Маршрут (Адрес точки А — Адрес точки Б)</th>
-                  <th class="p-2 border-r border-black w-60">Цель поездки</th>
-                  <th class="p-2 text-right w-32">Сумма (₽)</th>
-                </tr>
-              </thead>
-              <tbody id="out-taxi-tbody" class="divide-y divide-black">
-                <!-- Генерируется скриптом -->
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- Подписи -->
-        <div class="pt-6 flex flex-col sm:flex-row justify-between text-xs text-slate-800 gap-4">
-          <div>Подотчетное лицо: ________________ / <span id="out-sign-fio" class="font-bold"></span></div>
-          <div>Бухгалтер: ________________ / ________________</div>
-        </div>
-      </section>
-
+      <h3 style="margin-top:15px;">Введенные позиции (<span id="lbl_count">0</span>)</h3>
+      <div id="list_expenses" style="font-size: 13px; color: #666;">Пока ничего не добавлено.</div>
     </div>
-  </main>
 
-  <script>
-    // Внутреннее состояние приложения
-    const state = {
-      passport: {
-        fio: '',
-        role: '',
-        tab: '',
-        city: '',
-        startDate: '',
-        endDate: '',
-        advance: 0,
-        dailyRate: 1500,
-        days: 0,
-        dailyTotal: 0
-      },
-      expenses: [],
-      taxiLogs: []
+    <div class="nav-bar">
+      <button type="button" class="btn btn-secondary" onclick="goToStep(1)">← Назад</button>
+      <button type="button" class="btn btn-green" onclick="goToStep(3)">Самопроверка →</button>
+    </div>
+  </div>
+
+  <!-- ШАГ 3: САМОПРОВЕРКА -->
+  <div id="step-3" class="step-content">
+    <div class="card">
+      <h2>3. Проверка расходов по чекам</h2>
+      <div id="review_blocks" style="font-size:13px; line-height:1.6;"></div>
+    </div>
+    <div class="card" style="background:#eef7ff; border:1px solid #b8daff;">
+      <h3>Итоговый нарратив:</h3>
+      <div id="review_narrative" style="font-size:13px; line-height:1.5;"></div>
+    </div>
+    <div class="nav-bar">
+      <button type="button" class="btn btn-secondary" onclick="goToStep(2)">← Изменить</button>
+      <button type="button" class="btn btn-primary" onclick="goToStep(4)">Сформировать отчет 🚀</button>
+    </div>
+  </div>
+
+  <!-- ШАГ 4: ГОТОВЫЙ ОТЧЕТ -->
+  <div id="step-4" class="step-content">
+    <div class="nav-bar" style="margin-bottom:10px;">
+      <button type="button" class="btn btn-secondary" onclick="goToStep(3)">← Назад</button>
+      <button type="button" class="btn btn-green" onclick="sendToTelegramBot()">📤 Отправить в Telegram (Excel)</button>
+    </div>
+
+    <div class="card" style="padding:8px;">
+      <h3 style="margin:0 0 4px 0;">1. Сведения о командировке</h3>
+      <div class="table-scroll"><table id="tbl_pass"><tbody></tbody></table></div>
+    </div>
+
+    <div class="card" style="padding:8px;">
+      <h3 style="margin:0 0 4px 0;">2. Оборотная сторона формы № АО-1</h3>
+      <div class="table-scroll"><table id="tbl_ao1"><thead><tr><th style="width:30px;" class="text-center">№</th><th style="width:80px;">Дата</th><th style="width:120px;">Номер документа</th><th>Наименование</th><th style="width:90px;" class="text-right">Сумма (₽)</th></tr></thead><tbody></tbody></table></div>
+    </div>
+
+    <div class="card" id="card_taxi" style="padding:8px; display:none;">
+      <h3 style="margin:0 0 4px 0;">3. Детализация такси</h3>
+      <div class="table-scroll"><table id="tbl_taxi"><thead><tr><th style="width:80px;">Дата</th><th>Маршрут (Точка А — Точка Б)</th><th style="width:150px;">Цель</th><th style="width:80px;" class="text-right">Сумма (₽)</th></tr></thead><tbody></tbody></table></div>
+    </div>
+  </div>
+
+</div>
+
+<div id="toast"></div>
+
+<script>
+  let tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+  if (tg) { tg.ready(); tg.expand(); }
+
+  let store = {
+    passport: { fio:'', role:'', tab:'', city:'', dStart:'', dEnd:'', advance:0, days:0, rate:1500, dailyTotal:0 },
+    expenses: [], taxis: []
+  };
+  let curCategory = '';
+
+  window.addEventListener('DOMContentLoaded', () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('fio')) document.getElementById('p_fio').value = urlParams.get('fio');
+    if (urlParams.has('role')) document.getElementById('p_role').value = urlParams.get('role');
+    if (urlParams.has('tab')) document.getElementById('p_tab').value = urlParams.get('tab');
+  });
+
+  function showToast(m) {
+    const t = document.getElementById('toast');
+    t.innerText = m; t.style.display = 'block';
+    setTimeout(() => t.style.display = 'none', 2000);
+  }
+
+  function goToStep(s) {
+    if (s === 2) {
+      if (!document.getElementById('p_fio').value.trim() || !document.getElementById('p_city').value.trim()) {
+        showToast('Заполните ФИО и Город'); return;
+      }
+      savePassport(); renderExpenseList();
+    }
+    if (s === 3) { savePassport(); renderReview(); }
+    if (s === 4) { renderFinal(); }
+
+    document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
+    document.getElementById('step-' + s).classList.add('active');
+    window.scrollTo(0,0);
+  }
+
+  function autoCalcDays() {
+    const s = document.getElementById('p_date_start').value, e = document.getElementById('p_date_end').value;
+    if (s && e) {
+      const diff = Math.ceil((new Date(e) - new Date(s)) / (1000 * 60 * 60 * 24)) + 1;
+      if (diff > 0) document.getElementById('p_days').value = diff;
+    }
+    calcDaily();
+  }
+
+  function calcDaily() {
+    const days = parseInt(document.getElementById('p_days').value) || 0;
+    const rate = parseFloat(document.getElementById('p_rate').value) || 0;
+    document.getElementById('lbl_daily_total').innerText = (days * rate).toLocaleString('ru-RU');
+  }
+
+  function savePassport() {
+    const days = parseInt(document.getElementById('p_days').value) || 0;
+    const rate = parseFloat(document.getElementById('p_rate').value) || 0;
+    store.passport = {
+      fio: document.getElementById('p_fio').value.trim(),
+      role: document.getElementById('p_role').value.trim() || 'Сотрудник',
+      tab: document.getElementById('p_tab').value.trim() || '—',
+      city: document.getElementById('p_city').value.trim(),
+      dStart: document.getElementById('p_date_start').value,
+      dEnd: document.getElementById('p_date_end').value,
+      advance: parseFloat(document.getElementById('p_advance').value) || 0,
+      days: days, rate: rate, dailyTotal: days * rate
     };
+  }
 
-    let activeExpenseType = null;
+  function openExpense(c) {
+    curCategory = c;
+    document.getElementById('add-box').style.display = 'block';
+    ['box-transport','box-taxi','box-hotel','box-misc'].forEach(id => document.getElementById(id).style.display = 'none');
+    ['chk_fee','chk_bag','chk_ins'].forEach(id => document.getElementById(id).checked = false);
+    ['sub_fee','sub_bag','sub_ins'].forEach(id => document.getElementById(id).style.display = 'none');
 
-    // Встроенный справочник для мгновенных адресных подсказок без сбоев сети
-    const ADDRESS_DB = [
-      "г. Красноярск, ул. Взлетная, д. 1",
-      "г. Красноярск, ул. Мира, д. 45",
-      "г. Красноярск, ул. Аэровокзальная, д. 22",
-      "г. Красноярск, ул. Ленина, д. 102",
-      "г. Красноярск, ул. Партизана Железняка, д. 19",
-      "г. Красноярск, просп. Свободный, д. 75",
-      "г. Томск, ул. Ленина, д. 15",
-      "г. Томск, просп. Кирова, д. 68",
-      "г. Томск, Аэропорт Богашево, стр. 1",
-      "г. Новосибирск, ул. Ленина, д. 1",
-      "г. Новосибирск, Аэропорт Толмачево"
+    if (['plane','bus','train'].includes(c)) {
+      document.getElementById('box-transport').style.display = 'block';
+      document.getElementById('add-title').innerText = c==='plane' ? '✈️ Самолёт' : (c==='bus' ? '🚌 Автобус' : '🚆 Поезд');
+    } else if (c==='taxi') {
+      document.getElementById('box-taxi').style.display = 'block';
+      document.getElementById('add-title').innerText = '🚕 Такси';
+    } else if (c==='hotel') {
+      document.getElementById('box-hotel').style.display = 'block';
+      document.getElementById('add-title').innerText = '🏨 Проживание';
+    } else {
+      document.getElementById('box-misc').style.display = 'block';
+      document.getElementById('add-title').innerText = '🛒 Хозтовары';
+    }
+  }
+
+  function closeExpense() { document.getElementById('add-box').style.display = 'none'; }
+  function toggleBox(id) { const el = document.getElementById(id); el.style.display = el.style.display==='block'?'none':'block'; }
+
+  function saveExpense() {
+    const date = document.getElementById('e_date').value;
+    if (!date) { showToast('Укажите дату чека'); return; }
+
+    if (['plane','bus','train'].includes(curCategory)) {
+      const no = document.getElementById('e_ticket_no').value.trim();
+      const sum = parseFloat(document.getElementById('e_ticket_sum').value) || 0;
+      const route = document.getElementById('e_route').value.trim();
+      const dir = document.getElementById('e_dir').value;
+      if (!no || sum <= 0) { showToast('Укажите номер и сумму'); return; }
+
+      let name = curCategory==='plane' ? 'Чек, Маршрутная квитанция, Авиабилет' : (curCategory==='bus' ? 'Билет Автобус' : 'ЖД Электронный билет, чек');
+      if (route) name += ` (${route})`;
+      store.expenses.push({ id: Date.now()+'1', date, no, name, sum, dir, cat: curCategory });
+
+      if (document.getElementById('chk_fee').checked) {
+        const feeNo = document.getElementById('e_fee_no').value.trim() || no;
+        const feeSum = parseFloat(document.getElementById('e_fee_sum').value) || 0;
+        if (feeSum > 0) store.expenses.push({ id: Date.now()+'2', date, no: feeNo, name: curCategory==='bus'?'Чек Автобус (сборы, комиссии)':'Чек (сервисный сбор)', sum: feeSum, dir, cat: curCategory });
+      }
+      if (document.getElementById('chk_bag').checked) {
+        const bagNo = document.getElementById('e_bag_no').value.trim() || no;
+        const bagSum = parseFloat(document.getElementById('e_bag_sum').value) || 0;
+        if (bagSum > 0) store.expenses.push({ id: Date.now()+'3', date, no: bagNo, name: curCategory==='plane'?'Чек, Багаж к Авиабилету':`Багаж Автобус (${route})`, sum: bagSum, dir, cat: curCategory });
+      }
+      if (document.getElementById('chk_ins').checked) {
+        const insNo = document.getElementById('e_ins_no').value.trim() || no;
+        const insSum = parseFloat(document.getElementById('e_ins_sum').value) || 0;
+        if (insSum > 0) store.expenses.push({ id: Date.now()+'4', date, no: insNo, name: 'Чек (страхование)', sum: insSum, dir, cat: curCategory });
+      }
+    } 
+    else if (curCategory === 'taxi') {
+      const no = document.getElementById('e_taxi_no').value.trim();
+      const sum = parseFloat(document.getElementById('e_taxi_sum').value) || 0;
+      const addrA = document.getElementById('e_taxi_from').value.trim(), objA = document.getElementById('e_taxi_obj_a').value.trim();
+      const addrB = document.getElementById('e_taxi_to').value.trim(), objB = document.getElementById('e_taxi_obj_b').value.trim();
+      const purpose = document.getElementById('e_taxi_purpose').value.trim();
+
+      if (!no || sum <= 0 || !addrA || !addrB) { showToast('Заполните чек, сумму и адреса'); return; }
+
+      const route = `${objA ? addrA+' ('+objA+')' : addrA} — ${objB ? addrB+' ('+objB+')' : addrB}`;
+      store.expenses.push({ id: Date.now()+'t', date, no, name: 'Чек, услуги такси', sum, cat: 'taxi' });
+      store.taxis.push({ date, no, sum, route, purpose: purpose || 'Служебная поездка' });
+    }
+    else if (curCategory === 'hotel') {
+      const biz = document.getElementById('e_hotel_biz').value;
+      const no = document.getElementById('e_hotel_no').value.trim(), sum = parseFloat(document.getElementById('e_hotel_sum').value) || 0;
+      if (!no || sum <= 0) { showToast('Укажите договор и сумму'); return; }
+      store.expenses.push({ id: Date.now()+'h', date, no, name: biz==='self'?'Чек, Договор Аренда квартиры (проживание)':'Чек, Счёт (гостиница)', sum, cat: 'hotel' });
+    }
+    else {
+      const no = document.getElementById('e_misc_no').value.trim(), name = document.getElementById('e_misc_name').value.trim(), sum = parseFloat(document.getElementById('e_misc_sum').value) || 0;
+      if (!no || !name || sum <= 0) { showToast('Заполните все поля'); return; }
+      store.expenses.push({ id: Date.now()+'m', date, no, name: `Чек, ${name}`, sum, cat: 'misc' });
+    }
+
+    closeExpense(); renderExpenseList(); showToast('Добавлено!');
+  }
+
+  function renderExpenseList() {
+    const box = document.getElementById('list_expenses');
+    document.getElementById('lbl_count').innerText = store.expenses.length;
+    if (store.expenses.length === 0) { box.innerHTML = 'Пока ничего не добавлено.'; return; }
+    box.innerHTML = store.expenses.map(e => `
+      <div style="display:flex; justify-content:space-between; align-items:center; background:#fff; padding:6px 10px; border-radius:8px; margin-bottom:5px; border:1px solid #e5e5ea;">
+        <div><strong>${e.name}</strong><br><small style="color:#8e8e93;">${e.date} | № ${e.no}</small></div>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <strong>${e.sum.toLocaleString('ru-RU')} ₽</strong>
+          <button type="button" class="btn btn-danger" onclick="delExp('${e.id}')">✕</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function delExp(id) {
+    const it = store.expenses.find(x => x.id === id);
+    if (it && it.cat === 'taxi') store.taxis = store.taxis.filter(t => !(t.date === it.date && t.no === it.no));
+    store.expenses = store.expenses.filter(x => x.id !== id);
+    renderExpenseList();
+  }
+
+  function renderReview() {
+    const p = store.passport;
+    const thereSum = store.expenses.filter(e => e.dir === 'there').reduce((s,e) => s+e.sum, 0);
+    const backSum = store.expenses.filter(e => e.dir === 'back').reduce((s,e) => s+e.sum, 0);
+    const hotelSum = store.expenses.filter(e => e.cat === 'hotel').reduce((s,e) => s+e.sum, 0);
+    const taxiSum = store.taxis.reduce((s,t) => s+t.sum, 0);
+    const total = store.expenses.reduce((s,e)=>s+e.sum,0) + p.dailyTotal;
+    const diff = p.advance - total;
+
+    document.getElementById('review_blocks').innerHTML = `
+      <div>👤 <strong>${p.fio}</strong> (${p.city}, ${p.days} дн.)</div>
+      <div>💰 <strong>Аванс:</strong> ${p.advance.toLocaleString('ru-RU')} ₽ | <strong>Суточные:</strong> ${p.dailyTotal.toLocaleString('ru-RU')} ₽ (${p.rate} ₽/дн)</div>
+      <div>✈️ <strong>Проезд Туда:</strong> ${thereSum.toLocaleString('ru-RU')} ₽</div>
+      <div>🏨 <strong>Проживание:</strong> ${hotelSum.toLocaleString('ru-RU')} ₽</div>
+      <div>🚕 <strong>Такси (${store.taxis.length} поездок):</strong> ${taxiSum.toLocaleString('ru-RU')} ₽</div>
+      <div>🚌 <strong>Проезд Обратно:</strong> ${backSum.toLocaleString('ru-RU')} ₽</div>
+    `;
+
+    document.getElementById('review_narrative').innerHTML = `
+      Командировка в <strong>${p.city}</strong> (${p.dStart} — ${p.dEnd}).<br>
+      Итого расходов: <strong>${total.toLocaleString('ru-RU')} ₽</strong>.<br>
+      ${diff < 0 ? `<strong style="color:var(--danger)">Перерасход: ${Math.abs(diff).toLocaleString('ru-RU')} ₽</strong>` : `<strong style="color:var(--warning)">К возврату: ${diff.toLocaleString('ru-RU')} ₽</strong>`}
+    `;
+  }
+
+  function renderFinal() {
+    const p = store.passport;
+    const total = store.expenses.reduce((s,e)=>s+e.sum,0) + p.dailyTotal;
+    const diff = p.advance - total;
+
+    document.querySelector('#tbl_pass tbody').innerHTML = `
+      <tr><th style="width:25%;">Сотрудник</th><td><strong>${p.fio}</strong></td><th style="width:25%;">Должность / Таб</th><td>${p.role} / ${p.tab}</td></tr>
+      <tr><th>Город</th><td>${p.city}</td><th>Сроки</th><td>${p.dStart} — ${p.dEnd} (${p.days} дн.)</td></tr>
+      <tr><th>Аванс</th><td>${p.advance.toLocaleString('ru-RU')} ₽</td><th>Итого факт</th><td><strong>${total.toLocaleString('ru-RU')} ₽</strong></td></tr>
+      <tr style="background:#f9f9fb;"><th>Суточные</th><td>${p.dailyTotal.toLocaleString('ru-RU')} ₽</td><th>Итог</th><td><strong>${diff < 0 ? 'Перерасход: '+Math.abs(diff).toLocaleString('ru-RU')+' ₽' : 'Остаток: '+diff.toLocaleString('ru-RU')+' ₽'}</strong></td></tr>
+    `;
+
+    const sorted = [...store.expenses].sort((a,b) => new Date(a.date) - new Date(b.date));
+    const tb = document.querySelector('#tbl_ao1 tbody');
+    tb.innerHTML = sorted.map((e, i) => `<tr><td class="text-center">${i+1}</td><td>${e.date}</td><td>${e.no}</td><td>${e.name}</td><td class="text-right">${e.sum.toLocaleString('ru-RU', {minimumFractionDigits:2})}</td></tr>`).join('');
+    tb.innerHTML += `
+      <tr><td class="text-center">${sorted.length+1}</td><td></td><td></td><td><strong>Авансовый отчет суточные за ${p.days} дн.</strong></td><td class="text-right"><strong>${p.dailyTotal.toLocaleString('ru-RU', {minimumFractionDigits:2})}</strong></td></tr>
+      <tr style="background:#f2f2f7; font-weight:700;"><td colspan="4" class="text-right">ИТОГО:</td><td class="text-right">${total.toLocaleString('ru-RU', {minimumFractionDigits:2})}</td></tr>
+    `;
+
+    if (store.taxis.length > 0) {
+      document.getElementById('card_taxi').style.display = 'block';
+      document.querySelector('#tbl_taxi tbody').innerHTML = store.taxis.map(t => `<tr><td>${t.date}</td><td>${t.route}</td><td>${t.purpose}</td><td class="text-right">${t.sum.toLocaleString('ru-RU', {minimumFractionDigits:2})}</td></tr>`).join('');
+    } else {
+      document.getElementById('card_taxi').style.display = 'none';
+    }
+  }
+
+  function sendToTelegramBot() {
+    if (tg) {
+      tg.sendData(JSON.stringify(store));
+    } else {
+      alert("Отправка работает внутри Telegram. Для сохранения используйте печать/PDF.");
+    }
+  }
+
+  // ДЕМО: Омск ↔ Красноярск
+  function loadDemoScenario() {
+    document.getElementById('p_fio').value = "Иванов Иван Иванович";
+    document.getElementById('p_role').value = "Ведущий инженер";
+    document.getElementById('p_tab').value = "1042";
+    document.getElementById('p_city').value = "Красноярск";
+    document.getElementById('p_date_start').value = "2026-10-01";
+    document.getElementById('p_date_end').value = "2026-10-18";
+    document.getElementById('p_advance').value = "80000";
+    document.getElementById('p_days').value = "18";
+    document.getElementById('p_rate').value = "1500";
+    calcDaily();
+    savePassport();
+
+    store.expenses = [
+      { id: 'd1', date: '2026-10-01', no: '4212136762', name: 'Чек, Маршрутная квитанция, Авиабилет (Омск - Красноярск)', sum: 11500, dir: 'there', cat: 'plane' },
+      { id: 'd2', date: '2026-10-01', no: '5841', name: 'Чек (сервисный сбор)', sum: 1290, dir: 'there', cat: 'plane' },
+      { id: 'd3', date: '2026-10-02', no: 'ДОГ-205e', name: 'Чек, Договор Аренда квартиры (проживание)', sum: 54000, cat: 'hotel' },
+      { id: 'd4', date: '2026-10-18', no: 'КД010247', name: 'Билет Автобус (Красноярск - Омск)', sum: 4200, dir: 'back', cat: 'bus' },
+      { id: 'd5', date: '2026-10-18', no: 'БАГ-3107', name: 'Багаж Автобус (Красноярск - Омск)', sum: 800, dir: 'back', cat: 'bus' },
+      { id: 'd6', date: '2026-10-18', no: 'ПОЛ-192', name: 'Чек (страхование)', sum: 500, dir: 'back', cat: 'bus' },
+      { id: 'd7', date: '2026-10-01', no: '303', name: 'Чек, услуги такси', sum: 780, cat: 'taxi' },
+      { id: 'd8', date: '2026-10-01', no: '206', name: 'Чек, услуги такси', sum: 920, cat: 'taxi' },
+      { id: 'd9', date: '2026-10-18', no: '412', name: 'Чек, услуги такси', sum: 450, cat: 'taxi' },
+      { id: 'd10', date: '2026-10-18', no: '119', name: 'Чек, услуги такси', sum: 390, cat: 'taxi' }
     ];
 
-    // Функция всплывающих Toast-уведомлений (вместо window.alert)
-    function showToast(message, type = 'info') {
-      const container = document.getElementById('toast-container');
-      const toast = document.createElement('div');
-      
-      const colors = {
-        info: 'bg-slate-900 text-white border-slate-700',
-        error: 'bg-rose-600 text-white border-rose-700',
-        success: 'bg-emerald-600 text-white border-emerald-700',
-        warning: 'bg-amber-500 text-slate-950 border-amber-600'
-      };
+    store.taxis = [
+      { date: '2026-10-01', no: '303', sum: 780, route: 'г. Омск, ул. Ленина, д. 12 (Дом) — Аэропорт Омск-Центральный (Аэропорт)', purpose: 'Поездка в аэропорт вылета' },
+      { date: '2026-10-01', no: '206', sum: 920, route: 'Аэропорт Красноярск (Аэропорт) — г. Красноярск, ул. Взлетная, д. 5 (Апартаменты)', purpose: 'Проезд из аэропорта к месту проживания' },
+      { date: '2026-10-18', no: '412', sum: 450, route: 'г. Красноярск, ул. Взлетная, д. 5 (Апартаменты) — Автовокзал Красноярск (Автовокзал)', purpose: 'Проезд на автовокзал' },
+      { date: '2026-10-18', no: '119', sum: 390, route: 'Автовокзал Омск (Автовокзал) — г. Омск, ул. Ленина, д. 12 (Дом)', purpose: 'Возвращение с вокзала домой' }
+    ];
+
+    goToStep(2);
+    showToast('⚡ Демо-сценарий Омск загружен!');
+  }
+</script>
 
-      toast.className = `p-3.5 rounded-xl shadow-lg border text-xs sm:text-sm font-medium transition-all transform duration-300 pointer-events-auto flex items-center justify-between gap-3 ${colors[type] || colors.info}`;
-      toast.innerHTML = `
-        <div class="flex items-center gap-2">
-          <span>${type === 'error' ? '⚠️' : (type === 'success' ? '✅' : 'ℹ️')}</span>
-          <span>${message}</span>
-        </div>
-        <button type="button" class="text-white/80 hover:text-white font-bold ml-2">✕</button>
-      `;
-
-      toast.querySelector('button').onclick = () => toast.remove();
-      container.appendChild(toast);
-
-      setTimeout(() => {
-        toast.style.opacity = '0';
-        toast.style.transform = 'translateY(-10px)';
-        setTimeout(() => toast.remove(), 300);
-      }, 4000);
-    }
-
-  code_artifact (3)
-
-      // Синхронизируем инпуты шага 1
-      document.getElementById('p-fio').value = state.passport.fio;
-      document.getElementById('p-role').value = state.passport.role;
-      document.getElementById('p-tab').value = state.passport.tab;
-      document.getElementById('p-city').value = state.passport.city;
-      document.getElementById('p-start-date').value = state.passport.startDate;
-      document.getElementById('p-end-date').value = state.passport.endDate;
-      document.getElementById('p-advance').value = state.passport.advance;
-      document.getElementById('p-daily-rate').value = state.passport.dailyRate;
-      document.getElementById('p-days').value = state.passport.days;
-
-      updateDailyCalculation();
-      renderExpensesTable();
-      showToast('Демо-данные успешно загружены! Нажмите «Перейти к добавлению расходов».', 'success');
-    }
-
-    // Переключение между экранами мастера
-    function goToStep(stepNumber) {
-      document.querySelectorAll('section[id^="step-"]').forEach(s => s.classList.add('hidden'));
-      document.getElementById(`step-${stepNumber}`).classList.remove('hidden');
-
-      // Обновление индикаторов прогресса
-      for (let i = 1; i <= 4; i++) {
-        const nav = document.getElementById(`nav-step-${i}`);
-        if (i === stepNumber) {
-          nav.className = 'flex items-center gap-1.5 text-white font-bold';
-          nav.querySelector('span:first-child').className = 'w-6 h-6 rounded-full bg-white text-blue-700 flex items-center justify-center text-xs font-bold';
-        } else if (i < stepNumber) {
-          nav.className = 'flex items-center gap-1.5 text-blue-100 font-medium';
-          nav.querySelector('span:first-child').className = 'w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs font-bold';
-        } else {
-          nav.className = 'flex items-center gap-1.5 text-blue-200/70 font-normal';
-          nav.querySelector('span:first-child').className = 'w-6 h-6 rounded-full bg-blue-600/60 text-white flex items-center justify-center text-xs';
-        }
-      }
-
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-
-      if (stepNumber === 3) buildReviewStep();
-      if (stepNumber === 4) buildFinalReport();
-    }
-
-    // Расчет суточных
-    function updateDailyCalculation(manualDays = false) {
-      const sVal = document.getElementById('p-start-date').value;
-      const eVal = document.getElementById('p-end-date').value;
-      const rate = parseFloat(document.getElementById('p-daily-rate').value) || 0;
-
-      if (!manualDays && sVal && eVal) {
-        const d1 = new Date(sVal);
-        const d2 = new Date(eVal);
-        const diff = d2 - d1;
-        const days = Math.ceil(diff / (1000 * 60 * 60 * 24)) + 1;
-        if (days > 0) {
-          document.getElementById('p-days').value = days;
-        }
-      }
-
-      const currentDays = parseInt(document.getElementById('p-days').value) || 0;
-      const total = currentDays * rate;
-      document.getElementById('p-daily-subtotal').innerText = `Итого: ${total.toLocaleString('ru-RU')} ₽ (${currentDays} дн.)`;
-    }
-
-    // Валидация и переход с Шага 1 на Шаг 2
-    document.getElementById('btn-to-step-2').addEventListener('click', () => {
-      const fio = document.getElementById('p-fio').value.trim();
-      const city = document.getElementById('p-city').value.trim();
-      const sDate = document.getElementById('p-start-date').value;
-      const eDate = document.getElementById('p-end-date').value;
-
-      if (!fio) {
-        showToast('Пожалуйста, укажите ФИО сотрудника', 'error');
-        document.getElementById('p-fio').focus();
-        return;
-      }
-      if (!city) {
-        showToast('Пожалуйста, укажите город командировки', 'error');
-        document.getElementById('p-city').focus();
-        return;
-      }
-      if (!sDate || !eDate) {
-        showToast('Пожалуйста, выберите даты выезда и приезда', 'error');
-        return;
-      }
-
-      state.passport.fio = fio;
-      state.passport.role = document.getElementById('p-role').value.trim() || 'Сотрудник';
-      state.passport.tab = document.getElementById('p-tab').value.trim() || '—';
-      state.passport.city = city;
-      state.passport.startDate = sDate;
-      state.passport.endDate = eDate;
-      state.passport.advance = parseFloat(document.getElementById('p-advance').value) || 0;
-      state.passport.dailyRate = parseFloat(document.getElementById('p-daily-rate').value) || 0;
-      state.passport.days = parseInt(document.getElementById('p-days').value) || 0;
-      state.passport.dailyTotal = state.passport.days * state.passport.dailyRate;
-
-      goToStep(2);
-      showToast('Паспортные данные зафиксированы', 'info');
-    });
-
-    document.getElementById('p-start-date').addEventListener('change', () => updateDailyCalculation());
-    document.getElementById('p-end-date').addEventListener('change', () => updateDailyCalculation());
-    document.getElementById('p-daily-rate').addEventListener('input', () => updateDailyCalculation(true));
-    document.getElementById('p-days').addEventListener('input', () => updateDailyCalculation(true));
-
-    // Открытие конкретной формы расхода
-    function openExpenseType(type) {
-      activeExpenseType = type;
-      const box = document.getElementById('expense-modal-box');
-      box.classList.remove('hidden');
-
-      // Сброс видимости подблоков
-      ['block-tickets', 'block-taxi', 'block-hotel', 'block-misc'].forEach(id => {
-        document.getElementById(id).classList.add('hidden');
-      });
-
-      const heading = document.getElementById('form-type-heading');
-      const wrapRoute = document.getElementById('wrap-exp-route');
-      const wrapDir = document.getElementById('wrap-exp-dir');
-
-      wrapRoute.classList.add('hidden');
-      wrapDir.classList.add('hidden');
-
-      if (['plane', 'bus', 'train'].includes(type)) {
-        wrapRoute.classList.remove('hidden');
-        wrapDir.classList.remove('hidden');
-        document.getElementById('block-tickets').classList.remove('hidden');
-        
-        const labels = {
-          plane: ['✈️ Добавление Авиабилета', 'Номер авиабилета / маршрутной квитанции *'],
-          bus: ['🚌 Добавление Автобусного билета', 'Номер билета на автобус *'],
-          train: ['🚆 Добавление ЖД билета / Электрички', 'Номер электронного билета ЖД *']
-        };
-        heading.innerText = labels[type][0];
-        document.getElementById('lbl-ticket-no').innerText = labels[type][1];
-      } else if (type === 'taxi') {
-        heading.innerText = '🚕 Добавление служебной поездки на такси';
-        document.getElementById('block-taxi').classList.remove('hidden');
-      } else if (type === 'hotel') {
-        heading.innerText = '🏨 Добавление расходов на проживание';
-        document.getElementById('block-hotel').classList.remove('hidden');
-        renderHotelNotice();
-      } else if (type === 'misc') {
-        heading.innerText = '🛒 Добавление хозтоваров и производственных расходов';
-        document.getElementById('block-misc').classList.remove('hidden');
-      }
-
-      box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
-
-    function closeExpenseForm() {
-      document.getElementById('expense-modal-box').classList.add('hidden');
-      activeExpenseType = null;
-    }
-
-    function toggleExtra(containerId) {
-      const el = document.getElementById(containerId);
-      el.classList.toggle('hidden');
-    }
-
-    function renderHotelNotice() {
-      const biz = document.getElementById('h-biz').value;
-      const box = document.getElementById('h-notice-box');
-      if (biz === 'self') {
-        box.className = 'p-3 rounded-xl text-xs leading-relaxed border bg-amber-50 border-amber-200 text-amber-900';
-        box.innerHTML = `
-          <strong>ℹ️ Требуемый комплект документов от Самозанятого:</strong><br>
-          • Договор найма/аренды жилого помещения<br>
-          • Чек самозанятого из приложения «Мой налог» (с QR-кодом)<br>
-          • Расписка о передаче денег (обязательна только при оплате наличными)
-        `;
-      } else {
-        box.className = 'p-3 rounded-xl text-xs leading-relaxed border bg-blue-50 border-blue-200 text-blue-900';
-        box.innerHTML = `
-          <strong>ℹ️ Требуемый комплект документов (Гостиница / ИП / ООО):</strong><br>
-          • Счёт либо Акт гостиничной формы с синей живой печатью<br>
-          • Фискальный кассовый чек с QR-кодом<br>
-          • Справка о фактическом проживании
-        `;
-      }
-    }
-
-    // Сохранение расхода в массив
-    document.getElementById('btn-save-expense').addEventListener('click', () => {
-      const date = document.getElementById('exp-date').value;
-      if (!date) {
-        showToast('Укажите дату документа!', 'error');
-        return;
-      }
-
-      const route = document.getElementById('exp-route').value.trim();
-      const dir = document.getElementById('exp-dir').value;
-
-      if (['plane', 'bus', 'train'].includes(activeExpenseType)) {
-        const num = document.getElementById('t-num').value.trim();
-        const sum = parseFloat(document.getElementById('t-sum').value);
-        if (!num || isNaN(sum) || sum <= 0) {
-          showToast('Укажите корректный номер и стоимость билета', 'error');
-          return;
-        }
-
-        let name = '';
-        if (activeExpenseType === 'plane') name = `Чек, Маршрутная квитанция, Авиабилет${route ? ` (${route})` : ''}`;
-        if (activeExpenseType === 'bus') name = `Билет Автобус${route ? ` (${route})` : ''}`;
-        if (activeExpenseType === 'train') name = `ЖД Электронный билет, чек${route ? ` (${route})` : ''}`;
-
-        state.expenses.push({
-          id: 'exp-' + Date.now() + '-1',
-          category: activeExpenseType,
-          direction: dir,
-          date,
-          docNo: num,
-          name,
-          sum
-        });
-
-        // Багаж
-        if (document.getElementById('chk-bag').checked) {
-          const bNum = document.getElementById('bag-num').value.trim() || num;
-          const bSum = parseFloat(document.getElementById('bag-sum').value) || 0;
-          if (bSum > 0) {
-            const bName = activeExpenseType === 'plane' ? 'Чек, Багаж к Авиабилету' : 'Багаж Автобус';
-            state.expenses.push({
-              id: 'exp-' + Date.now() + '-2',
-              category: activeExpenseType,
-              direction: dir,
-              date,
-              docNo: bNum,
-              name: route ? `${bName} (${route})` : bName,
-              sum: bSum
-            });
-          }
-        }
-
-        // Сервисный сбор
-        if (document.getElementById('chk-fee').checked) {
-          const fNum = document.getElementById('fee-num').value.trim() || num;
-          const fSum = parseFloat(document.getElementById('fee-sum').value) || 0;
-          if (fSum > 0) {
-            state.expenses.push({
-              id: 'exp-' + Date.now() + '-3',
-              category: activeExpenseType,
-              direction: dir,
-              date,
-              docNo: fNum,
-              name: activeExpenseType === 'bus' ? 'Чек Автобус (сборы, комиссии)' : 'Чек (сервисный сбор)',
-              sum: fSum
-            });
-          }
-        }
-
-        // Страховка
-        if (document.getElementById('chk-ins').checked) {
-          const iNum = document.getElementById('ins-num').value.trim() || num;
-          const iSum = parseFloat(document.getElementById('ins-sum').value) || 0;
-          if (iSum > 0) {
-            state.expenses.push({
-              id: 'exp-' + Date.now() + '-4',
-              category: activeExpenseType,
-              direction: dir,
-              date,
-              docNo: iNum,
-              name: 'Чек (страхование)',
-              sum: iSum
-            });
-          }
-        }
-      } 
-      else if (activeExpenseType === 'taxi') {
-        const num = document.getElementById('taxi-num').value.trim();
-        const sum = parseFloat(document.getElementById('taxi-sum').value);
-        const addrA = document.getElementById('taxi-addr-a').value.trim();
-        const objA = document.getElementById('taxi-obj-a').value.trim();
-        const addrB = document.getElementById('taxi-addr-b').value.trim();
-        const objB = document.getElementById('taxi-obj-b').value.trim();
-        const purpose = document.getElementById('taxi-purpose').value.trim();
-
-        if (!num || isNaN(sum) || sum <= 0) {
-          showToast('Укажите номер чека и сумму такси', 'error');
-          return;
-        }
-        if (!addrA || !addrB) {
-          showToast('Укажите начальный и конечный адрес поездки', 'error');
-          return;
-        }
-        if (!purpose) {
-          showToast('Укажите служебную цель поездки', 'error');
-          return;
-        }
-
-        const partA = objA ? `${addrA} (${objA})` : addrA;
-        const partB = objB ? `${addrB} (${objB})` : addrB;
-        const fullRoute = `${partA} — ${partB}`;
-
-        state.expenses.push({
-          id: 'exp-' + Date.now(),
-          category: 'taxi',
-          date,
-          docNo: num,
-          name: 'Чек, услуги такси',
-          sum
-        });
-
-        state.taxiLogs.push({
-          date,
-          docNo: num,
-          sum,
-          route: fullRoute,
-          purpose
-        });
-      }
-      else if (activeExpenseType === 'hotel') {
-        const type = document.getElementById('h-type').value;
-        const biz = document.getElementById('h-biz').value;
-        const num = document.getElementById('h-num').value.trim();
-        const sum = parseFloat(document.getElementById('h-sum').value);
-
-        if (!num || isNaN(sum) || sum <= 0) {
-          showToast('Укажите номер документа и сумму проживания', 'error');
-          return;
-        }
-
-        const name = (biz === 'corp') 
-          ? `Чек, Счёт (${type.toLowerCase()})` 
-          : `Чек, Договор ${type} (проживание)`;
-
-        state.expenses.push({
-          id: 'exp-' + Date.now(),
-          category: 'hotel',
-          date,
-          docNo: num,
-          name,
-          sum
-        });
-      }
-      else if (activeExpenseType === 'misc') {
-        const num = document.getElementById('m-num').value.trim();
-        const name = document.getElementById('m-name').value.trim();
-        const sum = parseFloat(document.getElementById('m-sum').value);
-
-        if (!num || !name || isNaN(sum) || sum <= 0) {
-          showToast('Заполните номер чека, наименование и сумму', 'error');
-          return;
-        }
-
-        state.expenses.push({
-          id: 'exp-' + Date.now(),
-          category: 'misc',
-          date,
-          docNo: num,
-          name: `Чек, ${name}`,
-          sum
-        });
-      }
-
-      closeExpenseForm();
-      renderExpensesTable();
-      showToast('Позиция добавлена в авансовый отчет', 'success');
-    });
-
-    // Отрисовка таблицы расходов на Шаге 2
-    function renderExpensesTable() {
-      const tbody = document.getElementById('tbody-expenses');
-      document.getElementById('badge-exp-count').innerText = state.expenses.length;
-      
-      const totalSum = state.expenses.reduce((s, e) => s + e.sum, 0);
-      document.getElementById('badge-total-sum').innerText = `Сумма: ${totalSum.toLocaleString('ru-RU', {minimumFractionDigits: 2})} ₽`;
-
-      if (state.expenses.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="py-6 text-center text-slate-400">Расходы пока не добавлены. Воспользуйтесь кнопками категорий выше.</td></tr>';
-        return;
-      }
-
-      // Хронологическая сортировка
-      state.expenses.sort((a,b) => new Date(a.date) - new Date(b.date));
-
-      tbody.innerHTML = state.expenses.map((exp, idx) => `
-        <tr class="hover:bg-slate-50 transition">
-          <td class="py-2.5 px-3 whitespace-nowrap font-medium text-slate-600">${formatDateRU(exp.date)}</td>
-          <td class="py-2.5 px-3 font-mono text-slate-700">${exp.docNo}</td>
-          <td class="py-2.5 px-3 text-slate-900 font-normal">${exp.name}</td>
-          <td class="py-2.5 px-3 text-right font-bold text-slate-800 whitespace-nowrap">${exp.sum.toLocaleString('ru-RU', {minimumFractionDigits: 2})}</td>
-          <td class="py-2.5 px-3 text-center">
-            <button type="button" onclick="deleteExpenseItem('${exp.id}')" class="text-rose-600 hover:text-rose-800 font-bold p-1">✕</button>
-          </td>
-        </tr>
-      `).join('');
-    }
-
-    function deleteExpenseItem(id) {
-      const item = state.expenses.find(e => e.id === id);
-      if (item && item.category === 'taxi') {
-        state.taxiLogs = state.taxiLogs.filter(t => !(t.date === item.date && t.docNo === item.docNo));
-      }
-      state.expenses = state.expenses.filter(e => e.id !== id);
-      renderExpensesTable();
-      showToast('Позиция удалена', 'info');
-    }
-
-    // Переход с Шага 2 на Шаг 3
-    document.getElementById('btn-to-step-3').addEventListener('click', () => {
-      if (state.expenses.length === 0) {
-        showToast('Добавьте хотя бы один расход перед переходом к проверке', 'warning');
-        return;
-      }
-      goToStep(3);
-    });
-
-    // Построение экрана проверки (Шаг 3)
-    function buildReviewStep() {
-      const container = document.getElementById('review-cards-list');
-      container.innerHTML = '';
-      const p = state.passport;
-
-      // Блок 1: Паспорт
-      container.innerHTML += `
-        <div class="bg-white border border-slate-200 rounded-xl p-4 flex items-start justify-between gap-3 shadow-xs">
-          <div>
-            <div class="text-xs font-bold text-blue-700 uppercase tracking-wider">1. Сотрудник и аванс</div>
-            <div class="text-sm font-bold text-slate-900 mt-0.5">${p.fio} (${p.role})</div>
-            <div class="text-xs text-slate-600 mt-1">
-              Командировка: <strong>${p.city}</strong> с ${formatDateRU(p.startDate)} по ${formatDateRU(p.endDate)} (${p.days} суток)<br>
-              Аванс: <strong>${p.advance.toLocaleString('ru-RU')} ₽</strong> | Суточные: <strong>${p.dailyTotal.toLocaleString('ru-RU')} ₽</strong>
-            </div>
-          </div>
-          <button type="button" onclick="goToStep(1)" class="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700">✏️ Изменить</button>
-        </div>
-      `;
-
-      // Блок 2: Проезд Туда
-      const thereList = state.expenses.filter(e => e.direction === 'there');
-      const thereSum = thereList.reduce((s, e) => s + e.sum, 0);
-      container.innerHTML += `
-        <div class="bg-white border border-slate-200 rounded-xl p-4 flex items-start justify-between gap-3 shadow-xs">
-          <div>
-            <div class="text-xs font-bold text-blue-700 uppercase tracking-wider">2. Проезд в командировку (Туда)</div>
-            <div class="text-sm font-semibold text-slate-800 mt-0.5">
-              ${thereList.length > 0 ? `ИТОГО по подтверждающим чекам: <span class="font-bold text-blue-900">${thereSum.toLocaleString('ru-RU')} ₽</span>` : 'Расходы не зафиксированы'}
-            </div>
-            ${thereList.map(e => `<div class="text-xs text-slate-500">• ${e.name}: ${e.sum.toLocaleString('ru-RU')} ₽</div>`).join('')}
-          </div>
-          <button type="button" onclick="goToStep(2)" class="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700">✏️ Изменить</button>
-        </div>
-      `;
-
-      // Блок 3: Проживание
-      const hotels = state.expenses.filter(e => e.category === 'hotel');
-      const hotelSum = hotels.reduce((s, e) => s + e.sum, 0);
-      container.innerHTML += `
-        <div class="bg-white border border-slate-200 rounded-xl p-4 flex items-start justify-between gap-3 shadow-xs">
-          <div>
-            <div class="text-xs font-bold text-blue-700 uppercase tracking-wider">3. Расходы на проживание</div>
-            <div class="text-sm font-semibold text-slate-800 mt-0.5">
-              ${hotels.length > 0 ? `ИТОГО по договору / чеку: <span class="font-bold text-blue-900">${hotelSum.toLocaleString('ru-RU')} ₽</span>` : 'Проживание не указано'}
-            </div>
-            ${hotels.map(e => `<div class="text-xs text-slate-500">• ${e.name} (№ ${e.docNo}): ${e.sum.toLocaleString('ru-RU')} ₽</div>`).join('')}
-          </div>
-          <button type="button" onclick="goToStep(2)" class="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700">✏️ Изменить</button>
-        </div>
-      `;
-
-      // Блок 4: Такси
-      const taxiSum = state.taxiLogs.reduce((s, e) => s + e.sum, 0);
-      container.innerHTML += `
-        <div class="bg-white border border-slate-200 rounded-xl p-4 flex items-start justify-between gap-3 shadow-xs">
-          <div>
-            <div class="text-xs font-bold text-blue-700 uppercase tracking-wider">4. Поездки на такси (${state.taxiLogs.length} поездки)</div>
-            <div class="text-sm font-semibold text-slate-800 mt-0.5">
-              ${state.taxiLogs.length > 0 ? `ИТОГО по чекам такси: <span class="font-bold text-blue-900">${taxiSum.toLocaleString('ru-RU')} ₽</span>` : 'Поездок нет'}
-            </div>
-            ${state.taxiLogs.map(t => `<div class="text-xs text-slate-500">• ${formatDateRU(t.date)}: ${t.route} — <strong>${t.sum} ₽</strong> (${t.purpose})</div>`).join('')}
-          </div>
-          <button type="button" onclick="goToStep(2)" class="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700">✏️ Изменить</button>
-        </div>
-      `;
-
-      // Блок 5: Проезд Обратно
-      const backList = state.expenses.filter(e => e.direction === 'back');
-      const backSum = backList.reduce((s, e) => s + e.sum, 0);
-      container.innerHTML += `
-        <div class="bg-white border border-slate-200 rounded-xl p-4 flex items-start justify-between gap-3 shadow-xs">
-          <div>
-            <div class="text-xs font-bold text-blue-700 uppercase tracking-wider">5. Проезд из командировки (Обратно)</div>
-            <div class="text-sm font-semibold text-slate-800 mt-0.5">
-              ${backList.length > 0 ? `ИТОГО за обратный проезд: <span class="font-bold text-blue-900">${backSum.toLocaleString('ru-RU')} ₽</span>` : 'Расходы не зафиксированы'}
-            </div>
-            ${backList.map(e => `<div class="text-xs text-slate-500">• ${e.name}: ${e.sum.toLocaleString('ru-RU')} ₽</div>`).join('')}
-          </div>
-          <button type="button" onclick="goToStep(2)" class="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700">✏️ Изменить</button>
-        </div>
-      `;
-
-      // Генерация связного нарратива
-      generateNarrative();
-    }
-
-    function generateNarrative() {
-      const p = state.passport;
-      const totalExpenses = state.expenses.reduce((s, e) => s + e.sum, 0) + p.dailyTotal;
-      const diff = p.advance - totalExpenses;
-
-      const thereList = state.expenses.filter(e => e.direction === 'there');
-      const backList = state.expenses.filter(e => e.direction === 'back');
-      const hotelList = state.expenses.filter(e => e.category === 'hotel');
-
-      let str = `Мы проверили и утвердили следующие расходы:<br>`;
-      str += `<strong>${formatDateRU(p.startDate)}</strong> Вы, <strong>${p.fio}</strong>, отправились в командировку в <strong>${p.city}</strong> `;
-
-      if (thereList.length > 0) {
-        const sum = thereList.reduce((s, e) => s + e.sum, 0);
-        str += `(расходы на проезд "туда" составили <strong>${sum.toLocaleString('ru-RU')} ₽</strong>). `;
-      }
-
-      if (hotelList.length > 0) {
-        const hSum = hotelList.reduce((s, e) => s + e.sum, 0);
-        str += `Проживали по месту назначения на сумму <strong>${hSum.toLocaleString('ru-RU')} ₽</strong>. `;
-      }
-
-      if (state.taxiLogs.length > 0) {
-        str += `Использовали ${state.taxiLogs.length} раза такси: ` + 
-          state.taxiLogs.map(t => `${t.purpose} (${t.sum} ₽)`).join('; ') + `. `;
-      }
-
-      if (backList.length > 0) {
-        const bSum = backList.reduce((s, e) => s + e.sum, 0);
-        str += `<strong>${formatDateRU(p.endDate)}</strong> Вы вернулись обратно (проезд "обратно": <strong>${bSum.toLocaleString('ru-RU')} ₽</strong>). `;
-      }
-
-      str += `Начислены суточные за <strong>${p.days} суток</strong> на сумму <strong>${p.dailyTotal.toLocaleString('ru-RU')} ₽</strong>.<br><br>`;
-      str += `<strong>Всего расходов по отчету:</strong> ${totalExpenses.toLocaleString('ru-RU', {minimumFractionDigits: 2})} ₽<br>`;
-      str += `<strong>Получено авансом:</strong> ${p.advance.toLocaleString('ru-RU', {minimumFractionDigits: 2})} ₽<br>`;
-
-      if (diff < 0) {
-        str += `<span class="text-rose-700 font-bold">ИТОГОВЫЙ ПЕРЕРАСХОД К ВЫПЛАТЕ СОТРУДНИКУ: ${Math.abs(diff).toLocaleString('ru-RU', {minimumFractionDigits: 2})} ₽</span>`;
-      } else if (diff > 0) {
-        str += `<span class="text-amber-700 font-bold">ОСТАТОК К ВОЗВРАТУ В КАССУ: ${diff.toLocaleString('ru-RU', {minimumFractionDigits: 2})} ₽</span>`;
-      } else {
-        str += `<strong>Аванс израсходован точно под ноль (0,00 ₽)</strong>`;
-      }
-
-      document.getElementById('narrative-text').innerHTML = str;
-    }
-
-    document.getElementById('btn-to-step-4').addEventListener('click', () => {
-      goToStep(4);
-      showToast('Итоговые формы отчета сформированы', 'success');
-    });
-
-    // Генерация финального печатного отчета (Шаг 4)
-    function buildFinalReport() {
-      const p = state.passport;
-      const totalDocs = state.expenses.reduce((s, e) => s + e.sum, 0);
-      const totalAll = totalDocs + p.dailyTotal;
-      const diff = p.advance - totalAll;
-
-      // 1. Паспортная таблица
-      document.getElementById('out-fio').innerText = p.fio;
-      document.getElementById('out-role-tab').innerText = `${p.role} / Таб. № ${p.tab}`;
-      document.getElementById('out-city').innerText = p.city;
-      document.getElementById('out-dates').innerText = `${formatDateRU(p.startDate)} — ${formatDateRU(p.endDate)} (${p.days} суток)`;
-      document.getElementById('out-advance').innerText = `${p.advance.toLocaleString('ru-RU', {minimumFractionDigits: 2})} ₽`;
-      document.getElementById('out-total-spent').innerText = `${totalAll.toLocaleString('ru-RU', {minimumFractionDigits: 2})} ₽`;
-      document.getElementById('out-daily-info').innerText = `${p.dailyTotal.toLocaleString('ru-RU', {minimumFractionDigits: 2})} ₽ (${p.days} дн. по ${p.dailyRate} ₽)`;
-      document.getElementById('out-sign-fio').innerText = p.fio;
-
-      const balEl = document.getElementById('out-balance');
-      if (diff < 0) {
-        balEl.className = 'p-2 font-black text-rose-700';
-        balEl.innerText = `ПЕРЕРАСХОД: ${Math.abs(diff).toLocaleString('ru-RU', {minimumFractionDigits: 2})} ₽`;
-      } else if (diff > 0) {
-        balEl.className = 'p-2 font-black text-amber-700';
-        balEl.innerText = `ОСТАТОК К ВОЗВРАТУ: ${diff.toLocaleString('ru-RU', {minimumFractionDigits: 2})} ₽`;
-      } else {
-        balEl.className = 'p-2 font-black text-slate-900';
-        balEl.innerText = `0,00 ₽ (Израсходован полностью)`;
-      }
-
-      // 2. Таблица АО-1 (Хронологическая сортировка)
-      const sorted = [...state.expenses].sort((a,b) => new Date(a.date) - new Date(b.date));
-      const ao1Body = document.getElementById('out-ao1-tbody');
-      ao1Body.innerHTML = '';
-
-      sorted.forEach((item, index) => {
-        ao1Body.innerHTML += `
-          <tr class="border-b border-black">
-            <td class="p-2 text-center border-r border-black">${index + 1}</td>
-            <td class="p-2 border-r border-black whitespace-nowrap">${formatDateRU(item.date)}</td>
-            <td class="p-2 border-r border-black font-mono">${item.docNo}</td>
-            <td class="p-2 border-r border-black">${item.name}</td>
-            <td class="p-2 text-right border-black font-semibold whitespace-nowrap">${item.sum.toLocaleString('ru-RU', {minimumFractionDigits: 2})}</td>
-          </tr>
-        `;
-      });
-
-      // Последняя строчка: суточные БЕЗ даты и БЕЗ номера документа
-      ao1Body.innerHTML += `
-        <tr class="border-b border-black bg-slate-50 font-semibold">
-          <td class="p-2 text-center border-r border-black">${sorted.length + 1}</td>
-          <td class="p-2 border-r border-black"></td>
-          <td class="p-2 border-r border-black"></td>
-          <td class="p-2 border-r border-black font-bold">Авансовый отчёт суточные за ${p.days} дн.</td>
-          <td class="p-2 text-right border-black font-bold whitespace-nowrap">${p.dailyTotal.toLocaleString('ru-RU', {minimumFractionDigits: 2})}</td>
-        </tr>
-        <tr class="bg-slate-200 font-black">
-          <td colspan="4" class="p-2 text-right border-r border-black">ИТОГО ПО ОТЧЕТУ:</td>
-          <td class="p-2 text-right whitespace-nowrap">${totalAll.toLocaleString('ru-RU', {minimumFractionDigits: 2})}</td>
-        </tr>
-      `;
-
-      // 3. Таблица Детализации Такси (СТРОГО 4 КОЛОНКИ)
-      const taxiWrap = document.getElementById('out-taxi-wrapper');
-      const taxiBody = document.getElementById('out-taxi-tbody');
-      
-      if (state.taxiLogs.length > 0) {
-        taxiWrap.classList.remove('hidden');
-        taxiBody.innerHTML = state.taxiLogs.map(t => `
-          <tr class="border-b border-black">
-            <td class="p-2 border-r border-black whitespace-nowrap">${formatDateRU(t.date)}</td>
-            <td class="p-2 border-r border-black">${t.route}</td>
-            <td class="p-2 border-r border-black">${t.purpose}</td>
-            <td class="p-2 text-right font-semibold whitespace-nowrap">${t.sum.toLocaleString('ru-RU', {minimumFractionDigits: 2})}</td>
-          </tr>
-        `).join('');
-      } else {
-        taxiWrap.classList.add('hidden');
-      }
-    }
-
-    // Экспорт в CSV для Excel с поддержкой русских символов (BOM)
-    function exportCSV() {
-      const p = state.passport;
-      const sorted = [...state.expenses].sort((a,b) => new Date(a.date) - new Date(b.date));
-      const totalAll = sorted.reduce((s, e) => s + e.sum, 0) + p.dailyTotal;
-      const diff = p.advance - totalAll;
-
-      let csv = '\uFEFF'; // BOM
-      csv += '1. СВЕДЕНИЯ О КОМАНДИРОВКЕ И РАСЧЕТ С ПОДОТЧЕТНЫМ ЛИЦОМ\n';
-      csv += `ФИО;${p.fio};Должность;${p.role};Табельный №;${p.tab}\n`;
-      csv += `Город;${p.city};Сроки;${formatDateRU(p.startDate)} - ${formatDateRU(p.endDate)};Количество суток;${p.days}\n`;
-      csv += `Аванс (руб.);${p.advance.toFixed(2).replace('.', ',')};Израсходовано (руб.);${totalAll.toFixed(2).replace('.', ',')};Итог;${diff < 0 ? 'Перерасход: ' + Math.abs(diff).toFixed(2).replace('.', ',') : 'Остаток: ' + diff.toFixed(2).replace('.', ',')}\n\n`;
-
-      csv += '2. ОБОРОТНАЯ СТОРОНА ФОРМЫ № АО-1\n';
-      csv += 'Номер;Дата документа;Номер документа;Наименование документа (расхода);Сумма (руб.)\n';
-      
-      sorted.forEach((item, i) => {
-        csv += `${i + 1};${formatDateRU(item.date)};"${item.docNo}";"${item.name}";${item.sum.toFixed(2).replace('.', ',')}\n`;
-      });
-      csv += `${sorted.length + 1};;;"Авансовый отчёт суточные за ${p.days} дн.";${p.dailyTotal.toFixed(2).replace('.', ',')}\n`;
-      csv += `;;;ИТОГО:;${totalAll.toFixed(2).replace('.', ',')}\n\n`;
-
-      if (state.taxiLogs.length > 0) {
-        csv += '3. ДЕТАЛИЗАЦИЯ СЛУЖЕБНЫХ ПОЕЗДОК НА ТАКСИ\n';
-        csv += 'Дата;Маршрут (Адрес точки А — Адрес точки Б);Цель поездки;Сумма (руб.)\n';
-        state.taxiLogs.forEach(t => {
-          csv += `${formatDateRU(t.date)};"${t.route}";"${t.purpose}";${t.sum.toFixed(2).replace('.', ',')}\n`;
-        });
-      }
-
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = `Авансовый_отчет_${p.fio.replace(/\s+/g, '_')}.csv`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      showToast('Файл Excel (CSV) сформирован и скачан', 'success');
-    }
-
-    // Автономные адресные подсказки
-    function suggestAddress(input, containerId) {
-      const q = input.value.toLowerCase().trim();
-      const list = document.getElementById(containerId);
-
-      if (q.length < 2) {
-        list.classList.add('hidden');
-        return;
-      }
-
-      const matches = ADDRESS_DB.filter(a => a.toLowerCase().includes(q));
-      if (matches.length === 0) {
-        list.classList.add('hidden');
-        return;
-      }
-
-      list.innerHTML = matches.map(addr => `
-        <div class="p-2 hover:bg-blue-50 cursor-pointer border-b border-slate-100 last:border-none text-slate-800" onclick="selectAddress('${containerId}', '${addr}')">
-          ${addr}
-        </div>
-      `).join('');
-      list.classList.remove('hidden');
-    }
-
-    function selectAddress(containerId, addr) {
-      const inputId = containerId === 'sug-a' ? 'taxi-addr-a' : 'taxi-addr-b';
-      document.getElementById(inputId).value = addr;
-      document.getElementById(containerId).classList.add('hidden');
-    }
-
-    // Закрытие подсказок по клику вне
-    document.addEventListener('click', (e) => {
-      if (!e.target.closest('#block-taxi')) {
-        document.querySelectorAll('[id^="sug-"]').forEach(el => el.classList.add('hidden'));
-      }
-    });
-
-    // Форматирование даты YYYY-MM-DD -> DD.MM.YYYY
-    function formatDateRU(str) {
-      if (!str) return '';
-      const parts = str.split('-');
-      if (parts.length === 3) return `${parts[2]}.${parts[1]}.${parts[0]}`;
-      return str;
-    }
-
-    // Инициализация кнопки ДЕМО
-    document.getElementById('btn-demo-load').addEventListener('click', loadDemoData);
-  </script>
 </body>
 </html>
