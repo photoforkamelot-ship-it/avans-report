@@ -7,6 +7,13 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  
+  <!-- Библиотека красивого календаря-диапазона (Flatpickr) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/airbnb.css">
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ru.js"></script>
+
   <style>
     :root {
       --primary: #007aff;
@@ -54,6 +61,11 @@
       border-color: var(--danger) !important;
       background-color: #fffaf9 !important;
       box-shadow: 0 0 0 3px rgba(255, 59, 48, 0.15) !important;
+    }
+
+    .range-input {
+      cursor: pointer;
+      background: #ffffff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23007aff' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5zM1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4H1z'/%3E%3C/svg%3E") no-repeat calc(100% - 10px) center !important;
     }
 
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -105,8 +117,8 @@
 
     #toast {
       position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-      background: rgba(0,0,0,0.85); color: white; padding: 7px 14px; border-radius: 18px;
-      font-size: 12px; display: none; z-index: 9999;
+      background: rgba(0,0,0,0.85); color: white; padding: 8px 16px; border-radius: 18px;
+      font-size: 12px; display: none; z-index: 9999; text-align: center; max-width: 90%;
     }
   </style>
 </head>
@@ -122,6 +134,7 @@
     <button type="button" onclick="loadDemoScenario()">Заполнить ДЕМО</button>
   </div>
 
+  <!-- ШАГ 1: ПАСПОРТ -->
   <div id="step-1" class="step-content active">
     
     <div class="card" style="background:#eef7ff; border:1px solid #cce5ff;">
@@ -179,16 +192,15 @@
         <label>Город командировки <span class="req-star">*</span></label>
         <input type="text" id="p_city" placeholder="Красноярск">
       </div>
-      <div class="grid-2">
-        <div class="field">
-          <label>Дата выезда <span class="req-star">*</span></label>
-          <input type="date" id="p_date_start" onchange="autoCalcDays()">
-        </div>
-        <div class="field">
-          <label>Дата приезда <span class="req-star">*</span></label>
-          <input type="date" id="p_date_end" onchange="autoCalcDays()">
-        </div>
+
+      <!-- ЕДИНОЕ ПОЛЕ КАЛЕНДАРЯ-ДИАПАЗОНА -->
+      <div class="field">
+        <label>Период командировки (Выезд ➔ Приезд) <span class="req-star">*</span></label>
+        <input type="text" id="p_date_range" class="range-input" placeholder="Выберите даты в календаре..." readonly>
+        <input type="hidden" id="p_date_start">
+        <input type="hidden" id="p_date_end">
       </div>
+
       <div class="field">
         <label>Получено авансом под отчет (₽) <span class="req-star">*</span></label>
         <input type="number" id="p_advance" placeholder="0" value="0">
@@ -210,6 +222,7 @@
     <button type="button" class="btn btn-primary" onclick="goToStep(2)">Далее: Ввод расходов →</button>
   </div>
 
+  <!-- ШАГ 2: ВВОД РАСХОДОВ -->
   <div id="step-2" class="step-content">
     <div class="card">
       <h2>2. Добавление расходов</h2>
@@ -359,6 +372,7 @@
     </div>
   </div>
 
+  <!-- ШАГ 3: САМОПРОВЕРКА -->
   <div id="step-3" class="step-content">
     <div class="card">
       <h2>3. Проверка расходов по документам</h2>
@@ -379,15 +393,15 @@
     </div>
   </div>
 
+  <!-- ШАГ 4: ГОТОВЫЙ ОТЧЕТ И СКАЧИВАНИЕ -->
   <div id="step-4" class="step-content">
     <div class="nav-bar" style="margin-bottom:10px; display:flex; flex-direction:column; gap:8px;">
-      <button type="button" id="btn_submit_cloud" class="btn btn-green" style="font-size:15px; height:48px;" onclick="submitReportToCloud()">📤 Отправить отчет руководителю</button>
-
       <div style="display:flex; gap:6px; width:100%;">
         <button type="button" class="btn btn-secondary" style="flex:1;" onclick="goToStep(3)">← Назад</button>
-        <button type="button" class="btn btn-secondary" style="flex:1.5;" onclick="downloadExcelDirectly()">📥 Скачать Excel</button>
-        <button type="button" class="btn btn-secondary" style="flex:1.5;" onclick="generatePdfDirectly()">📄 Скачать PDF</button>
+        <button type="button" id="btn_excel" class="btn btn-green" style="flex:2;" onclick="downloadExcelAndNotify()">📥 Скачать Excel (.xlsx)</button>
       </div>
+      <button type="button" id="btn_pdf" class="btn btn-primary" onclick="generatePdfAndNotify()">📄 Сохранить в PDF</button>
+      <div style="text-align:center; font-size:11px; color:#8e8e93;">При скачивании отчёт автоматически сохранится в реестр руководителя.</div>
     </div>
 
     <div id="printable_report">
@@ -433,6 +447,7 @@
   };
   let curCategory = '';
   let fiasTimer = null;
+  let datePickerInstance = null;
 
   function formatDateRu(dStr) {
     if (!dStr) return '';
@@ -440,6 +455,47 @@
     if (parts.length === 3) return `${parts[2]}.${parts[1]}.${parts[0]}`;
     return dStr;
   }
+
+  function formatFlatpickrDate(d) {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  // ИНИЦИАЛИЗАЦИЯ ДИАПАЗОННОГО КАЛЕНДАРЯ FLATPICKR
+  window.addEventListener('DOMContentLoaded', () => {
+    datePickerInstance = flatpickr("#p_date_range", {
+      mode: "range",
+      locale: "ru",
+      dateFormat: "d.m.Y",
+      showMonths: 1,
+      onChange: function(selectedDates) {
+        const inputEl = document.getElementById("p_date_range");
+        inputEl.classList.remove('input-error');
+
+        if (selectedDates.length === 2) {
+          const start = selectedDates[0];
+          const end = selectedDates[1];
+
+          document.getElementById('p_date_start').value = formatFlatpickrDate(start);
+          document.getElementById('p_date_end').value = formatFlatpickrDate(end);
+
+          const diffDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+          document.getElementById('p_days').value = diffDays > 0 ? diffDays : 1;
+          
+          calcDaily();
+        } else if (selectedDates.length === 1) {
+          document.getElementById('p_date_start').value = formatFlatpickrDate(selectedDates[0]);
+          document.getElementById('p_date_end').value = "";
+          document.getElementById('p_days').value = 1;
+          calcDaily();
+        }
+      }
+    });
+
+    loadEmployeesFromGoogle();
+  });
 
   document.addEventListener('input', (e) => {
     if (e.target && e.target.classList.contains('input-error')) {
@@ -619,10 +675,6 @@
     });
   }
 
-  window.addEventListener('DOMContentLoaded', () => {
-    loadEmployeesFromGoogle();
-  });
-
   function fetchFiasSuggestions(input, listId) {
     clearTimeout(fiasTimer);
     const query = input.value.trim();
@@ -677,15 +729,20 @@
   function showToast(m) {
     const t = document.getElementById('toast');
     t.innerText = m; t.style.display = 'block';
-    setTimeout(() => t.style.display = 'none', 2000);
+    setTimeout(() => t.style.display = 'none', 2500);
   }
 
   function goToStep(s) {
     try {
       if (s === 2) {
-        const reqFields = ['p_fio', 'p_role', 'p_city', 'p_date_start', 'p_date_end'];
+        const reqFields = ['p_fio', 'p_role', 'p_city', 'p_date_range'];
         if (!validateFields(reqFields)) {
           showToast('Заполните обязательные поля, выделенные красным');
+          return;
+        }
+        if (!document.getElementById('p_date_end').value) {
+          document.getElementById('p_date_range').classList.add('input-error');
+          showToast('Выберите дату окончания в календаре');
           return;
         }
         savePassport(); 
@@ -709,15 +766,6 @@
     } catch(err) {
       showToast("Ошибка: " + err.message);
     }
-  }
-
-  function autoCalcDays() {
-    const s = document.getElementById('p_date_start').value, e = document.getElementById('p_date_end').value;
-    if (s && e) {
-      const diff = Math.ceil((new Date(e) - new Date(s)) / (1000 * 60 * 60 * 24)) + 1;
-      if (diff > 0) document.getElementById('p_days').value = diff;
-    }
-    calcDaily();
   }
 
   function calcDaily() {
@@ -1056,13 +1104,63 @@
     }
   }
 
-  // --- ОТПРАВКА ОТЧЕТА В ОБЛАКО (СОЗДАНИЕ ФАЙЛА + УВЕДОМЛЕНИЕ В TELEGRAM) ---
-   function submitReportToCloud() {
-    const btn = document.getElementById("btn_submit_cloud");
-    btn.disabled = true;
-    btn.innerText = "⏳ Создание файла и отправка...";
+  function loadDemoScenario() {
+    document.getElementById('p_fio').value = "Илгин Александр Александрович";
+    document.getElementById('p_role').value = "Руководитель команды открытия";
+    document.getElementById('p_tab').value = "0000013789";
+    document.getElementById('p_city').value = "Красноярск";
+    
+    // Заполнение календаря диапазона
+    document.getElementById('p_date_start').value = "2026-10-01";
+    document.getElementById('p_date_end').value = "2026-10-18";
+    if (datePickerInstance) {
+      datePickerInstance.setDate(["2026-10-01", "2026-10-18"]);
+    }
+    
+    document.getElementById('p_advance').value = "80000";
+    document.getElementById('p_days').value = "18";
+    document.getElementById('p_rate').value = "1500";
+    
+    ['p_fio', 'p_role', 'p_tab', 'p_city', 'p_date_range', 'p_advance'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.classList.remove('input-error');
+    });
 
-    const tgUser = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) ? tg.initDataUnsafe.user : { id: "446642559", first_name: "Александр" };
+    calcDaily();
+    savePassport();
+
+    store.expenses = [
+      { id: 'd1', date: '2026-10-01', no: '4212136762', name: 'Чек, Маршрутная квитанция, Авиабилет (Омск - Красноярск)', sum: 11500, dir: 'there', cat: 'plane', route: 'Омск - Красноярск' },
+      { id: 'd2', date: '2026-10-01', no: '5841', name: 'Чек (сервисный сбор)', sum: 1290, dir: 'there', cat: 'plane', route: 'Омск - Красноярск' },
+      { id: 'd3', date: '2026-10-02', no: 'ДОГ-205e', name: 'Чек, Договор Аренда квартиры (проживание)', sum: 54000, cat: 'hotel' },
+      { id: 'd4', date: '2026-10-18', no: 'КД010247', name: 'Билет Автобус (Красноярск - Омск)', sum: 4200, dir: 'back', cat: 'bus', route: 'Красноярск - Омск' },
+      { id: 'd5', date: '2026-10-18', no: 'БАГ-3107', name: 'Багаж Автобус (Красноярск - Омск)', sum: 800, dir: 'back', cat: 'bus', route: 'Красноярск - Омск' },
+      { id: 'd6', date: '2026-10-18', no: 'ПОЛ-192', name: 'Чек (страхование)', sum: 500, dir: 'back', cat: 'bus', route: 'Красноярск - Омск' },
+      { id: 'd7', date: '2026-10-01', no: '303', name: 'Чек, услуги такси', sum: 780, cat: 'taxi' },
+      { id: 'd8', date: '2026-10-01', no: '206', name: 'Чек, услуги такси', sum: 920, cat: 'taxi' },
+      { id: 'd9', date: '2026-10-18', no: '412', name: 'Чек, услуги такси', sum: 450, cat: 'taxi' },
+      { id: 'd10', date: '2026-10-18', no: '119', name: 'Чек, услуги такси', sum: 390, cat: 'taxi' }
+    ];
+
+    store.taxis = [
+      { date: '2026-10-01', no: '303', sum: 780, route: 'г. Омск, ул. Ленина, д. 12 (Дом) — Аэропорт Омск-Центральный (Аэропорт)', purpose: 'Поездка в аэропорт вылета' },
+      { date: '2026-10-01', no: '206', sum: 920, route: 'Аэропорт Красноярск (Аэропорт) — г. Красноярск, ул. Взлетная, д. 5 (Апартаменты)', purpose: 'Проезд из аэропорта к месту проживания' },
+      { date: '2026-10-18', no: '412', sum: 450, route: 'г. Красноярск, ул. Взлетная, д. 5 (Апартаменты) — Автовокзал Красноярск (Автовокзал)', purpose: 'Проезд на автовокзал' },
+      { date: '2026-10-18', no: '119', sum: 390, route: 'Автовокзал Омск (Автовокзал) — г. Омск, ул. Ленина, д. 12 (Дом)', purpose: 'Возвращение с вокзала домой' }
+    ];
+
+    goToStep(2);
+    showToast('⚡ Демо-сценарий загружен!');
+  }
+
+  function sendReportToCloudInBackground() {
+    savePassport();
+    let tgUser = {};
+    if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
+      tgUser = tg.initDataUnsafe.user;
+    } else {
+      tgUser = { id: "446642559", first_name: "Александр" };
+    }
 
     const payload = {
       action: "submit_report",
@@ -1072,29 +1170,23 @@
       telegram_user: tgUser
     };
 
-    // mode: no-cors обеспечивает гарантированную отправку данных в Google Script
     fetch(GOOGLE_SHEET_API, {
       method: "POST",
       mode: "no-cors",
       headers: { "Content-Type": "text/plain" },
       body: JSON.stringify(payload)
-    })
-    .then(() => {
-      btn.innerText = "✅ Отчет отправлен руководителю!";
-      showToast("Отчет сохранен на Диске и отправлен ботом!");
-      setTimeout(() => {
-        if (tg) tg.close();
-      }, 1500);
-    })
-    .catch(err => {
-      console.error(err);
-      btn.disabled = false;
-      btn.innerText = "📤 Отправить отчет руководителю";
-      showToast("Ошибка отправки. Попробуйте еще раз.");
+    }).catch(err => {
+      console.error("Ошибка фоновой отправки:", err);
     });
   }
 
-  function downloadExcelDirectly() {
+  function downloadExcelAndNotify() {
+    const btn = document.getElementById("btn_excel");
+    btn.disabled = true;
+    btn.innerText = "⏳ Сохранение...";
+
+    sendReportToCloudInBackground();
+
     try {
       const p = store.passport;
       const sorted = [...store.expenses].sort((a,b) => new Date(a.date || 0) - new Date(b.date || 0));
@@ -1164,15 +1256,25 @@
         document.body.removeChild(a);
         setTimeout(() => URL.revokeObjectURL(url), 2000);
       }
-      showToast("Файл Excel сформирован!");
+      showToast("✅ Excel скачан и отправлен руководителю!");
     } catch(err) {
-      showToast("Ошибка сохранения Excel: " + err.message);
+      showToast("Ошибка формирования Excel: " + err.message);
+    } finally {
+      setTimeout(() => {
+        btn.disabled = false;
+        btn.innerText = "📥 Скачать Excel (.xlsx)";
+      }, 2000);
     }
   }
 
-  function generatePdfDirectly() {
+  function generatePdfAndNotify() {
+    const btn = document.getElementById("btn_pdf");
+    btn.disabled = true;
+    btn.innerText = "⏳ Формирование PDF и сохранение...";
+
+    sendReportToCloudInBackground();
+
     try {
-      showToast("Формирование PDF...");
       const element = document.getElementById('printable_report');
       const p = store.passport;
       const fileName = `Авансовый_отчет_${(p.fio || 'сотрудника').replace(/\s+/g, '_')}.pdf`;
@@ -1203,56 +1305,20 @@
           document.body.removeChild(a);
           setTimeout(() => URL.revokeObjectURL(url), 2000);
         }
-        showToast("PDF готов к сохранению!");
+        showToast("✅ PDF готов и отправлен руководителю!");
       }).catch(function(){
         showToast("Не удалось создать PDF");
+      }).finally(function(){
+        setTimeout(() => {
+          btn.disabled = false;
+          btn.innerText = "📄 Сохранить в PDF";
+        }, 2000);
       });
     } catch(err) {
       showToast("Ошибка PDF: " + err.message);
+      btn.disabled = false;
+      btn.innerText = "📄 Сохранить в PDF";
     }
-  }
-
-  function loadDemoScenario() {
-    document.getElementById('p_fio').value = "Илгин Александр Александрович";
-    document.getElementById('p_role').value = "Руководитель команды открытия";
-    document.getElementById('p_tab').value = "0000013789";
-    document.getElementById('p_city').value = "Красноярск";
-    document.getElementById('p_date_start').value = "2026-10-01";
-    document.getElementById('p_date_end').value = "2026-10-18";
-    document.getElementById('p_advance').value = "80000";
-    document.getElementById('p_days').value = "18";
-    document.getElementById('p_rate').value = "1500";
-    
-    ['p_fio', 'p_role', 'p_tab', 'p_city', 'p_date_start', 'p_date_end', 'p_advance'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.classList.remove('input-error');
-    });
-
-    calcDaily();
-    savePassport();
-
-    store.expenses = [
-      { id: 'd1', date: '2026-10-01', no: '4212136762', name: 'Чек, Маршрутная квитанция, Авиабилет (Омск - Красноярск)', sum: 11500, dir: 'there', cat: 'plane', route: 'Омск - Красноярск' },
-      { id: 'd2', date: '2026-10-01', no: '5841', name: 'Чек (сервисный сбор)', sum: 1290, dir: 'there', cat: 'plane', route: 'Омск - Красноярск' },
-      { id: 'd3', date: '2026-10-02', no: 'ДОГ-205e', name: 'Чек, Договор Аренда квартиры (проживание)', sum: 54000, cat: 'hotel' },
-      { id: 'd4', date: '2026-10-18', no: 'КД010247', name: 'Билет Автобус (Красноярск - Омск)', sum: 4200, dir: 'back', cat: 'bus', route: 'Красноярск - Омск' },
-      { id: 'd5', date: '2026-10-18', no: 'БАГ-3107', name: 'Багаж Автобус (Красноярск - Омск)', sum: 800, dir: 'back', cat: 'bus', route: 'Красноярск - Омск' },
-      { id: 'd6', date: '2026-10-18', no: 'ПОЛ-192', name: 'Чек (страхование)', sum: 500, dir: 'back', cat: 'bus', route: 'Красноярск - Омск' },
-      { id: 'd7', date: '2026-10-01', no: '303', name: 'Чек, услуги такси', sum: 780, cat: 'taxi' },
-      { id: 'd8', date: '2026-10-01', no: '206', name: 'Чек, услуги такси', sum: 920, cat: 'taxi' },
-      { id: 'd9', date: '2026-10-18', no: '412', name: 'Чек, услуги такси', sum: 450, cat: 'taxi' },
-      { id: 'd10', date: '2026-10-18', no: '119', name: 'Чек, услуги такси', sum: 390, cat: 'taxi' }
-    ];
-
-    store.taxis = [
-      { date: '2026-10-01', no: '303', sum: 780, route: 'г. Омск, ул. Ленина, д. 12 (Дом) — Аэропорт Омск-Центральный (Аэропорт)', purpose: 'Поездка в аэропорт вылета' },
-      { date: '2026-10-01', no: '206', sum: 920, route: 'Аэропорт Красноярск (Аэропорт) — г. Красноярск, ул. Взлетная, д. 5 (Апартаменты)', purpose: 'Проезд из аэропорта к месту проживания' },
-      { date: '2026-10-18', no: '412', sum: 450, route: 'г. Красноярск, ул. Взлетная, д. 5 (Апартаменты) — Автовокзал Красноярск (Автовокзал)', purpose: 'Проезд на автовокзал' },
-      { date: '2026-10-18', no: '119', sum: 390, route: 'Автовокзал Омск (Автовокзал) — г. Омск, ул. Ленина, д. 12 (Дом)', purpose: 'Возвращение с вокзала домой' }
-    ];
-
-    goToStep(2);
-    showToast('⚡ Демо-сценарий Омск загружен!');
   }
 </script>
 
