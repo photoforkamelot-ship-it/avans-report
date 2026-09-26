@@ -40,11 +40,22 @@
     h3 { font-size: 14px; margin: 0 0 8px 0; font-weight: 600; }
     
     .field { margin-bottom: 8px; display: flex; flex-direction: column; position: relative; }
-    .field label { font-size: 12px; font-weight: 600; color: #48484a; margin-bottom: 3px; }
+    .field label { font-size: 12px; font-weight: 600; color: #48484a; margin-bottom: 3px; display: flex; align-items: center; gap: 3px; }
+    .req-star { color: var(--danger); font-weight: 700; font-size: 14px; }
+
     .field input, .field select {
       height: 40px; padding: 0 10px; font-size: 14px;
       border: 1px solid var(--border); border-radius: 8px; outline: none; background: #fff; width: 100%;
+      transition: border-color 0.2s, box-shadow 0.2s;
     }
+    .field input:focus, .field select:focus { border-color: var(--primary); }
+    
+    .field input.input-error, .field select.input-error {
+      border-color: var(--danger) !important;
+      background-color: #fffaf9 !important;
+      box-shadow: 0 0 0 3px rgba(255, 59, 48, 0.15) !important;
+    }
+
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     
     .btn {
@@ -73,9 +84,10 @@
       position: absolute; top: 100%; left: 0; right: 0;
       background: #ffffff; border: 1px solid var(--border); border-radius: 8px;
       box-shadow: 0 4px 14px rgba(0,0,0,0.15); z-index: 1000; display: none;
-      max-height: 180px; overflow-y: auto; margin-top: 2px;
+      max-height: 200px; overflow-y: auto; margin-top: 2px;
     }
-    .suggest-item { padding: 8px 10px; font-size: 12px; border-bottom: 1px solid #f2f2f7; cursor: pointer; }
+    .suggest-item { padding: 9px 11px; font-size: 12px; border-bottom: 1px solid #f2f2f7; cursor: pointer; line-height: 1.35; }
+    .suggest-item:hover, .suggest-item:active { background: #f2f2f7; color: var(--primary); }
 
     .table-scroll { width: 100%; overflow-x: auto; margin: 6px 0; -webkit-overflow-scrolling: touch; }
     table { width: 100%; border-collapse: collapse; font-size: 11px; table-layout: auto; background: white; }
@@ -114,7 +126,7 @@
     
     <div class="card" style="background:#eef7ff; border:1px solid #cce5ff;">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-        <h3 style="margin:0;">👤 Справочник сотрудников (Google Таблица)</h3>
+        <h3 style="margin:0;">👤 Справочник сотрудников</h3>
         <span id="emp_sync_status" style="font-size:11px; color:#007aff;">Синхронизация...</span>
       </div>
       <div class="field">
@@ -124,25 +136,25 @@
         </select>
       </div>
       <div style="display:flex; gap:6px;">
-        <button type="button" class="btn btn-secondary" style="height:32px; font-size:12px;" onclick="toggleAddEmpBox()">➕ Добавить сотрудника</button>
+        <button type="button" class="btn btn-secondary" style="height:32px; font-size:12px;" onclick="toggleAddEmpBox()">➕ Добавить</button>
         <button type="button" class="btn btn-secondary" style="height:32px; font-size:12px;" onclick="toggleManageEmpBox()">⚙️ Список и удаление</button>
       </div>
 
       <div id="add_emp_box" style="display:none; margin-top:8px; background:#fff; padding:8px; border-radius:8px; border:1px solid #b8daff;">
         <input type="hidden" id="edit_emp_old_tab" value="">
-        <div class="field"><label>ФИО *</label><input type="text" id="new_emp_fio" placeholder="Фамилия Имя Отчество"></div>
+        <div class="field"><label>ФИО <span class="req-star">*</span></label><input type="text" id="new_emp_fio" placeholder="Фамилия Имя Отчество"></div>
         <div class="grid-2">
-          <div class="field"><label>Должность *</label><input type="text" id="new_emp_role" placeholder="Продавец-кассир"></div>
-          <div class="field"><label>Табельный № *</label><input type="text" id="new_emp_tab" placeholder="0000012345"></div>
+          <div class="field"><label>Должность <span class="req-star">*</span></label><input type="text" id="new_emp_role" placeholder="Продавец-кассир"></div>
+          <div class="field"><label>Табельный № <span class="req-star">*</span></label><input type="text" id="new_emp_tab" placeholder="0000012345"></div>
         </div>
         <div style="display:flex; gap:6px;">
-          <button type="button" id="btn_save_emp" class="btn btn-primary" style="height:34px; font-size:12px;" onclick="saveEmployeeToGoogle()">Сохранить в Google Таблицу</button>
+          <button type="button" id="btn_save_emp" class="btn btn-primary" style="height:34px; font-size:12px;" onclick="saveEmployeeToGoogle()">Сохранить в Google</button>
           <button type="button" class="btn btn-secondary" style="height:34px; font-size:12px;" onclick="toggleAddEmpBox()">Отмена</button>
         </div>
       </div>
 
       <div id="manage_emp_box" style="display:none; margin-top:8px; background:#fff; padding:8px; border-radius:8px; border:1px solid #b8daff; max-height:260px; overflow-y:auto;">
-        <div style="font-weight:600; font-size:12px; margin-bottom:6px;">Сотрудники в Google Таблице:</div>
+        <div style="font-weight:600; font-size:12px; margin-bottom:6px;">Сотрудники в базе:</div>
         <div id="emp_items_container"></div>
       </div>
     </div>
@@ -150,12 +162,12 @@
     <div class="card">
       <h2>1. Сведения о командировке</h2>
       <div class="field">
-        <label>ФИО сотрудника *</label>
+        <label>ФИО сотрудника <span class="req-star">*</span></label>
         <input type="text" id="p_fio" placeholder="Илгин Александр Александрович">
       </div>
       <div class="grid-2">
         <div class="field">
-          <label>Должность</label>
+          <label>Должность <span class="req-star">*</span></label>
           <input type="text" id="p_role" placeholder="Руководитель команды открытия">
         </div>
         <div class="field">
@@ -164,21 +176,21 @@
         </div>
       </div>
       <div class="field">
-        <label>Город командировки *</label>
+        <label>Город командировки <span class="req-star">*</span></label>
         <input type="text" id="p_city" placeholder="Красноярск">
       </div>
       <div class="grid-2">
         <div class="field">
-          <label>Дата выезда *</label>
+          <label>Дата выезда <span class="req-star">*</span></label>
           <input type="date" id="p_date_start" onchange="autoCalcDays()">
         </div>
         <div class="field">
-          <label>Дата приезда *</label>
+          <label>Дата приезда <span class="req-star">*</span></label>
           <input type="date" id="p_date_end" onchange="autoCalcDays()">
         </div>
       </div>
       <div class="field">
-        <label>Получено авансом под отчет (₽) *</label>
+        <label>Получено авансом под отчет (₽) <span class="req-star">*</span></label>
         <input type="number" id="p_advance" placeholder="0" value="0">
       </div>
       <div class="grid-2">
@@ -213,13 +225,13 @@
       <div id="add-box" style="display:none; background:#f2f2f7; padding:10px; border-radius:10px; margin-bottom:10px;">
         <h3 id="add-title">Добавить расход</h3>
         <div class="field">
-          <label>Дата документа *</label>
+          <label>Дата документа <span class="req-star">*</span></label>
           <input type="date" id="e_date">
         </div>
 
         <div id="box-transport" style="display:none;">
           <div class="field">
-            <label>Маршрут (Город — Город)</label>
+            <label>Маршрут (Город — Город) <span class="req-star">*</span></label>
             <input type="text" id="e_route" placeholder="Омск - Красноярск">
           </div>
           <div class="field">
@@ -231,11 +243,11 @@
           </div>
           <div class="grid-2">
             <div class="field">
-              <label>Номер билета *</label>
+              <label>Номер билета <span class="req-star">*</span></label>
               <input type="text" id="e_ticket_no">
             </div>
             <div class="field">
-              <label>Сумма тарифа (₽) *</label>
+              <label>Сумма тарифа (₽) <span class="req-star">*</span></label>
               <input type="number" id="e_ticket_sum">
             </div>
           </div>
@@ -273,38 +285,38 @@
 
         <div id="box-taxi" style="display:none;">
           <div class="grid-2">
-            <div class="field"><label>Номер чека *</label><input type="text" id="e_taxi_no" placeholder="303"></div>
-            <div class="field"><label>Сумма (₽) *</label><input type="number" id="e_taxi_sum" placeholder="0"></div>
+            <div class="field"><label>Номер чека <span class="req-star">*</span></label><input type="text" id="e_taxi_no" placeholder="303"></div>
+            <div class="field"><label>Сумма (₽) <span class="req-star">*</span></label><input type="number" id="e_taxi_sum" placeholder="0"></div>
           </div>
           
           <div class="field">
-            <label>Точка А (Откуда) *</label>
+            <label>Точка А (Откуда) <span class="req-star">*</span></label>
             <div class="addr-row">
               <div class="main-addr">
-                <input type="text" id="e_taxi_from" placeholder="Адрес..." autocomplete="off" oninput="fetchFiasSuggestions(this, 'sug_a')">
+                <input type="text" id="e_taxi_from" placeholder="Любой город/поселок, улица, дом..." autocomplete="off" oninput="fetchFiasSuggestions(this, 'sug_a')">
                 <div id="sug_a" class="suggest-box"></div>
               </div>
               <div class="sub-obj">
-                <input type="text" id="e_taxi_obj_a" placeholder="Дом">
+                <input type="text" id="e_taxi_obj_a" placeholder="Дом/Вокзал">
               </div>
             </div>
           </div>
 
           <div class="field">
-            <label>Точка Б (Куда) *</label>
+            <label>Точка Б (Куда) <span class="req-star">*</span></label>
             <div class="addr-row">
               <div class="main-addr">
-                <input type="text" id="e_taxi_to" placeholder="Адрес..." autocomplete="off" oninput="fetchFiasSuggestions(this, 'sug_b')">
+                <input type="text" id="e_taxi_to" placeholder="Любой город/поселок, улица, дом..." autocomplete="off" oninput="fetchFiasSuggestions(this, 'sug_b')">
                 <div id="sug_b" class="suggest-box"></div>
               </div>
               <div class="sub-obj">
-                <input type="text" id="e_taxi_obj_b" placeholder="Аэропорт">
+                <input type="text" id="e_taxi_obj_b" placeholder="Аэропорт/Отель">
               </div>
             </div>
           </div>
 
           <div class="field">
-            <label>Цель поездки *</label>
+            <label>Цель поездки <span class="req-star">*</span></label>
             <input type="text" id="e_taxi_purpose" placeholder="Поездка в аэропорт / к заказчику">
           </div>
         </div>
@@ -318,17 +330,17 @@
             </select>
           </div>
           <div class="grid-2">
-            <div class="field"><label>Номер договора/чека *</label><input type="text" id="e_hotel_no"></div>
-            <div class="field"><label>Сумма (₽) *</label><input type="number" id="e_hotel_sum"></div>
+            <div class="field"><label>Номер договора/чека <span class="req-star">*</span></label><input type="text" id="e_hotel_no"></div>
+            <div class="field"><label>Сумма (₽) <span class="req-star">*</span></label><input type="number" id="e_hotel_sum"></div>
           </div>
         </div>
 
         <div id="box-misc" style="display:none;">
           <div class="grid-2">
-            <div class="field"><label>Номер чека *</label><input type="text" id="e_misc_no"></div>
-            <div class="field"><label>Сумма (₽) *</label><input type="number" id="e_misc_sum"></div>
+            <div class="field"><label>Номер чека <span class="req-star">*</span></label><input type="text" id="e_misc_no"></div>
+            <div class="field"><label>Сумма (₽) <span class="req-star">*</span></label><input type="number" id="e_misc_sum"></div>
           </div>
-          <div class="field"><label>Наименование расхода *</label><input type="text" id="e_misc_name" placeholder="Хозтовары"></div>
+          <div class="field"><label>Наименование расхода <span class="req-star">*</span></label><input type="text" id="e_misc_name" placeholder="Хозтовары"></div>
         </div>
 
         <div style="display:flex; gap:6px; margin-top:8px;">
@@ -369,11 +381,13 @@
 
   <div id="step-4" class="step-content">
     <div class="nav-bar" style="margin-bottom:10px; display:flex; flex-direction:column; gap:8px;">
+      <button type="button" id="btn_submit_cloud" class="btn btn-green" style="font-size:15px; height:48px;" onclick="submitReportToCloud()">📤 Отправить отчет руководителю</button>
+
       <div style="display:flex; gap:6px; width:100%;">
         <button type="button" class="btn btn-secondary" style="flex:1;" onclick="goToStep(3)">← Назад</button>
-        <button type="button" class="btn btn-green" style="flex:2;" onclick="downloadExcelDirectly()">📥 Скачать Excel (.xlsx)</button>
+        <button type="button" class="btn btn-secondary" style="flex:1.5;" onclick="downloadExcelDirectly()">📥 Скачать Excel</button>
+        <button type="button" class="btn btn-secondary" style="flex:1.5;" onclick="generatePdfDirectly()">📄 Скачать PDF</button>
       </div>
-      <button type="button" class="btn btn-primary" onclick="generatePdfDirectly()">📄 Сохранить в PDF</button>
     </div>
 
     <div id="printable_report">
@@ -403,11 +417,8 @@
   if (tg) { try { tg.ready(); tg.expand(); } catch(e){} }
 
   const DADATA_API_KEY = "74443bebf6f911f3792509fa4ad680d6977c3e14";
-  
-  // URL ВАШЕЙ GOOGLE ТАБЛИЦЫ (APPS SCRIPT API)
   const GOOGLE_SHEET_API = "https://script.google.com/macros/s/AKfycbwqfeeX8q61tkVz0Rhubm2hu14O7vOPhu40r9qx6IOR78adJUq_U3CNwGtx6CfF-3oItQ/exec";
 
-  // Базовый список на случай отсутствия связи
   const BACKUP_EMPLOYEES = [
     { fio: "Илгин Александр Александрович", tab: "0000013789", role: "Руководитель команды открытия" },
     { fio: "Евдокимова Наталья Вячеславна", tab: "0000000415", role: "Продавец-кассир команды открытия" },
@@ -430,7 +441,37 @@
     return dStr;
   }
 
-  // СИНХРОНИЗАЦИЯ С GOOGLE ТАБЛИЦЕЙ (ЧТЕНИЕ)
+  document.addEventListener('input', (e) => {
+    if (e.target && e.target.classList.contains('input-error')) {
+      e.target.classList.remove('input-error');
+    }
+  });
+
+  function validateFields(fieldIds) {
+    let isValid = true;
+    let firstInvalid = null;
+
+    fieldIds.forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const val = el.value.trim();
+      const isZeroSum = (el.type === 'number' && parseFloat(val) <= 0);
+
+      if (!val || isZeroSum) {
+        el.classList.add('input-error');
+        isValid = false;
+        if (!firstInvalid) firstInvalid = el;
+      } else {
+        el.classList.remove('input-error');
+      }
+    });
+
+    if (!isValid && firstInvalid) {
+      firstInvalid.focus();
+    }
+    return isValid;
+  }
+
   function loadEmployeesFromGoogle() {
     const status = document.getElementById("emp_sync_status");
     status.innerText = "Синхронизация...";
@@ -449,8 +490,7 @@
         renderEmployeeSelect();
         renderManageEmpList();
       })
-      .catch(err => {
-        console.error("Ошибка загрузки из Google Таблицы:", err);
+      .catch(() => {
         currentEmployees = BACKUP_EMPLOYEES;
         status.innerText = "Офлайн (резерв)";
         status.style.color = "var(--danger)";
@@ -492,6 +532,7 @@
       document.getElementById("p_fio").value = emp.fio;
       document.getElementById("p_role").value = emp.role;
       document.getElementById("p_tab").value = emp.tab;
+      ['p_fio', 'p_role', 'p_tab'].forEach(id => document.getElementById(id).classList.remove('input-error'));
       showToast("Сотрудник подставлен!");
     }
   }
@@ -503,7 +544,8 @@
       document.getElementById("new_emp_fio").value = "";
       document.getElementById("new_emp_role").value = "";
       document.getElementById("new_emp_tab").value = "";
-      document.getElementById("btn_save_emp").innerText = "Сохранить в Google Таблицу";
+      document.getElementById("btn_save_emp").innerText = "Сохранить в Google";
+      ['new_emp_fio', 'new_emp_role', 'new_emp_tab'].forEach(id => document.getElementById(id).classList.remove('input-error'));
     }
     b.style.display = b.style.display === "block" ? "none" : "block";
     document.getElementById("manage_emp_box").style.display = "none";
@@ -516,19 +558,18 @@
     renderManageEmpList();
   }
 
-  // ЗАПИСЬ В GOOGLE ТАБЛИЦУ (ДОБАВЛЕНИЕ / ИЗМЕНЕНИЕ)
   function saveEmployeeToGoogle() {
+    if (!validateFields(['new_emp_fio', 'new_emp_role', 'new_emp_tab'])) {
+      showToast("Заполните обязательные поля");
+      return;
+    }
+
     const fio = document.getElementById("new_emp_fio").value.trim();
     const role = document.getElementById("new_emp_role").value.trim();
     const tab = document.getElementById("new_emp_tab").value.trim();
     const oldTab = document.getElementById("edit_emp_old_tab").value.trim();
 
-    if (!fio || !role || !tab) {
-      showToast("Заполните все поля");
-      return;
-    }
-
-    showToast("Сохранение в Google Таблицу...");
+    showToast("Сохранение в Google...");
     const action = oldTab ? "update" : "add";
     const payload = { action, fio, role, tab, oldTab };
 
@@ -541,8 +582,7 @@
       showToast("Успешно сохранено!");
       toggleAddEmpBox(true);
       setTimeout(loadEmployeesFromGoogle, 1200);
-    }).catch(err => {
-      console.error(err);
+    }).catch(() => {
       showToast("Ошибка связи с таблицей");
     });
   }
@@ -554,13 +594,13 @@
     document.getElementById("new_emp_fio").value = emp.fio;
     document.getElementById("new_emp_role").value = emp.role;
     document.getElementById("new_emp_tab").value = emp.tab;
-    document.getElementById("btn_save_emp").innerText = "Обновить в Google Таблице";
+    document.getElementById("btn_save_emp").innerText = "Обновить в Google";
     document.getElementById("add_emp_box").style.display = "block";
     document.getElementById("manage_emp_box").style.display = "none";
   }
 
   function deleteEmployeeFromGoogle(tab, idx) {
-    if (!confirm("Удалить сотрудника из Google Таблицы?")) return;
+    if (!confirm("Удалить сотрудника из базы?")) return;
     showToast("Удаление...");
     
     fetch(GOOGLE_SHEET_API, {
@@ -574,8 +614,7 @@
       renderEmployeeSelect();
       renderManageEmpList();
       setTimeout(loadEmployeesFromGoogle, 1200);
-    }).catch(err => {
-      console.error(err);
+    }).catch(() => {
       showToast("Ошибка удаления");
     });
   }
@@ -584,7 +623,6 @@
     loadEmployeesFromGoogle();
   });
 
-  // ПОИСК ФИАС (DaData)
   function fetchFiasSuggestions(input, listId) {
     clearTimeout(fiasTimer);
     const query = input.value.trim();
@@ -596,10 +634,6 @@
     }
 
     fiasTimer = setTimeout(() => {
-      const city = document.getElementById('p_city').value.trim();
-      const payload = { query: query, count: 5 };
-      if (city) payload.locations = [{ city: city }];
-
       fetch("https://suggestions.dadata.ru/suggestions/api/4_1/rs/suggest/address", {
         method: "POST",
         headers: {
@@ -607,7 +641,7 @@
           "Accept": "application/json",
           "Authorization": "Token " + DADATA_API_KEY
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({ query: query, count: 7 })
       })
       .then(res => res.json())
       .then(data => {
@@ -628,7 +662,9 @@
   }
 
   function chooseFiasAddress(inputId, listId, val) {
-    document.getElementById(inputId).value = val;
+    const input = document.getElementById(inputId);
+    input.value = val;
+    input.classList.remove('input-error');
     document.getElementById(listId).style.display = 'none';
   }
 
@@ -647,8 +683,10 @@
   function goToStep(s) {
     try {
       if (s === 2) {
-        if (!document.getElementById('p_fio').value.trim() || !document.getElementById('p_city').value.trim()) {
-          showToast('Заполните ФИО и Город'); return;
+        const reqFields = ['p_fio', 'p_role', 'p_city', 'p_date_start', 'p_date_end'];
+        if (!validateFields(reqFields)) {
+          showToast('Заполните обязательные поля, выделенные красным');
+          return;
         }
         savePassport(); 
         renderExpenseList();
@@ -669,7 +707,6 @@
         window.scrollTo(0,0);
       }
     } catch(err) {
-      console.error(err);
       showToast("Ошибка: " + err.message);
     }
   }
@@ -712,35 +749,54 @@
     ['box-transport','box-taxi','box-hotel','box-misc'].forEach(id => document.getElementById(id).style.display = 'none');
     ['chk_fee','chk_bag','chk_ins'].forEach(id => document.getElementById(id).checked = false);
     ['sub_fee','sub_bag','sub_ins'].forEach(id => document.getElementById(id).style.display = 'none');
+    document.querySelectorAll('#add-box .input-error').forEach(el => el.classList.remove('input-error'));
 
     if (['plane','bus','train'].includes(c)) {
       document.getElementById('box-transport').style.display = 'block';
       document.getElementById('add-title').innerText = c==='plane' ? '✈️ Самолёт' : (c==='bus' ? '🚌 Автобус' : '🚆 Поезд');
     } else if (c==='taxi') {
       document.getElementById('box-taxi').style.display = 'block';
-      document.getElementById('add-title').innerText = '🚕 Такси';
+      document.getElementById('add-title').innerText = '🚕 Такси (любой маршрут по РФ)';
     } else if (c==='hotel') {
       document.getElementById('box-hotel').style.display = 'block';
       document.getElementById('add-title').innerText = '🏨 Проживание';
     } else {
       document.getElementById('box-misc').style.display = 'block';
-      document.getElementById('add-title').innerText = '🛒 Хозтовары';
+      document.getElementById('add-title').innerText = '🛒 Хозтовары / Прочее';
     }
   }
 
-  function closeExpense() { document.getElementById('add-box').style.display = 'none'; }
+  function closeExpense() { 
+    document.getElementById('add-box').style.display = 'none'; 
+    document.querySelectorAll('#add-box .input-error').forEach(el => el.classList.remove('input-error'));
+  }
+  
   function toggleBox(id) { const el = document.getElementById(id); el.style.display = el.style.display==='block'?'none':'block'; }
 
   function saveExpense() {
+    let reqFields = ['e_date'];
+    if (['plane','bus','train'].includes(curCategory)) {
+      reqFields.push('e_route', 'e_ticket_no', 'e_ticket_sum');
+    } else if (curCategory === 'taxi') {
+      reqFields.push('e_taxi_no', 'e_taxi_sum', 'e_taxi_from', 'e_taxi_to', 'e_taxi_purpose');
+    } else if (curCategory === 'hotel') {
+      reqFields.push('e_hotel_no', 'e_hotel_sum');
+    } else if (curCategory === 'misc') {
+      reqFields.push('e_misc_no', 'e_misc_name', 'e_misc_sum');
+    }
+
+    if (!validateFields(reqFields)) {
+      showToast('Заполните обязательные поля, выделенные красным');
+      return;
+    }
+
     const date = document.getElementById('e_date').value;
-    if (!date) { showToast('Укажите дату чека'); return; }
 
     if (['plane','bus','train'].includes(curCategory)) {
       const no = document.getElementById('e_ticket_no').value.trim();
       const sum = parseFloat(document.getElementById('e_ticket_sum').value) || 0;
       const route = document.getElementById('e_route').value.trim();
       const dir = document.getElementById('e_dir').value;
-      if (!no || sum <= 0) { showToast('Укажите номер и сумму'); return; }
 
       let name = curCategory==='plane' ? 'Чек, Маршрутная квитанция, Авиабилет' : (curCategory==='bus' ? 'Билет Автобус' : 'ЖД Электронный билет, чек');
       if (route) name += ` (${route})`;
@@ -769,8 +825,6 @@
       const addrB = document.getElementById('e_taxi_to').value.trim(), objB = document.getElementById('e_taxi_obj_b').value.trim();
       const purpose = document.getElementById('e_taxi_purpose').value.trim();
 
-      if (!no || sum <= 0 || !addrA || !addrB) { showToast('Заполните чек, сумму и адреса'); return; }
-
       const route = `${objA ? addrA+' ('+objA+')' : addrA} — ${objB ? addrB+' ('+objB+')' : addrB}`;
       store.expenses.push({ id: Date.now()+'t', date, no, name: 'Чек, услуги такси', sum, cat: 'taxi' });
       store.taxis.push({ date, no, sum, route, purpose: purpose || 'Служебная поездка' });
@@ -778,16 +832,16 @@
     else if (curCategory === 'hotel') {
       const biz = document.getElementById('e_hotel_biz').value;
       const no = document.getElementById('e_hotel_no').value.trim(), sum = parseFloat(document.getElementById('e_hotel_sum').value) || 0;
-      if (!no || sum <= 0) { showToast('Укажите договор и сумму'); return; }
       store.expenses.push({ id: Date.now()+'h', date, no, name: biz==='self'?'Чек, Договор Аренда квартиры (проживание)':'Чек, Счёт (гостиница)', sum, cat: 'hotel' });
     }
     else {
       const no = document.getElementById('e_misc_no').value.trim(), name = document.getElementById('e_misc_name').value.trim(), sum = parseFloat(document.getElementById('e_misc_sum').value) || 0;
-      if (!no || !name || sum <= 0) { showToast('Заполните все поля'); return; }
       store.expenses.push({ id: Date.now()+'m', date, no, name: `Чек, ${name}`, sum, cat: 'misc' });
     }
 
-    closeExpense(); renderExpenseList(); showToast('Позиция добавлена!');
+    closeExpense(); 
+    renderExpenseList(); 
+    showToast('Позиция добавлена!');
   }
 
   function renderExpenseList() {
@@ -1002,6 +1056,43 @@
     }
   }
 
+  // --- ОТПРАВКА ОТЧЕТА В ОБЛАКО (СОЗДАНИЕ ФАЙЛА + УВЕДОМЛЕНИЕ В TELEGRAM) ---
+  function submitReportToCloud() {
+    const btn = document.getElementById("btn_submit_cloud");
+    btn.disabled = true;
+    btn.innerText = "⏳ Создание файла и отправка...";
+
+    const tgUser = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) ? tg.initDataUnsafe.user : {};
+
+    const payload = {
+      action: "submit_report",
+      passport: store.passport,
+      expenses: store.expenses,
+      taxis: store.taxis,
+      telegram_user: tgUser
+    };
+
+    fetch(GOOGLE_SHEET_API, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain" },
+      body: JSON.stringify(payload)
+    })
+    .then(res => res.json())
+    .then(res => {
+      btn.innerText = "✅ Отчет успешно отправлен!";
+      showToast("Отчет сохранен в Google Таблицу и отправлен!");
+      setTimeout(() => {
+        if (tg) tg.close();
+      }, 1500);
+    })
+    .catch(err => {
+      console.error(err);
+      btn.disabled = false;
+      btn.innerText = "📤 Отправить отчет руководителю";
+      showToast("Ошибка отправки. Попробуйте еще раз.");
+    });
+  }
+
   function downloadExcelDirectly() {
     try {
       const p = store.passport;
@@ -1074,7 +1165,6 @@
       }
       showToast("Файл Excel сформирован!");
     } catch(err) {
-      console.error(err);
       showToast("Ошибка сохранения Excel: " + err.message);
     }
   }
@@ -1113,12 +1203,10 @@
           setTimeout(() => URL.revokeObjectURL(url), 2000);
         }
         showToast("PDF готов к сохранению!");
-      }).catch(function(err){
-        console.error(err);
+      }).catch(function(){
         showToast("Не удалось создать PDF");
       });
     } catch(err) {
-      console.error(err);
       showToast("Ошибка PDF: " + err.message);
     }
   }
@@ -1133,6 +1221,12 @@
     document.getElementById('p_advance').value = "80000";
     document.getElementById('p_days').value = "18";
     document.getElementById('p_rate').value = "1500";
+    
+    ['p_fio', 'p_role', 'p_tab', 'p_city', 'p_date_start', 'p_date_end', 'p_advance'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.classList.remove('input-error');
+    });
+
     calcDaily();
     savePassport();
 
