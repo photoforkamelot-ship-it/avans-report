@@ -135,11 +135,11 @@
   <!-- ШАГ 1: ПАСПОРТ -->
   <div id="step-1" class="step-content active">
     
-    <div id="admin_emp_card" class="card" style="background:#eef7ff; border:1px solid #cce5ff; display:block;">
+    <div id="admin_emp_card" class="card" style="background:#eef7ff; border:1px solid #cce5ff;">
       <h3 style="margin:0 0 6px 0;">👤 Выбор сотрудника</h3>
       <div class="field">
         <select id="emp_select" onchange="onEmployeeSelect()">
-          <option value="">-- Загрузка списка сотрудников... --</option>
+          <option value="">-- Выберите сотрудника --</option>
         </select>
       </div>
     </div>
@@ -372,7 +372,7 @@
         <button type="button" id="btn_excel" class="btn btn-green" style="flex:2;" onclick="downloadExcelAndNotify()">📥 Скачать Excel (.xlsx)</button>
       </div>
       <button type="button" id="btn_pdf" class="btn btn-primary" onclick="generatePdfAndNotify()">📄 Сохранить в PDF</button>
-      <div style="text-align:center; font-size:11px; color:#8e8e93;">Отчёт сохраняется в реестр один раз при первом скачивании.</div>
+      <div style="text-align:center; font-size:11px; color:#8e8e93;">Отчёт автоматически сохраняется в реестр руководителя.</div>
     </div>
 
     <div id="printable_report">
@@ -404,11 +404,10 @@
   const DADATA_API_KEY = "74443bebf6f911f3792509fa4ad680d6977c3e14";
   const GOOGLE_SHEET_API = "https://script.google.com/macros/s/AKfycbwqfeeX8q61tkVz0Rhubm2hu14O7vOPhu40r9qx6IOR78adJUq_U3CNwGtx6CfF-3oItQ/exec";
 
-  // Уникальный идентификатор текущего отчета (защита от дубликатов)
   const CURRENT_REPORT_UID = Math.random().toString(36).substring(2, 8);
   let isReportSubmittedToCloud = false;
 
-  const BACKUP_EMPLOYEES = [
+  const DEFAULT_EMPLOYEES = [
     { fio: "Илгин Александр Александрович", tab: "0000013789", role: "Руководитель команды открытия" },
     { fio: "Евдокимова Наталья Вячеславна", tab: "0000000415", role: "Продавец-кассир команды открытия" },
     { fio: "Козлов Альберт Николаевич", tab: "0000025391", role: "Продавец-кассир команды открытия" },
@@ -476,6 +475,13 @@
       dateFormat: "d.m.Y"
     });
 
+    // 1. Мгновенно отображаем базовый список сотрудников, исключая задержки
+    renderEmployeeDropdown(DEFAULT_EMPLOYEES);
+    document.getElementById('p_fio').value = "Илгин Александр Александрович";
+    document.getElementById('p_role').value = "Руководитель команды открытия";
+    document.getElementById('p_tab').value = "0000013789";
+
+    // 2. В фоне обновляем список из Google Таблицы
     initUserAndEmployees();
   });
 
@@ -490,8 +496,9 @@
     fetch(`${GOOGLE_SHEET_API}?user_id=${userId}`)
       .then(r => r.json())
       .then(res => {
-        let employees = (res && res.employees && res.employees.length > 0) ? res.employees : BACKUP_EMPLOYEES;
-        renderEmployeeDropdown(employees);
+        if (res && res.employees && res.employees.length > 0) {
+          renderEmployeeDropdown(res.employees);
+        }
 
         if (res && res.currentUser && !res.isAdmin) {
           document.getElementById('p_fio').value = res.currentUser.fio;
@@ -501,18 +508,10 @@
           document.getElementById('p_role').disabled = true;
           document.getElementById('p_tab').disabled = true;
           document.getElementById('admin_emp_card').style.display = 'none';
-        } else {
-          document.getElementById('admin_emp_card').style.display = 'block';
-          document.getElementById('p_fio').value = "Илгин Александр Александрович";
-          document.getElementById('p_role').value = "Руководитель команды открытия";
-          document.getElementById('p_tab').value = "0000013789";
         }
       })
       .catch(() => {
-        renderEmployeeDropdown(BACKUP_EMPLOYEES);
-        document.getElementById('p_fio').value = "Илгин Александр Александрович";
-        document.getElementById('p_role').value = "Руководитель команды открытия";
-        document.getElementById('p_tab').value = "0000013789";
+        // Резерв уже активен
       });
   }
 
@@ -1048,7 +1047,6 @@
   }
 
   function sendReportToCloudOnce() {
-    // Если отчет уже отправлен в этой сессии, повторно сетевой запрос не шлем
     if (isReportSubmittedToCloud) return;
 
     savePassport();
