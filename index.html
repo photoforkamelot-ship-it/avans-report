@@ -8,7 +8,6 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   
-  <!-- Календарь Flatpickr с русской локализацией -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/airbnb.css">
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
@@ -56,6 +55,7 @@
       transition: border-color 0.2s, box-shadow 0.2s;
     }
     .field input:focus, .field select:focus { border-color: var(--primary); }
+    .field input:disabled { background: #f2f2f7; color: #8e8e93; }
     
     .field input.input-error, .field select.input-error {
       border-color: var(--danger) !important;
@@ -113,8 +113,6 @@
     .review-header h3 { margin: 0; font-size: 13px; font-weight: 700; }
     .review-btn-edit { background: #e5e5ea; border: none; border-radius: 5px; padding: 3px 6px; font-size: 11px; cursor: pointer; }
 
-    .emp-list-item { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #e5e5ea; font-size: 12px; }
-
     #toast {
       position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
       background: rgba(0,0,0,0.85); color: white; padding: 8px 16px; border-radius: 18px;
@@ -137,38 +135,12 @@
   <!-- ШАГ 1: ПАСПОРТ -->
   <div id="step-1" class="step-content active">
     
-    <div class="card" style="background:#eef7ff; border:1px solid #cce5ff;">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-        <h3 style="margin:0;">👤 Справочник сотрудников</h3>
-        <span id="emp_sync_status" style="font-size:11px; color:#007aff;">Синхронизация...</span>
-      </div>
+    <div id="admin_emp_card" class="card" style="background:#eef7ff; border:1px solid #cce5ff; display:none;">
+      <h3 style="margin:0 0 6px 0;">👑 Панель руководителя: выбор сотрудника</h3>
       <div class="field">
-        <label>Выбрать сотрудника:</label>
         <select id="emp_select" onchange="onEmployeeSelect()">
-          <option value="">-- Загрузка сотрудников... --</option>
+          <option value="">-- Выберите сотрудника --</option>
         </select>
-      </div>
-      <div style="display:flex; gap:6px;">
-        <button type="button" class="btn btn-secondary" style="height:32px; font-size:12px;" onclick="toggleAddEmpBox()">➕ Добавить</button>
-        <button type="button" class="btn btn-secondary" style="height:32px; font-size:12px;" onclick="toggleManageEmpBox()">⚙️ Список и удаление</button>
-      </div>
-
-      <div id="add_emp_box" style="display:none; margin-top:8px; background:#fff; padding:8px; border-radius:8px; border:1px solid #b8daff;">
-        <input type="hidden" id="edit_emp_old_tab" value="">
-        <div class="field"><label>ФИО <span class="req-star">*</span></label><input type="text" id="new_emp_fio" placeholder="Фамилия Имя Отчество"></div>
-        <div class="grid-2">
-          <div class="field"><label>Должность <span class="req-star">*</span></label><input type="text" id="new_emp_role" placeholder="Продавец-кассир"></div>
-          <div class="field"><label>Табельный № <span class="req-star">*</span></label><input type="text" id="new_emp_tab" placeholder="0000012345"></div>
-        </div>
-        <div style="display:flex; gap:6px;">
-          <button type="button" id="btn_save_emp" class="btn btn-primary" style="height:34px; font-size:12px;" onclick="saveEmployeeToGoogle()">Сохранить в Google</button>
-          <button type="button" class="btn btn-secondary" style="height:34px; font-size:12px;" onclick="toggleAddEmpBox()">Отмена</button>
-        </div>
-      </div>
-
-      <div id="manage_emp_box" style="display:none; margin-top:8px; background:#fff; padding:8px; border-radius:8px; border:1px solid #b8daff; max-height:260px; overflow-y:auto;">
-        <div style="font-weight:600; font-size:12px; margin-bottom:6px;">Сотрудники в базе:</div>
-        <div id="emp_items_container"></div>
       </div>
     </div>
 
@@ -176,16 +148,16 @@
       <h2>1. Сведения о командировке</h2>
       <div class="field">
         <label>ФИО сотрудника <span class="req-star">*</span></label>
-        <input type="text" id="p_fio" placeholder="Илгин Александр Александрович">
+        <input type="text" id="p_fio" placeholder="Фамилия Имя Отчество">
       </div>
       <div class="grid-2">
         <div class="field">
           <label>Должность <span class="req-star">*</span></label>
-          <input type="text" id="p_role" placeholder="Руководитель команды открытия">
+          <input type="text" id="p_role" placeholder="Должность">
         </div>
         <div class="field">
           <label>Таб. номер</label>
-          <input type="text" id="p_tab" placeholder="0000013789">
+          <input type="text" id="p_tab" placeholder="0000000000">
         </div>
       </div>
       <div class="field">
@@ -433,13 +405,6 @@
   const DADATA_API_KEY = "74443bebf6f911f3792509fa4ad680d6977c3e14";
   const GOOGLE_SHEET_API = "https://script.google.com/macros/s/AKfycbwqfeeX8q61tkVz0Rhubm2hu14O7vOPhu40r9qx6IOR78adJUq_U3CNwGtx6CfF-3oItQ/exec";
 
-  const BACKUP_EMPLOYEES = [
-    { fio: "Илгин Александр Александрович", tab: "0000013789", role: "Руководитель команды открытия" },
-    { fio: "Евдокимова Наталья Вячеславна", tab: "0000000415", role: "Продавец-кассир команды открытия" },
-    { fio: "Козлов Альберт Николаевич", tab: "0000025391", role: "Продавец-кассир команды открытия" },
-    { fio: "Альварез Максим Игоревич", tab: "0000060714", role: "Продавец-кассир команды открытия" }
-  ];
-
   let currentEmployees = [];
   let store = {
     passport: { fio:'', role:'', tab:'', city:'', dStart:'', dEnd:'', advance:0, days:0, rate:1500, dailyTotal:0 },
@@ -450,7 +415,6 @@
   let datePickerRange = null;
   let datePickerExpense = null;
 
-  // Функция строгого форматирования в ДД.ММ.ГГГГ
   function formatRuDateString(dStr) {
     if (!dStr) return '';
     dStr = String(dStr).trim();
@@ -470,15 +434,13 @@
   }
 
   window.addEventListener('DOMContentLoaded', () => {
-    // 1. Инициализация диапазонного календаря периода
     datePickerRange = flatpickr("#p_date_range", {
       mode: "range",
       locale: "ru",
       dateFormat: "d.m.Y",
       showMonths: 1,
       onChange: function(selectedDates) {
-        const inputEl = document.getElementById("p_date_range");
-        inputEl.classList.remove('input-error');
+        document.getElementById("p_date_range").classList.remove('input-error');
 
         if (selectedDates.length === 2) {
           const start = selectedDates[0];
@@ -499,20 +461,76 @@
       }
     });
 
-    // 2. Инициализация календаря для даты чеков/расходов в формате ДД.ММ.ГГГГ
     datePickerExpense = flatpickr("#e_date", {
       locale: "ru",
       dateFormat: "d.m.Y"
     });
 
-    loadEmployeesFromGoogle();
+    // Определение авторизованного пользователя
+    identifyUser();
   });
 
-  document.addEventListener('input', (e) => {
-    if (e.target && e.target.classList.contains('input-error')) {
-      e.target.classList.remove('input-error');
+  function identifyUser() {
+    const urlParams = new URLSearchParams(window.location.search);
+    let userId = urlParams.get('user_id');
+    if (!userId && tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
+      userId = tg.initDataUnsafe.user.id;
     }
-  });
+    if (!userId) userId = "446642559"; // Дефолтный ID админа
+
+    fetch(`${GOOGLE_SHEET_API}?user_id=${userId}`)
+      .then(r => r.json())
+      .then(user => {
+        if (user && user.fio) {
+          document.getElementById('p_fio').value = user.fio;
+          document.getElementById('p_role').value = user.role;
+          document.getElementById('p_tab').value = user.tab;
+          
+          if (!user.isAdmin) {
+            document.getElementById('p_fio').disabled = true;
+            document.getElementById('p_role').disabled = true;
+            document.getElementById('p_tab').disabled = true;
+          } else {
+            document.getElementById('admin_emp_card').style.display = 'block';
+            loadAllEmployeesForAdmin();
+          }
+        } else {
+          document.getElementById('admin_emp_card').style.display = 'block';
+          loadAllEmployeesForAdmin();
+        }
+      })
+      .catch(() => {
+        document.getElementById('admin_emp_card').style.display = 'block';
+        loadAllEmployeesForAdmin();
+      });
+  }
+
+  function loadAllEmployeesForAdmin() {
+    fetch(GOOGLE_SHEET_API)
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          currentEmployees = data;
+          const sel = document.getElementById("emp_select");
+          sel.innerHTML = '<option value="">-- Выберите сотрудника (' + data.length + ') --</option>';
+          data.forEach((e, idx) => {
+            sel.innerHTML += `<option value="${idx}">${e.fio} (таб. ${e.tab})</option>`;
+          });
+        }
+      }).catch(()=>{});
+  }
+
+  function onEmployeeSelect() {
+    const sel = document.getElementById("emp_select");
+    if (sel.value === "") return;
+    const emp = currentEmployees[sel.value];
+    if (emp) {
+      document.getElementById("p_fio").value = emp.fio;
+      document.getElementById("p_role").value = emp.role;
+      document.getElementById("p_tab").value = emp.tab;
+      showToast("Сотрудник подставлен!");
+    }
+  }
 
   function validateFields(fieldIds) {
     let isValid = true;
@@ -537,153 +555,6 @@
       firstInvalid.focus();
     }
     return isValid;
-  }
-
-  function loadEmployeesFromGoogle() {
-    const status = document.getElementById("emp_sync_status");
-    status.innerText = "Синхронизация...";
-    
-    fetch(GOOGLE_SHEET_API)
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data) && data.length > 0) {
-          currentEmployees = data;
-          status.innerText = "Онлайн (Google)";
-          status.style.color = "var(--success)";
-        } else {
-          currentEmployees = BACKUP_EMPLOYEES;
-          status.innerText = "Резерв";
-        }
-        renderEmployeeSelect();
-        renderManageEmpList();
-      })
-      .catch(() => {
-        currentEmployees = BACKUP_EMPLOYEES;
-        status.innerText = "Офлайн (резерв)";
-        status.style.color = "var(--danger)";
-        renderEmployeeSelect();
-        renderManageEmpList();
-      });
-  }
-
-  function renderEmployeeSelect() {
-    const sel = document.getElementById("emp_select");
-    sel.innerHTML = '<option value="">-- Выберите сотрудника (' + currentEmployees.length + ') --</option>';
-    currentEmployees.forEach((emp, idx) => {
-      sel.innerHTML += `<option value="${idx}">${emp.fio} (таб. ${emp.tab})</option>`;
-    });
-  }
-
-  function renderManageEmpList() {
-    const c = document.getElementById("emp_items_container");
-    if (currentEmployees.length === 0) {
-      c.innerHTML = '<div style="color:#8e8e93; font-size:12px;">Список пуст.</div>';
-      return;
-    }
-    c.innerHTML = currentEmployees.map((emp, idx) => `
-      <div class="emp-list-item">
-        <div><strong>${emp.fio}</strong><br><small style="color:#8e8e93;">${emp.role}, таб. ${emp.tab}</small></div>
-        <div style="display:flex; gap:4px;">
-          <button type="button" class="btn btn-secondary" style="height:26px; font-size:11px; padding:0 6px;" onclick="editEmployee(${idx})">✏️</button>
-          <button type="button" class="btn btn-danger" onclick="deleteEmployeeFromGoogle('${emp.tab}', ${idx})">🗑️</button>
-        </div>
-      </div>
-    `).join('');
-  }
-
-  function onEmployeeSelect() {
-    const sel = document.getElementById("emp_select");
-    if (sel.value === "") return;
-    const emp = currentEmployees[sel.value];
-    if (emp) {
-      document.getElementById("p_fio").value = emp.fio;
-      document.getElementById("p_role").value = emp.role;
-      document.getElementById("p_tab").value = emp.tab;
-      ['p_fio', 'p_role', 'p_tab'].forEach(id => document.getElementById(id).classList.remove('input-error'));
-      showToast("Сотрудник подставлен!");
-    }
-  }
-
-  function toggleAddEmpBox(clear = true) {
-    const b = document.getElementById("add_emp_box");
-    if (clear) {
-      document.getElementById("edit_emp_old_tab").value = "";
-      document.getElementById("new_emp_fio").value = "";
-      document.getElementById("new_emp_role").value = "";
-      document.getElementById("new_emp_tab").value = "";
-      document.getElementById("btn_save_emp").innerText = "Сохранить в Google";
-      ['new_emp_fio', 'new_emp_role', 'new_emp_tab'].forEach(id => document.getElementById(id).classList.remove('input-error'));
-    }
-    b.style.display = b.style.display === "block" ? "none" : "block";
-    document.getElementById("manage_emp_box").style.display = "none";
-  }
-
-  function toggleManageEmpBox() {
-    const b = document.getElementById("manage_emp_box");
-    b.style.display = b.style.display === "block" ? "none" : "block";
-    document.getElementById("add_emp_box").style.display = "none";
-    renderManageEmpList();
-  }
-
-  function saveEmployeeToGoogle() {
-    if (!validateFields(['new_emp_fio', 'new_emp_role', 'new_emp_tab'])) {
-      showToast("Заполните обязательные поля");
-      return;
-    }
-
-    const fio = document.getElementById("new_emp_fio").value.trim();
-    const role = document.getElementById("new_emp_role").value.trim();
-    const tab = document.getElementById("new_emp_tab").value.trim();
-    const oldTab = document.getElementById("edit_emp_old_tab").value.trim();
-
-    showToast("Сохранение в Google...");
-    const action = oldTab ? "update" : "add";
-    const payload = { action, fio, role, tab, oldTab };
-
-    fetch(GOOGLE_SHEET_API, {
-      method: "POST",
-      mode: "no-cors",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    }).then(() => {
-      showToast("Успешно сохранено!");
-      toggleAddEmpBox(true);
-      setTimeout(loadEmployeesFromGoogle, 1200);
-    }).catch(() => {
-      showToast("Ошибка связи с таблицей");
-    });
-  }
-
-  function editEmployee(idx) {
-    const emp = currentEmployees[idx];
-    if (!emp) return;
-    document.getElementById("edit_emp_old_tab").value = emp.tab;
-    document.getElementById("new_emp_fio").value = emp.fio;
-    document.getElementById("new_emp_role").value = emp.role;
-    document.getElementById("new_emp_tab").value = emp.tab;
-    document.getElementById("btn_save_emp").innerText = "Обновить в Google";
-    document.getElementById("add_emp_box").style.display = "block";
-    document.getElementById("manage_emp_box").style.display = "none";
-  }
-
-  function deleteEmployeeFromGoogle(tab, idx) {
-    if (!confirm("Удалить сотрудника из базы?")) return;
-    showToast("Удаление...");
-    
-    fetch(GOOGLE_SHEET_API, {
-      method: "POST",
-      mode: "no-cors",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "delete", tab })
-    }).then(() => {
-      showToast("Сотрудник удален!");
-      currentEmployees.splice(idx, 1);
-      renderEmployeeSelect();
-      renderManageEmpList();
-      setTimeout(loadEmployeesFromGoogle, 1200);
-    }).catch(() => {
-      showToast("Ошибка удаления");
-    });
   }
 
   function fetchFiasSuggestions(input, listId) {
@@ -1177,7 +1048,9 @@
     if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
       tgUser = tg.initDataUnsafe.user;
     } else {
-      tgUser = { id: "446642559", first_name: "Александр" };
+      const urlParams = new URLSearchParams(window.location.search);
+      const qUser = urlParams.get('user_id');
+      tgUser = { id: qUser || "446642559", first_name: store.passport.fio };
     }
 
     const payload = {
@@ -1194,7 +1067,7 @@
       headers: { "Content-Type": "text/plain" },
       body: JSON.stringify(payload)
     }).catch(err => {
-      console.error("Ошибка фоновой отправки:", err);
+      console.error("Ошибка отправки:", err);
     });
   }
 
