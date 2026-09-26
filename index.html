@@ -25,10 +25,7 @@
       --warning: #ff9500;
     }
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-    
-    /* ЯРКОЕ ВИДИМОЕ ВЫДЕЛЕНИЕ ТЕКСТА ВО ВСЕХ ПОЛЯХ */
-    ::selection { background: #007aff !important; color: #ffffff !important; }
-    ::-moz-selection { background: #007aff !important; color: #ffffff !important; }
+    ::selection { background: #007aff; color: #ffffff; }
 
     body {
       margin: 0; padding: 10px;
@@ -62,17 +59,8 @@
       height: 40px; padding: 0 10px; font-size: 14px;
       border: 1px solid var(--border); border-radius: 8px; outline: none; background: #fff; width: 100%;
       color: var(--text);
-      -webkit-user-select: text;
-      user-select: text;
     }
-    .field input:focus, .field select:focus { border-color: var(--primary); }
     .field input:disabled { background: #e5e5ea; color: #3a3a3c; font-weight: 600; }
-    
-    .field input.input-error, .field select.input-error {
-      border-color: var(--danger) !important;
-      background-color: #fffaf9 !important;
-      box-shadow: 0 0 0 3px rgba(255, 59, 48, 0.15) !important;
-    }
 
     .range-input {
       cursor: pointer;
@@ -362,7 +350,7 @@
       </div>
     </div>
 
-    <!-- ШАГ 3: САМОПРОВЕРКА -->
+    <!-- ШАГ 3: САМОПРОВЕРКА С ПОЛНОЙ ДЕТАЛИЗАЦИЕЙ -->
     <div id="step-3" class="step-content">
       <div class="card">
         <h2>3. Проверка расходов по документам</h2>
@@ -442,6 +430,7 @@
     <div class="field"><label>ФИО</label><input type="text" id="modal_fio"></div>
     <div class="field"><label>Должность</label><input type="text" id="modal_role"></div>
     <div class="field"><label>Табельный номер</label><input type="text" id="modal_tab"></div>
+    <div class="field"><label>Telegram ID (привязка)</label><input type="text" id="modal_tgid" placeholder="Например: 446642559 (пусто = не привязан)"></div>
     <div style="display:flex; gap:6px; margin-top:12px;">
       <button type="button" class="btn btn-primary" onclick="saveModalEmployee()">Сохранить</button>
       <button type="button" class="btn btn-secondary" onclick="closeEmpModal()">Отмена</button>
@@ -609,7 +598,6 @@
         <div><strong>${emp.fio}</strong><br><small style="color:#8e8e93;">${emp.role} | Таб: ${emp.tab} | TG ID: ${emp.tgId || 'не привязан'}</small></div>
         <div style="display:flex; gap:4px;">
           <button type="button" class="btn btn-secondary" style="height:26px; font-size:11px; padding:0 6px;" onclick="openEditEmployeeModal(${idx})">✏️ Изменить</button>
-          ${emp.tgId ? `<button type="button" class="btn btn-secondary" style="height:26px; font-size:11px; padding:0 6px;" onclick="unbindEmployee('${emp.tab}')">🔓 Отвязать</button>` : ''}
           <button type="button" class="btn btn-danger" onclick="deleteEmployee('${emp.tab}')">🗑️ Удалить</button>
         </div>
       </div>
@@ -622,6 +610,7 @@
     document.getElementById("modal_fio").value = "";
     document.getElementById("modal_role").value = "";
     document.getElementById("modal_tab").value = "";
+    document.getElementById("modal_tgid").value = "";
     document.getElementById("emp_modal").style.display = "flex";
   }
 
@@ -632,6 +621,7 @@
     document.getElementById("modal_fio").value = emp.fio;
     document.getElementById("modal_role").value = emp.role;
     document.getElementById("modal_tab").value = emp.tab;
+    document.getElementById("modal_tgid").value = emp.tgId || "";
     document.getElementById("emp_modal").style.display = "flex";
   }
 
@@ -643,36 +633,24 @@
     const fio = document.getElementById("modal_fio").value.trim();
     const role = document.getElementById("modal_role").value.trim();
     const tab = document.getElementById("modal_tab").value.trim();
+    const tgid = document.getElementById("modal_tgid").value.trim();
     const oldTab = document.getElementById("modal_old_tab").value.trim();
 
     if (!fio || !role || !tab) {
-      showToast("Заполните все поля");
+      showToast("Заполните обязательные поля");
       return;
     }
 
     const action = oldTab ? "update" : "add";
-    showToast("Сохранение...");
+    showToast("Сохранение в Google...");
 
     fetch(GOOGLE_SHEET_API, {
       method: "POST", mode: "no-cors",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action, fio, role, tab, oldTab })
+      body: JSON.stringify({ action, fio, role, tab, tgid, oldTab })
     }).then(() => {
       showToast("Успешно сохранено!");
       closeEmpModal();
-      setTimeout(loadAppData, 1500);
-    });
-  }
-
-  function unbindEmployee(tab) {
-    if (!confirm("Отвязать Telegram ID от этого сотрудника?")) return;
-    showToast("Отвязка...");
-    fetch(GOOGLE_SHEET_API, {
-      method: "POST", mode: "no-cors",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "unbind", tab })
-    }).then(() => {
-      showToast("Привязка сброшена!");
       setTimeout(loadAppData, 1500);
     });
   }
@@ -916,13 +894,58 @@
   function renderDetailedReview() {
     const p = store.passport;
     const box = document.getElementById('review_cards_container');
+    
+    // Сборка развернутой детализации по всем категориям
+    const thereExp = store.expenses.filter(e => e.dir === 'there');
+    const thereSum = thereExp.reduce((s,e) => s + Number(e.sum || 0), 0);
+    let thereDetails = thereExp.map(e => `&nbsp;&nbsp;— ${e.name}: <strong>${Number(e.sum).toLocaleString('ru-RU')} ₽</strong> (${formatRuDateString(e.date)}, док. № ${e.no})`).join('<br>');
+
+    const hotelExp = store.expenses.filter(e => e.cat === 'hotel');
+    const hotelSum = hotelExp.reduce((s,e) => s + Number(e.sum || 0), 0);
+    let hotelDetails = hotelExp.map(e => `&nbsp;&nbsp;— ${e.name}: <strong>${Number(e.sum).toLocaleString('ru-RU')} ₽</strong> (${formatRuDateString(e.date)}, док. № ${e.no})`).join('<br>');
+
+    const taxiSum = store.taxis.reduce((s,t) => s + Number(t.sum || 0), 0);
+    let taxiDetails = store.taxis.map((t, idx) => `&nbsp;&nbsp;${idx+1}) <strong>${formatRuDateString(t.date)}</strong> | ${t.route} — <strong>${Number(t.sum).toLocaleString('ru-RU')} ₽</strong> <em>(${t.purpose})</em>`).join('<br>');
+
+    const backExp = store.expenses.filter(e => e.dir === 'back');
+    const backSum = backExp.reduce((s,e) => s + Number(e.sum || 0), 0);
+    let backDetails = backExp.map(e => `&nbsp;&nbsp;— ${e.name}: <strong>${Number(e.sum).toLocaleString('ru-RU')} ₽</strong> (${formatRuDateString(e.date)}, док. № ${e.no})`).join('<br>');
+
     box.innerHTML = `
       <div class="review-item">
         <div class="review-header"><h3>1. Данные сотрудника и аванс</h3><button type="button" class="review-btn-edit" onclick="goToStep(1)">✏️ Изменить</button></div>
-        <div style="font-size:12px;">• Сотрудник: ${p.fio} (${p.role}, таб. ${p.tab})<br>• Командировка: г. ${p.city} с ${formatRuDateString(p.dStart)} по ${formatRuDateString(p.dEnd)} (${p.days} дн.)<br>• Аванс: <b>${p.advance.toLocaleString('ru-RU')} ₽</b></div>
+        <div style="font-size:12px; line-height:1.4;">• Сотрудник: ${p.fio} (${p.role}, таб. ${p.tab})<br>• Командировка: г. ${p.city} с ${formatRuDateString(p.dStart)} по ${formatRuDateString(p.dEnd)} (${p.days} дн.)<br>• Аванс: <b>${p.advance.toLocaleString('ru-RU')} ₽</b></div>
+      </div>
+      <div class="review-item">
+        <div class="review-header"><h3>2. Проезд «Туда»</h3><button type="button" class="review-btn-edit" onclick="goToStep(2)">✏️ Изменить</button></div>
+        <div style="font-size:12px; line-height:1.4;">${thereExp.length > 0 ? `ИТОГО: <strong>${thereSum.toLocaleString('ru-RU')} ₽</strong><br>${thereDetails}` : 'Нет расходов'}</div>
+      </div>
+      <div class="review-item">
+        <div class="review-header"><h3>3. Проживание</h3><button type="button" class="review-btn-edit" onclick="goToStep(2)">✏️ Изменить</button></div>
+        <div style="font-size:12px; line-height:1.4;">${hotelExp.length > 0 ? `ИТОГО: <strong>${hotelSum.toLocaleString('ru-RU')} ₽</strong><br>${hotelDetails}` : 'Нет расходов'}</div>
+      </div>
+      <div class="review-item">
+        <div class="review-header"><h3>4. Такси (${store.taxis.length} поездки)</h3><button type="button" class="review-btn-edit" onclick="goToStep(2)">✏️ Изменить</button></div>
+        <div style="font-size:12px; line-height:1.4;">${store.taxis.length > 0 ? `ИТОГО: <strong>${taxiSum.toLocaleString('ru-RU')} ₽</strong><br>${taxiDetails}` : 'Нет поездок'}</div>
+      </div>
+      <div class="review-item">
+        <div class="review-header"><h3>5. Проезд «Обратно»</h3><button type="button" class="review-btn-edit" onclick="goToStep(2)">✏️ Изменить</button></div>
+        <div style="font-size:12px; line-height:1.4;">${backExp.length > 0 ? `ИТОГО: <strong>${backSum.toLocaleString('ru-RU')} ₽</strong><br>${backDetails}` : 'Нет расходов'}</div>
+      </div>
+      <div class="review-item">
+        <div class="review-header"><h3>6. Суточные</h3><button type="button" class="review-btn-edit" onclick="goToStep(1)">✏️ Изменить</button></div>
+        <div style="font-size:12px; line-height:1.4;">• ${p.days} сут. × ${p.rate} ₽ = <strong>${p.dailyTotal.toLocaleString('ru-RU')} ₽</strong></div>
       </div>
     `;
-    document.getElementById('review_narrative').innerHTML = `Командировка в г. ${p.city} на ${p.days} дн. Суточные: ${p.dailyTotal.toLocaleString('ru-RU')} ₽.`;
+
+    const total = store.expenses.reduce((s,e)=>s + Number(e.sum || 0), 0) + p.dailyTotal;
+    const diff = p.advance - total;
+    let narrative = `<b>Итоги:</b><br>• Всего расходов: <b>${total.toLocaleString('ru-RU')} ₽</b><br>• Получено авансом: <b>${p.advance.toLocaleString('ru-RU')} ₽</b><br>`;
+    if (diff < 0) narrative += `<b style="color:var(--danger);">Перерасход к выплате: ${Math.abs(diff).toLocaleString('ru-RU')} ₽</b>`;
+    else if (diff > 0) narrative += `<b style="color:var(--warning);">Остаток к возврату: ${diff.toLocaleString('ru-RU')} ₽</b>`;
+    else narrative += `<b>Аванс израсходован точно под ноль</b>`;
+
+    document.getElementById('review_narrative').innerHTML = narrative;
   }
 
   function renderFinal() {
@@ -945,9 +968,17 @@
     let rowsHtml = sorted.map((e, i) => `<tr><td class="text-center">${i+1}</td><td>${formatRuDateString(e.date)}</td><td>${e.no}</td><td>${e.name}</td><td class="text-right">${Number(e.sum).toLocaleString('ru-RU', {minimumFractionDigits:2})}</td></tr>`).join('');
     rowsHtml += `<tr><td class="text-center">${sorted.length+1}</td><td></td><td></td><td><strong>Суточные за ${p.days} дн.</strong></td><td class="text-right"><strong>${Number(p.dailyTotal).toLocaleString('ru-RU', {minimumFractionDigits:2})}</strong></td></tr>`;
     tb.innerHTML = rowsHtml;
+
+    const cardTaxi = document.getElementById('card_taxi');
+    const tbTaxi = document.querySelector('#tbl_taxi tbody');
+    if (store.taxis.length > 0 && tbTaxi && cardTaxi) {
+      cardTaxi.style.display = 'block';
+      tbTaxi.innerHTML = store.taxis.map(t => `<tr><td>${formatRuDateString(t.date)}</td><td>${t.route}</td><td>${t.purpose}</td><td class="text-right">${Number(t.sum).toLocaleString('ru-RU', {minimumFractionDigits:2})}</td></tr>`).join('');
+    } else if (cardTaxi) {
+      cardTaxi.style.display = 'none';
+    }
   }
 
-  // ВЕРНУЛИ ПОЛНОЦЕННЫЙ ДЕМО-СЦЕНАРИЙ
   function loadDemoScenario() {
     document.getElementById('p_fio').value = "Илгин Александр Александрович";
     document.getElementById('p_role').value = "Руководитель команды открытия";
@@ -988,7 +1019,7 @@
     ];
 
     renderExpenseList();
-    showToast('⚡ Демо-сценарий загружен!');
+    showToast('⚡ Демо-сценарий со всеми расходами и такси загружен!');
   }
 
   function sendReportToCloudOnce() {
