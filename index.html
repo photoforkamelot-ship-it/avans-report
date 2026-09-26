@@ -6,10 +6,10 @@
   <title>Мастер авансового отчета</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <style>
     :root {
       --primary: #007aff;
-      --primary-hover: #0056b3;
       --bg: #f2f2f7;
       --card: #ffffff;
       --text: #1c1c1e;
@@ -20,7 +20,7 @@
     }
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     body {
-      margin: 0; padding: 12px;
+      margin: 0; padding: 10px;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       background: var(--bg); color: var(--text);
     }
@@ -28,46 +28,44 @@
     
     .demo-bar {
       background: linear-gradient(135deg, #ff9500, #ff5e3a);
-      color: white; padding: 12px 14px; border-radius: 12px;
-      margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;
-      box-shadow: 0 3px 10px rgba(255, 149, 0, 0.25);
+      color: white; padding: 10px 12px; border-radius: 12px;
+      margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;
     }
     .demo-bar button {
       background: #fff; color: #d84315; font-weight: 700; border: none;
-      padding: 8px 14px; border-radius: 8px; font-size: 13px; cursor: pointer;
+      padding: 7px 12px; border-radius: 8px; font-size: 12px; cursor: pointer;
     }
-    .card { background: var(--card); border-radius: 14px; padding: 15px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
-    h2 { font-size: 18px; margin: 0 0 12px 0; font-weight: 700; }
-    h3 { font-size: 15px; margin: 0 0 8px 0; font-weight: 600; }
+    .card { background: var(--card); border-radius: 12px; padding: 12px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+    h2 { font-size: 17px; margin: 0 0 10px 0; font-weight: 700; }
+    h3 { font-size: 14px; margin: 0 0 8px 0; font-weight: 600; }
     
-    .field { margin-bottom: 10px; display: flex; flex-direction: column; position: relative; }
-    .field label { font-size: 13px; font-weight: 600; color: #48484a; margin-bottom: 4px; }
+    .field { margin-bottom: 8px; display: flex; flex-direction: column; position: relative; }
+    .field label { font-size: 12px; font-weight: 600; color: #48484a; margin-bottom: 3px; }
     .field input, .field select {
-      height: 44px; padding: 0 12px; font-size: 15px;
-      border: 1px solid var(--border); border-radius: 10px; outline: none; background: #fff; width: 100%;
+      height: 40px; padding: 0 10px; font-size: 14px;
+      border: 1px solid var(--border); border-radius: 8px; outline: none; background: #fff; width: 100%;
     }
-    .field input:focus, .field select:focus { border-color: var(--primary); }
-    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     
     .btn {
-      height: 46px; display: flex; align-items: center; justify-content: center;
-      border-radius: 11px; font-size: 15px; font-weight: 600; border: none; cursor: pointer; width: 100%;
+      height: 44px; display: flex; align-items: center; justify-content: center;
+      border-radius: 10px; font-size: 14px; font-weight: 600; border: none; cursor: pointer; width: 100%;
       text-decoration: none;
     }
     .btn-primary { background: var(--primary); color: #fff; }
     .btn-secondary { background: #e5e5ea; color: #1c1c1e; }
     .btn-green { background: var(--success); color: white; }
-    .btn-danger { background: #ffe5e5; color: var(--danger); height: 32px; font-size: 12px; border-radius: 6px; width: auto; padding: 0 10px; }
+    .btn-danger { background: #ffe5e5; color: var(--danger); height: 28px; font-size: 11px; border-radius: 6px; width: auto; padding: 0 8px; }
 
-    .nav-bar { display: flex; gap: 8px; margin-top: 14px; }
+    .nav-bar { display: flex; gap: 8px; margin-top: 10px; }
     .step-content { display: none; }
     .step-content.active { display: block; }
 
-    .checkbox-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 14px; cursor: pointer; }
-    .checkbox-row input { width: 18px; height: 18px; margin: 0; }
-    .sub-box { background: #f9f9fb; border-left: 3px solid var(--primary); padding: 10px; border-radius: 0 8px 8px 0; margin-bottom: 8px; display: none; }
+    .checkbox-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 13px; cursor: pointer; }
+    .checkbox-row input { width: 16px; height: 16px; margin: 0; }
+    .sub-box { background: #f9f9fb; border-left: 3px solid var(--primary); padding: 8px; border-radius: 0 6px 6px 0; margin-bottom: 8px; display: none; }
 
-    .addr-row { display: flex; gap: 8px; position: relative; }
+    .addr-row { display: flex; gap: 6px; position: relative; }
     .addr-row .main-addr { flex: 2; position: relative; }
     .addr-row .sub-obj { flex: 1.2; }
 
@@ -75,36 +73,28 @@
       position: absolute; top: 100%; left: 0; right: 0;
       background: #ffffff; border: 1px solid var(--border); border-radius: 8px;
       box-shadow: 0 4px 14px rgba(0,0,0,0.15); z-index: 1000; display: none;
-      max-height: 200px; overflow-y: auto; margin-top: 2px;
+      max-height: 180px; overflow-y: auto; margin-top: 2px;
     }
-    .suggest-item { padding: 10px 12px; font-size: 13px; border-bottom: 1px solid #f2f2f7; cursor: pointer; line-height: 1.4; }
-    .suggest-item:hover, .suggest-item:active { background: #f2f2f7; color: var(--primary); }
+    .suggest-item { padding: 8px 10px; font-size: 12px; border-bottom: 1px solid #f2f2f7; cursor: pointer; }
 
-    .table-scroll { width: 100%; overflow-x: auto; margin: 10px 0; }
-    table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 480px; background: white; }
-    th, td { border: 1px solid #000; padding: 6px 8px; text-align: left; }
+    .table-scroll { width: 100%; overflow-x: auto; margin: 6px 0; -webkit-overflow-scrolling: touch; }
+    table { width: 100%; border-collapse: collapse; font-size: 11px; table-layout: auto; background: white; }
+    th, td { border: 1px solid #c7c7cc; padding: 5px 6px; text-align: left; word-break: break-word; }
     th { background: #f2f2f7; font-weight: 600; }
-    .text-right { text-align: right; }
+    .text-right { text-align: right; white-space: nowrap; }
     .text-center { text-align: center; }
 
-    .review-item { background: #ffffff; border: 1px solid #e5e5ea; border-radius: 10px; padding: 12px; margin-bottom: 10px; }
-    .review-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
-    .review-header h3 { margin: 0; font-size: 14px; font-weight: 700; }
-    .review-btn-edit { background: #e5e5ea; color: #1c1c1e; border: none; border-radius: 6px; padding: 4px 8px; font-size: 12px; font-weight: 600; cursor: pointer; }
+    .review-item { background: #ffffff; border: 1px solid #e5e5ea; border-radius: 8px; padding: 10px; margin-bottom: 8px; }
+    .review-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+    .review-header h3 { margin: 0; font-size: 13px; font-weight: 700; }
+    .review-btn-edit { background: #e5e5ea; border: none; border-radius: 5px; padding: 3px 6px; font-size: 11px; cursor: pointer; }
+
+    .emp-list-item { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #e5e5ea; font-size: 12px; }
 
     #toast {
       position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-      background: rgba(0,0,0,0.85); color: white; padding: 8px 16px; border-radius: 20px;
-      font-size: 13px; display: none; z-index: 9999;
-    }
-
-    @media print {
-      body { background: white; padding: 0; }
-      .wrapper { max-width: 100%; }
-      .demo-bar, .nav-bar, #emp_box_card, .step-content:not(#step-4) { display: none !important; }
-      #step-4 { display: block !important; }
-      .card { box-shadow: none; border: none; padding: 0; margin-bottom: 20px; }
-      .table-scroll { overflow: visible; }
+      background: rgba(0,0,0,0.85); color: white; padding: 7px 14px; border-radius: 18px;
+      font-size: 12px; display: none; z-index: 9999;
     }
   </style>
 </head>
@@ -114,7 +104,7 @@
   
   <div class="demo-bar">
     <div>
-      <div style="font-weight: 700; font-size: 13px;">⚡ Демо: Омск ↔ Красноярск</div>
+      <div style="font-weight: 700; font-size: 12px;">⚡ Демо: Омск ↔ Красноярск</div>
       <div style="font-size: 11px; opacity: 0.9;">18 дней, самолет, автобус, такси, квартира</div>
     </div>
     <button type="button" onclick="loadDemoScenario()">Заполнить ДЕМО</button>
@@ -122,23 +112,38 @@
 
   <div id="step-1" class="step-content active">
     
-    <div class="card" id="emp_box_card" style="background:#eef7ff; border:1px solid #cce5ff;">
-      <h3>👤 Справочник сотрудников</h3>
+    <div class="card" style="background:#eef7ff; border:1px solid #cce5ff;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+        <h3 style="margin:0;">👤 Справочник сотрудников (Google Таблица)</h3>
+        <span id="emp_sync_status" style="font-size:11px; color:#007aff;">Синхронизация...</span>
+      </div>
       <div class="field">
-        <label>Выбрать из списка для автозаполнения:</label>
+        <label>Выбрать сотрудника:</label>
         <select id="emp_select" onchange="onEmployeeSelect()">
-          <option value="">-- Выберите сотрудника --</option>
+          <option value="">-- Загрузка сотрудников... --</option>
         </select>
       </div>
-      <button type="button" class="btn btn-secondary" style="height:36px; font-size:13px;" onclick="toggleAddEmpBox()">➕ Добавить нового сотрудника</button>
+      <div style="display:flex; gap:6px;">
+        <button type="button" class="btn btn-secondary" style="height:32px; font-size:12px;" onclick="toggleAddEmpBox()">➕ Добавить сотрудника</button>
+        <button type="button" class="btn btn-secondary" style="height:32px; font-size:12px;" onclick="toggleManageEmpBox()">⚙️ Список и удаление</button>
+      </div>
 
-      <div id="add_emp_box" style="display:none; margin-top:10px; background:#fff; padding:10px; border-radius:8px; border:1px solid #b8daff;">
-        <div class="field"><label>ФИО *</label><input type="text" id="new_emp_fio" placeholder="Петров Василий Андреевич"></div>
+      <div id="add_emp_box" style="display:none; margin-top:8px; background:#fff; padding:8px; border-radius:8px; border:1px solid #b8daff;">
+        <input type="hidden" id="edit_emp_old_tab" value="">
+        <div class="field"><label>ФИО *</label><input type="text" id="new_emp_fio" placeholder="Фамилия Имя Отчество"></div>
         <div class="grid-2">
-          <div class="field"><label>Должность *</label><input type="text" id="new_emp_role" placeholder="Инженер ПТО"></div>
-          <div class="field"><label>Табельный № *</label><input type="text" id="new_emp_tab" placeholder="1055"></div>
+          <div class="field"><label>Должность *</label><input type="text" id="new_emp_role" placeholder="Продавец-кассир"></div>
+          <div class="field"><label>Табельный № *</label><input type="text" id="new_emp_tab" placeholder="0000012345"></div>
         </div>
-        <button type="button" class="btn btn-primary" style="height:38px; font-size:13px;" onclick="saveNewEmployee()">Сохранить сотрудника</button>
+        <div style="display:flex; gap:6px;">
+          <button type="button" id="btn_save_emp" class="btn btn-primary" style="height:34px; font-size:12px;" onclick="saveEmployeeToGoogle()">Сохранить в Google Таблицу</button>
+          <button type="button" class="btn btn-secondary" style="height:34px; font-size:12px;" onclick="toggleAddEmpBox()">Отмена</button>
+        </div>
+      </div>
+
+      <div id="manage_emp_box" style="display:none; margin-top:8px; background:#fff; padding:8px; border-radius:8px; border:1px solid #b8daff; max-height:260px; overflow-y:auto;">
+        <div style="font-weight:600; font-size:12px; margin-bottom:6px;">Сотрудники в Google Таблице:</div>
+        <div id="emp_items_container"></div>
       </div>
     </div>
 
@@ -146,16 +151,16 @@
       <h2>1. Сведения о командировке</h2>
       <div class="field">
         <label>ФИО сотрудника *</label>
-        <input type="text" id="p_fio" placeholder="Иванов Иван Иванович">
+        <input type="text" id="p_fio" placeholder="Илгин Александр Александрович">
       </div>
       <div class="grid-2">
         <div class="field">
           <label>Должность</label>
-          <input type="text" id="p_role" placeholder="Инженер">
+          <input type="text" id="p_role" placeholder="Руководитель команды открытия">
         </div>
         <div class="field">
           <label>Таб. номер</label>
-          <input type="text" id="p_tab" placeholder="1042">
+          <input type="text" id="p_tab" placeholder="0000013789">
         </div>
       </div>
       <div class="field">
@@ -205,7 +210,7 @@
         <button type="button" class="btn btn-secondary" onclick="openExpense('misc')">🛒 Прочее</button>
       </div>
 
-      <div id="add-box" style="display:none; background:#f2f2f7; padding:12px; border-radius:12px; margin-bottom:12px;">
+      <div id="add-box" style="display:none; background:#f2f2f7; padding:10px; border-radius:10px; margin-bottom:10px;">
         <h3 id="add-title">Добавить расход</h3>
         <div class="field">
           <label>Дата документа *</label>
@@ -276,11 +281,11 @@
             <label>Точка А (Откуда) *</label>
             <div class="addr-row">
               <div class="main-addr">
-                <input type="text" id="e_taxi_from" placeholder="Адрес (улица, дом)..." autocomplete="off" oninput="fetchFiasSuggestions(this, 'sug_a')">
+                <input type="text" id="e_taxi_from" placeholder="Адрес..." autocomplete="off" oninput="fetchFiasSuggestions(this, 'sug_a')">
                 <div id="sug_a" class="suggest-box"></div>
               </div>
               <div class="sub-obj">
-                <input type="text" id="e_taxi_obj_a" placeholder="Объект: Дом">
+                <input type="text" id="e_taxi_obj_a" placeholder="Дом">
               </div>
             </div>
           </div>
@@ -289,11 +294,11 @@
             <label>Точка Б (Куда) *</label>
             <div class="addr-row">
               <div class="main-addr">
-                <input type="text" id="e_taxi_to" placeholder="Адрес (улица, дом)..." autocomplete="off" oninput="fetchFiasSuggestions(this, 'sug_b')">
+                <input type="text" id="e_taxi_to" placeholder="Адрес..." autocomplete="off" oninput="fetchFiasSuggestions(this, 'sug_b')">
                 <div id="sug_b" class="suggest-box"></div>
               </div>
               <div class="sub-obj">
-                <input type="text" id="e_taxi_obj_b" placeholder="Объект: Аэропорт">
+                <input type="text" id="e_taxi_obj_b" placeholder="Аэропорт">
               </div>
             </div>
           </div>
@@ -326,14 +331,14 @@
           <div class="field"><label>Наименование расхода *</label><input type="text" id="e_misc_name" placeholder="Хозтовары"></div>
         </div>
 
-        <div style="display:flex; gap:8px; margin-top:8px;">
+        <div style="display:flex; gap:6px; margin-top:8px;">
           <button type="button" class="btn btn-primary" onclick="saveExpense()">Сохранить</button>
           <button type="button" class="btn btn-secondary" onclick="closeExpense()">Отмена</button>
         </div>
       </div>
 
-      <h3 style="margin-top:15px;">Введенные позиции (<span id="lbl_count">0</span>)</h3>
-      <div id="list_expenses" style="font-size: 13px; color: #666;">Пока ничего не добавлено.</div>
+      <h3 style="margin-top:12px;">Введенные позиции (<span id="lbl_count">0</span>)</h3>
+      <div id="list_expenses" style="font-size: 12px; color: #666;">Пока ничего не добавлено.</div>
     </div>
 
     <div class="nav-bar">
@@ -345,45 +350,47 @@
   <div id="step-3" class="step-content">
     <div class="card">
       <h2>3. Проверка расходов по документам</h2>
-      <div style="font-size: 13px; color: #636366; margin-bottom: 12px;">
-        Сверьте данные по каждому разделу. Для исправления нажмите «✏️ Изменить» напротив нужного блока.
+      <div style="font-size: 12px; color: #636366; margin-bottom: 8px;">
+        Сверьте данные по разделам. При необходимости нажмите «✏️ Изменить».
       </div>
       <div id="review_cards_container"></div>
     </div>
 
     <div class="card" style="background:#eef7ff; border:1px solid #b8daff;">
       <h3>Итоговый связный отчет командировки:</h3>
-      <div id="review_narrative" style="font-size:13px; line-height:1.6;"></div>
+      <div id="review_narrative" style="font-size:12px; line-height:1.5;"></div>
     </div>
 
     <div class="nav-bar">
-      <button type="button" class="btn btn-secondary" onclick="goToStep(2)">← Вернуться к списку</button>
+      <button type="button" class="btn btn-secondary" onclick="goToStep(2)">← Назад</button>
       <button type="button" class="btn btn-primary" onclick="goToStep(4)">Сформировать отчет 🚀</button>
     </div>
   </div>
 
   <div id="step-4" class="step-content">
     <div class="nav-bar" style="margin-bottom:10px; display:flex; flex-direction:column; gap:8px;">
-      <div style="display:flex; gap:8px; width:100%;">
+      <div style="display:flex; gap:6px; width:100%;">
         <button type="button" class="btn btn-secondary" style="flex:1;" onclick="goToStep(3)">← Назад</button>
         <button type="button" class="btn btn-green" style="flex:2;" onclick="downloadExcelDirectly()">📥 Скачать Excel (.xlsx)</button>
       </div>
-      <button type="button" class="btn btn-primary" onclick="window.print()">📄 Сохранить в PDF / Распечатать</button>
+      <button type="button" class="btn btn-primary" onclick="generatePdfDirectly()">📄 Сохранить в PDF</button>
     </div>
 
-    <div class="card" style="padding:10px;">
-      <h3 style="margin:0 0 6px 0;">1. Сведения о командировке</h3>
-      <div class="table-scroll"><table id="tbl_pass"><tbody></tbody></table></div>
-    </div>
+    <div id="printable_report">
+      <div class="card" style="padding:10px;">
+        <h3 style="margin:0 0 6px 0;">1. Сведения о командировке</h3>
+        <div class="table-scroll"><table id="tbl_pass"><tbody></tbody></table></div>
+      </div>
 
-    <div class="card" style="padding:10px;">
-      <h3 style="margin:0 0 6px 0;">2. Оборотная сторона формы № АО-1</h3>
-      <div class="table-scroll"><table id="tbl_ao1"><thead><tr><th style="width:30px;" class="text-center">№</th><th style="width:80px;">Дата</th><th style="width:120px;">Номер документа</th><th>Наименование</th><th style="width:90px;" class="text-right">Сумма (₽)</th></tr></thead><tbody></tbody></table></div>
-    </div>
+      <div class="card" style="padding:10px;">
+        <h3 style="margin:0 0 6px 0;">2. Оборотная сторона формы № АО-1</h3>
+        <div class="table-scroll"><table id="tbl_ao1"><thead><tr><th style="width:24px;" class="text-center">№</th><th style="width:75px;">Дата</th><th style="width:90px;">№ док.</th><th>Наименование расхода</th><th style="width:80px;" class="text-right">Сумма (₽)</th></tr></thead><tbody></tbody></table></div>
+      </div>
 
-    <div class="card" id="card_taxi" style="padding:10px; display:none;">
-      <h3 style="margin:0 0 6px 0;">3. Детализация такси</h3>
-      <div class="table-scroll"><table id="tbl_taxi"><thead><tr><th style="width:80px;">Дата</th><th>Маршрут (Точка А — Точка Б)</th><th style="width:150px;">Цель</th><th style="width:80px;" class="text-right">Сумма (₽)</th></tr></thead><tbody></tbody></table></div>
+      <div class="card" id="card_taxi" style="padding:10px; display:none;">
+        <h3 style="margin:0 0 6px 0;">3. Детализация такси</h3>
+        <div class="table-scroll"><table id="tbl_taxi"><thead><tr><th style="width:75px;">Дата</th><th>Маршрут (Точка А — Точка Б)</th><th>Цель поездки</th><th style="width:75px;" class="text-right">Сумма (₽)</th></tr></thead><tbody></tbody></table></div>
+      </div>
     </div>
   </div>
 
@@ -393,16 +400,22 @@
 
 <script>
   let tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
-  if (tg) { 
-    try {
-      tg.ready(); 
-      tg.expand(); 
-    } catch(e){}
-  }
+  if (tg) { try { tg.ready(); tg.expand(); } catch(e){} }
 
-  // API-КЛЮЧ DADATA (ФИАС / ГАР)
   const DADATA_API_KEY = "74443bebf6f911f3792509fa4ad680d6977c3e14";
+  
+  // URL ВАШЕЙ GOOGLE ТАБЛИЦЫ (APPS SCRIPT API)
+  const GOOGLE_SHEET_API = "https://script.google.com/macros/s/AKfycbwqfeeX8q61tkVz0Rhubm2hu14O7vOPhu40r9qx6IOR78adJUq_U3CNwGtx6CfF-3oItQ/exec";
 
+  // Базовый список на случай отсутствия связи
+  const BACKUP_EMPLOYEES = [
+    { fio: "Илгин Александр Александрович", tab: "0000013789", role: "Руководитель команды открытия" },
+    { fio: "Евдокимова Наталья Вячеславна", tab: "0000000415", role: "Продавец-кассир команды открытия" },
+    { fio: "Козлов Альберт Николаевич", tab: "0000025391", role: "Продавец-кассир команды открытия" },
+    { fio: "Альварез Максим Игоревич", tab: "0000060714", role: "Продавец-кассир команды открытия" }
+  ];
+
+  let currentEmployees = [];
   let store = {
     passport: { fio:'', role:'', tab:'', city:'', dStart:'', dEnd:'', advance:0, days:0, rate:1500, dailyTotal:0 },
     expenses: [], taxis: []
@@ -410,32 +423,71 @@
   let curCategory = '';
   let fiasTimer = null;
 
-  // СПРАВОЧНИК СОТРУДНИКОВ
-  function getEmployees() {
-    const saved = localStorage.getItem("my_company_employees");
-    if (saved) {
-      try { return JSON.parse(saved); } catch(e){}
-    }
-    return [
-      { fio: "Иванов Иван Иванович", role: "Ведущий инженер", tab: "1042" },
-      { fio: "Смирнов Алексей Петрович", role: "Главный специалист", tab: "1088" },
-      { fio: "Кузнецова Анна Сергеевна", role: "Менеджер проекта", tab: "1105" }
-    ];
+  function formatDateRu(dStr) {
+    if (!dStr) return '';
+    const parts = dStr.split('-');
+    if (parts.length === 3) return `${parts[2]}.${parts[1]}.${parts[0]}`;
+    return dStr;
+  }
+
+  // СИНХРОНИЗАЦИЯ С GOOGLE ТАБЛИЦЕЙ (ЧТЕНИЕ)
+  function loadEmployeesFromGoogle() {
+    const status = document.getElementById("emp_sync_status");
+    status.innerText = "Синхронизация...";
+    
+    fetch(GOOGLE_SHEET_API)
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          currentEmployees = data;
+          status.innerText = "Онлайн (Google)";
+          status.style.color = "var(--success)";
+        } else {
+          currentEmployees = BACKUP_EMPLOYEES;
+          status.innerText = "Резерв";
+        }
+        renderEmployeeSelect();
+        renderManageEmpList();
+      })
+      .catch(err => {
+        console.error("Ошибка загрузки из Google Таблицы:", err);
+        currentEmployees = BACKUP_EMPLOYEES;
+        status.innerText = "Офлайн (резерв)";
+        status.style.color = "var(--danger)";
+        renderEmployeeSelect();
+        renderManageEmpList();
+      });
   }
 
   function renderEmployeeSelect() {
-    const emps = getEmployees();
     const sel = document.getElementById("emp_select");
-    sel.innerHTML = '<option value="">-- Выберите сотрудника --</option>';
-    emps.forEach((emp, idx) => {
+    sel.innerHTML = '<option value="">-- Выберите сотрудника (' + currentEmployees.length + ') --</option>';
+    currentEmployees.forEach((emp, idx) => {
       sel.innerHTML += `<option value="${idx}">${emp.fio} (таб. ${emp.tab})</option>`;
     });
+  }
+
+  function renderManageEmpList() {
+    const c = document.getElementById("emp_items_container");
+    if (currentEmployees.length === 0) {
+      c.innerHTML = '<div style="color:#8e8e93; font-size:12px;">Список пуст.</div>';
+      return;
+    }
+    c.innerHTML = currentEmployees.map((emp, idx) => `
+      <div class="emp-list-item">
+        <div><strong>${emp.fio}</strong><br><small style="color:#8e8e93;">${emp.role}, таб. ${emp.tab}</small></div>
+        <div style="display:flex; gap:4px;">
+          <button type="button" class="btn btn-secondary" style="height:26px; font-size:11px; padding:0 6px;" onclick="editEmployee(${idx})">✏️</button>
+          <button type="button" class="btn btn-danger" onclick="deleteEmployeeFromGoogle('${emp.tab}', ${idx})">🗑️</button>
+        </div>
+      </div>
+    `).join('');
   }
 
   function onEmployeeSelect() {
     const sel = document.getElementById("emp_select");
     if (sel.value === "") return;
-    const emp = getEmployees()[sel.value];
+    const emp = currentEmployees[sel.value];
     if (emp) {
       document.getElementById("p_fio").value = emp.fio;
       document.getElementById("p_role").value = emp.role;
@@ -444,38 +496,92 @@
     }
   }
 
-  function toggleAddEmpBox() {
+  function toggleAddEmpBox(clear = true) {
     const b = document.getElementById("add_emp_box");
+    if (clear) {
+      document.getElementById("edit_emp_old_tab").value = "";
+      document.getElementById("new_emp_fio").value = "";
+      document.getElementById("new_emp_role").value = "";
+      document.getElementById("new_emp_tab").value = "";
+      document.getElementById("btn_save_emp").innerText = "Сохранить в Google Таблицу";
+    }
     b.style.display = b.style.display === "block" ? "none" : "block";
+    document.getElementById("manage_emp_box").style.display = "none";
   }
 
-  function saveNewEmployee() {
+  function toggleManageEmpBox() {
+    const b = document.getElementById("manage_emp_box");
+    b.style.display = b.style.display === "block" ? "none" : "block";
+    document.getElementById("add_emp_box").style.display = "none";
+    renderManageEmpList();
+  }
+
+  // ЗАПИСЬ В GOOGLE ТАБЛИЦУ (ДОБАВЛЕНИЕ / ИЗМЕНЕНИЕ)
+  function saveEmployeeToGoogle() {
     const fio = document.getElementById("new_emp_fio").value.trim();
     const role = document.getElementById("new_emp_role").value.trim();
     const tab = document.getElementById("new_emp_tab").value.trim();
+    const oldTab = document.getElementById("edit_emp_old_tab").value.trim();
 
     if (!fio || !role || !tab) {
-      showToast("Заполните ФИО, должность и табельный номер");
+      showToast("Заполните все поля");
       return;
     }
 
-    const emps = getEmployees();
-    emps.push({ fio, role, tab });
-    localStorage.setItem("my_company_employees", JSON.stringify(emps));
+    showToast("Сохранение в Google Таблицу...");
+    const action = oldTab ? "update" : "add";
+    const payload = { action, fio, role, tab, oldTab };
 
-    renderEmployeeSelect();
-    document.getElementById("emp_select").value = emps.length - 1;
-    onEmployeeSelect();
+    fetch(GOOGLE_SHEET_API, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    }).then(() => {
+      showToast("Успешно сохранено!");
+      toggleAddEmpBox(true);
+      setTimeout(loadEmployeesFromGoogle, 1200);
+    }).catch(err => {
+      console.error(err);
+      showToast("Ошибка связи с таблицей");
+    });
+  }
 
-    document.getElementById("new_emp_fio").value = "";
-    document.getElementById("new_emp_role").value = "";
-    document.getElementById("new_emp_tab").value = "";
-    toggleAddEmpBox();
-    showToast("Сотрудник сохранен в справочник!");
+  function editEmployee(idx) {
+    const emp = currentEmployees[idx];
+    if (!emp) return;
+    document.getElementById("edit_emp_old_tab").value = emp.tab;
+    document.getElementById("new_emp_fio").value = emp.fio;
+    document.getElementById("new_emp_role").value = emp.role;
+    document.getElementById("new_emp_tab").value = emp.tab;
+    document.getElementById("btn_save_emp").innerText = "Обновить в Google Таблице";
+    document.getElementById("add_emp_box").style.display = "block";
+    document.getElementById("manage_emp_box").style.display = "none";
+  }
+
+  function deleteEmployeeFromGoogle(tab, idx) {
+    if (!confirm("Удалить сотрудника из Google Таблицы?")) return;
+    showToast("Удаление...");
+    
+    fetch(GOOGLE_SHEET_API, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "delete", tab })
+    }).then(() => {
+      showToast("Сотрудник удален!");
+      currentEmployees.splice(idx, 1);
+      renderEmployeeSelect();
+      renderManageEmpList();
+      setTimeout(loadEmployeesFromGoogle, 1200);
+    }).catch(err => {
+      console.error(err);
+      showToast("Ошибка удаления");
+    });
   }
 
   window.addEventListener('DOMContentLoaded', () => {
-    renderEmployeeSelect();
+    loadEmployeesFromGoogle();
   });
 
   // ПОИСК ФИАС (DaData)
@@ -517,10 +623,7 @@
         `).join('');
         box.style.display = 'block';
       })
-      .catch(err => {
-        console.error("Ошибка ФИАС:", err);
-        box.style.display = 'none';
-      });
+      .catch(() => { box.style.display = 'none'; });
     }, 250);
   }
 
@@ -566,7 +669,7 @@
         window.scrollTo(0,0);
       }
     } catch(err) {
-      console.error("Ошибка перехода на шаг:", err);
+      console.error(err);
       showToast("Ошибка: " + err.message);
     }
   }
@@ -692,8 +795,8 @@
     document.getElementById('lbl_count').innerText = store.expenses.length;
     if (store.expenses.length === 0) { box.innerHTML = 'Пока ничего не добавлено.'; return; }
     box.innerHTML = store.expenses.map(e => `
-      <div style="display:flex; justify-content:space-between; align-items:center; background:#fff; padding:6px 10px; border-radius:8px; margin-bottom:5px; border:1px solid #e5e5ea;">
-        <div><strong>${e.name}</strong><br><small style="color:#8e8e93;">${e.date} | № ${e.no}</small></div>
+      <div style="display:flex; justify-content:space-between; align-items:center; background:#fff; padding:6px 8px; border-radius:8px; margin-bottom:5px; border:1px solid #e5e5ea;">
+        <div><strong>${e.name}</strong><br><small style="color:#8e8e93;">${formatDateRu(e.date)} | № ${e.no}</small></div>
         <div style="display:flex; align-items:center; gap:6px;">
           <strong>${Number(e.sum).toLocaleString('ru-RU')} ₽</strong>
           <button type="button" class="btn btn-danger" onclick="delExp('${e.id}')">✕</button>
@@ -720,9 +823,9 @@
           <h3>1. Данные сотрудника и аванс</h3>
           <button type="button" class="review-btn-edit" onclick="goToStep(1)">✏️ Изменить</button>
         </div>
-        <div style="font-size:13px; line-height:1.5;">
+        <div style="font-size:12px; line-height:1.4;">
           • <strong>Сотрудник:</strong> ${p.fio} (${p.role}, таб. № ${p.tab})<br>
-          • <strong>Командировка:</strong> г. ${p.city} с ${p.dStart} по ${p.dEnd} (${p.days} дн.)<br>
+          • <strong>Командировка:</strong> г. ${p.city} с ${formatDateRu(p.dStart)} по ${formatDateRu(p.dEnd)} (${p.days} дн.)<br>
           • <strong>Запрошено авансом:</strong> <span style="font-weight:700; color:var(--primary);">${p.advance.toLocaleString('ru-RU')} ₽</span>
         </div>
       </div>
@@ -730,16 +833,16 @@
 
     const thereExp = store.expenses.filter(e => e.dir === 'there');
     const thereSum = thereExp.reduce((s,e) => s + Number(e.sum || 0), 0);
-    let thereDetails = thereExp.map(e => `&nbsp;&nbsp;— ${e.name}: <strong>${Number(e.sum).toLocaleString('ru-RU')} ₽</strong> (док. № ${e.no})`).join('<br>');
+    let thereDetails = thereExp.map(e => `&nbsp;&nbsp;— ${e.name}: <strong>${Number(e.sum).toLocaleString('ru-RU')} ₽</strong> (${formatDateRu(e.date)}, док. № ${e.no})`).join('<br>');
     box.innerHTML += `
       <div class="review-item">
         <div class="review-header">
           <h3>2. Проезд в командировку (Туда)</h3>
           <button type="button" class="review-btn-edit" onclick="goToStep(2)">✏️ Изменить</button>
         </div>
-        <div style="font-size:13px; line-height:1.5;">
+        <div style="font-size:12px; line-height:1.4;">
           ${thereExp.length > 0 
-            ? `ИТОГО за проезд "Туда": <strong>${thereSum.toLocaleString('ru-RU')} ₽</strong> по чекам:<br>${thereDetails}` 
+            ? `ИТОГО за проезд "Туда": <strong>${thereSum.toLocaleString('ru-RU')} ₽</strong>:<br>${thereDetails}` 
             : 'Расходы на проезд "Туда" не добавлены.'}
         </div>
       </div>
@@ -747,14 +850,14 @@
 
     const hotelExp = store.expenses.filter(e => e.cat === 'hotel');
     const hotelSum = hotelExp.reduce((s,e) => s + Number(e.sum || 0), 0);
-    let hotelDetails = hotelExp.map(e => `&nbsp;&nbsp;— ${e.name}: <strong>${Number(e.sum).toLocaleString('ru-RU')} ₽</strong> (договор/чек № ${e.no})`).join('<br>');
+    let hotelDetails = hotelExp.map(e => `&nbsp;&nbsp;— ${e.name}: <strong>${Number(e.sum).toLocaleString('ru-RU')} ₽</strong> (${formatDateRu(e.date)}, док. № ${e.no})`).join('<br>');
     box.innerHTML += `
       <div class="review-item">
         <div class="review-header">
           <h3>3. Расходы на проживание</h3>
           <button type="button" class="review-btn-edit" onclick="goToStep(2)">✏️ Изменить</button>
         </div>
-        <div style="font-size:13px; line-height:1.5;">
+        <div style="font-size:12px; line-height:1.4;">
           ${hotelExp.length > 0 
             ? `ИТОГО за проживание: <strong>${hotelSum.toLocaleString('ru-RU')} ₽</strong>:<br>${hotelDetails}` 
             : 'Расходы на проживание не добавлены.'}
@@ -764,7 +867,7 @@
 
     const taxiSum = store.taxis.reduce((s,t) => s + Number(t.sum || 0), 0);
     let taxiDetails = store.taxis.map((t, idx) => 
-      `&nbsp;&nbsp;${idx+1}) <strong>${t.date}</strong> | ${t.route} — <strong>${Number(t.sum).toLocaleString('ru-RU')} ₽</strong> <em>(${t.purpose})</em>`
+      `&nbsp;&nbsp;${idx+1}) <strong>${formatDateRu(t.date)}</strong> | ${t.route} — <strong>${Number(t.sum).toLocaleString('ru-RU')} ₽</strong> <em>(${t.purpose})</em>`
     ).join('<br>');
     box.innerHTML += `
       <div class="review-item">
@@ -772,7 +875,7 @@
           <h3>4. Поездки на такси (${store.taxis.length} поездки)</h3>
           <button type="button" class="review-btn-edit" onclick="goToStep(2)">✏️ Изменить</button>
         </div>
-        <div style="font-size:13px; line-height:1.5;">
+        <div style="font-size:12px; line-height:1.4;">
           ${store.taxis.length > 0 
             ? `ИТОГО по чекам такси: <strong>${taxiSum.toLocaleString('ru-RU')} ₽</strong>:<br>${taxiDetails}` 
             : 'Поездки на такси не зарегистрированы.'}
@@ -782,16 +885,16 @@
 
     const backExp = store.expenses.filter(e => e.dir === 'back');
     const backSum = backExp.reduce((s,e) => s + Number(e.sum || 0), 0);
-    let backDetails = backExp.map(e => `&nbsp;&nbsp;— ${e.name}: <strong>${Number(e.sum).toLocaleString('ru-RU')} ₽</strong> (док. № ${e.no})`).join('<br>');
+    let backDetails = backExp.map(e => `&nbsp;&nbsp;— ${e.name}: <strong>${Number(e.sum).toLocaleString('ru-RU')} ₽</strong> (${formatDateRu(e.date)}, док. № ${e.no})`).join('<br>');
     box.innerHTML += `
       <div class="review-item">
         <div class="review-header">
           <h3>5. Проезд из командировки (Обратно)</h3>
           <button type="button" class="review-btn-edit" onclick="goToStep(2)">✏️ Изменить</button>
         </div>
-        <div style="font-size:13px; line-height:1.5;">
+        <div style="font-size:12px; line-height:1.4;">
           ${backExp.length > 0 
-            ? `ИТОГО за проезд "Обратно": <strong>${backSum.toLocaleString('ru-RU')} ₽</strong> по чекам:<br>${backDetails}` 
+            ? `ИТОГО за проезд "Обратно": <strong>${backSum.toLocaleString('ru-RU')} ₽</strong>:<br>${backDetails}` 
             : 'Расходы на проезд "Обратно" не добавлены.'}
         </div>
       </div>
@@ -803,9 +906,9 @@
           <h3>6. Суточные за время командировки</h3>
           <button type="button" class="review-btn-edit" onclick="goToStep(1)">✏️ Изменить</button>
         </div>
-        <div style="font-size:13px; line-height:1.5;">
+        <div style="font-size:12px; line-height:1.4;">
           • Расчет: <strong>${p.days} суток</strong> × <strong>${p.rate} ₽/сутки</strong><br>
-          • Общая сумма суточных: <span style="font-weight:700; color:var(--primary);">${p.dailyTotal.toLocaleString('ru-RU')} ₽</span>
+          • Общая сумма: <span style="font-weight:700; color:var(--primary);">${p.dailyTotal.toLocaleString('ru-RU')} ₽</span>
         </div>
       </div>
     `;
@@ -813,20 +916,20 @@
     const total = store.expenses.reduce((s,e)=>s + Number(e.sum || 0), 0) + p.dailyTotal;
     const diff = p.advance - total;
 
-    let narrative = `Мы проверили и утвердили следующие расходы:<br>`;
-    narrative += `<strong>${p.dStart}</strong> Вы поехали в командировку в <strong>г. ${p.city}</strong>. `;
+    let narrative = `Сводные данные командировки:<br>`;
+    narrative += `<strong>${formatDateRu(p.dStart)}</strong> выезд в <strong>г. ${p.city}</strong>. `;
     if (thereExp.length > 0) narrative += `Затраты на проезд составили ${thereSum.toLocaleString('ru-RU')} ₽. `;
-    if (hotelExp.length > 0) narrative += `Проживали на сумму <strong>${hotelSum.toLocaleString('ru-RU')} ₽</strong>. `;
-    if (store.taxis.length > 0) narrative += `Использовали ${store.taxis.length} раза такси на сумму ${taxiSum.toLocaleString('ru-RU')} ₽. `;
-    if (backExp.length > 0) narrative += `<strong>${p.dEnd}</strong> вернулись обратно домой (расход на проезд: ${backSum.toLocaleString('ru-RU')} ₽). `;
-    narrative += `Начислены суточные за <strong>${p.days} дн.</strong> на сумму <strong>${p.dailyTotal.toLocaleString('ru-RU')} ₽</strong>.<br><br>`;
+    if (hotelExp.length > 0) narrative += `Проживание: <strong>${hotelSum.toLocaleString('ru-RU')} ₽</strong>. `;
+    if (store.taxis.length > 0) narrative += `Такси: ${store.taxis.length} поездок на ${taxiSum.toLocaleString('ru-RU')} ₽. `;
+    if (backExp.length > 0) narrative += `<strong>${formatDateRu(p.dEnd)}</strong> возвращение домой (${backSum.toLocaleString('ru-RU')} ₽). `;
+    narrative += `Суточные за <strong>${p.days} дн.</strong>: <strong>${p.dailyTotal.toLocaleString('ru-RU')} ₽</strong>.<br><br>`;
     
     narrative += `<strong>Всего расходов:</strong> ${total.toLocaleString('ru-RU')} ₽<br>`;
     narrative += `<strong>Выдано авансом:</strong> ${p.advance.toLocaleString('ru-RU')} ₽<br>`;
     if (diff < 0) {
-      narrative += `<strong style="color:var(--danger); font-size:14px;">Перерасход к выплате сотруднику: ${Math.abs(diff).toLocaleString('ru-RU')} ₽</strong>`;
+      narrative += `<strong style="color:var(--danger); font-size:13px;">Перерасход к выплате сотруднику: ${Math.abs(diff).toLocaleString('ru-RU')} ₽</strong>`;
     } else if (diff > 0) {
-      narrative += `<strong style="color:var(--warning); font-size:14px;">Остаток к возврату в кассу: ${diff.toLocaleString('ru-RU')} ₽</strong>`;
+      narrative += `<strong style="color:var(--warning); font-size:13px;">Остаток к возврату в кассу: ${diff.toLocaleString('ru-RU')} ₽</strong>`;
     } else {
       narrative += `<strong>Аванс израсходован точно под ноль (0,00 ₽)</strong>`;
     }
@@ -839,25 +942,27 @@
     const total = store.expenses.reduce((s,e)=>s + Number(e.sum || 0), 0) + (p.dailyTotal || 0);
     const diff = (p.advance || 0) - total;
 
-    // Паспорт
     const tblPass = document.querySelector('#tbl_pass tbody');
     if (tblPass) {
       tblPass.innerHTML = `
-        <tr><th style="width:25%;">Сотрудник</th><td><strong>${p.fio}</strong></td><th style="width:25%;">Должность / Таб</th><td>${p.role} / ${p.tab}</td></tr>
-        <tr><th>Город</th><td>${p.city}</td><th>Сроки</th><td>${p.dStart} — ${p.dEnd} (${p.days} дн.)</td></tr>
-        <tr><th>Аванс</th><td>${(p.advance || 0).toLocaleString('ru-RU')} ₽</td><th>Итого факт</th><td><strong>${total.toLocaleString('ru-RU')} ₽</strong></td></tr>
-        <tr style="background:#f9f9fb;"><th>Суточные</th><td>${(p.dailyTotal || 0).toLocaleString('ru-RU')} ₽</td><th>Итог</th><td><strong>${diff < 0 ? 'Перерасход: '+Math.abs(diff).toLocaleString('ru-RU')+' ₽' : 'Остаток: '+diff.toLocaleString('ru-RU')+' ₽'}</strong></td></tr>
+        <tr><th style="width:30%;">Сотрудник</th><td><strong>${p.fio}</strong></td></tr>
+        <tr><th>Должность / Таб</th><td>${p.role} / ${p.tab}</td></tr>
+        <tr><th>Город</th><td>г. ${p.city}</td></tr>
+        <tr><th>Срок командировки</th><td>${formatDateRu(p.dStart)} — ${formatDateRu(p.dEnd)} (${p.days} дн.)</td></tr>
+        <tr><th>Аванс полученный</th><td>${(p.advance || 0).toLocaleString('ru-RU')} ₽</td></tr>
+        <tr><th>Суточные (${p.days} дн.)</th><td>${(p.dailyTotal || 0).toLocaleString('ru-RU')} ₽</td></tr>
+        <tr><th>Итого факт расходов</th><td><strong>${total.toLocaleString('ru-RU')} ₽</strong></td></tr>
+        <tr style="background:#f9f9fb;"><th>Результат</th><td><strong>${diff < 0 ? 'Перерасход к выплате: '+Math.abs(diff).toLocaleString('ru-RU')+' ₽' : 'Остаток к возврату: '+diff.toLocaleString('ru-RU')+' ₽'}</strong></td></tr>
       `;
     }
 
-    // АО-1
     const sorted = [...store.expenses].sort((a,b) => new Date(a.date || 0) - new Date(b.date || 0));
     const tb = document.querySelector('#tbl_ao1 tbody');
     if (tb) {
       let rowsHtml = sorted.map((e, i) => `
         <tr>
           <td class="text-center">${i+1}</td>
-          <td>${e.date || ''}</td>
+          <td>${formatDateRu(e.date)}</td>
           <td>${e.no || ''}</td>
           <td>${e.name || ''}</td>
           <td class="text-right">${Number(e.sum || 0).toLocaleString('ru-RU', {minimumFractionDigits:2})}</td>
@@ -880,14 +985,13 @@
       tb.innerHTML = rowsHtml;
     }
 
-    // Такси
     const cardTaxi = document.getElementById('card_taxi');
     const tbTaxi = document.querySelector('#tbl_taxi tbody');
     if (store.taxis.length > 0 && tbTaxi && cardTaxi) {
       cardTaxi.style.display = 'block';
       tbTaxi.innerHTML = store.taxis.map(t => `
         <tr>
-          <td>${t.date || ''}</td>
+          <td>${formatDateRu(t.date)}</td>
           <td>${t.route || ''}</td>
           <td>${t.purpose || ''}</td>
           <td class="text-right">${Number(t.sum || 0).toLocaleString('ru-RU', {minimumFractionDigits:2})}</td>
@@ -898,7 +1002,6 @@
     }
   }
 
-  // СКАЧИВАНИЕ EXCEL С СИСТЕМНЫМ МЕНЮ "ПОДЕЛИТЬСЯ / СОХРАНИТЬ"
   function downloadExcelDirectly() {
     try {
       const p = store.passport;
@@ -908,58 +1011,58 @@
 
       const wb = XLSX.utils.book_new();
 
-      // Лист 1: АО-1
       const ao1Data = [
-        ["СВЕДЕНИЯ О КОМАНДИРОВКЕ И РАСХОДАХ К АО-1"],
-        ["Подотчетное лицо:", p.fio, "", "Должность / Таб №:", `${p.role} / ${p.tab}`],
-        ["Город командировки:", p.city, "", "Сроки нахождения:", `${p.dStart} — ${p.dEnd} (${p.days} дн.)`],
-        ["Получено авансом (руб.):", p.advance, "", "Итог расчета:", diff < 0 ? `Перерасход: ${Math.abs(diff)} руб.` : `Остаток: ${diff} руб.`],
+        ["СВЕДЕНИЯ О КОМАНДИРОВКЕ И ПОДОТЧЕТНОМ ЛИЦЕ"],
+        ["ФИО подотчетного лица:", p.fio],
+        ["Должность:", p.role],
+        ["Табельный номер:", p.tab],
+        ["Город командировки:", p.city],
+        ["Срок командировки:", `${formatDateRu(p.dStart)} — ${formatDateRu(p.dEnd)} (${p.days} дней)`],
+        ["Количество суток:", p.days],
+        ["Получено авансом (руб.):", p.advance],
+        ["Суточные (руб.):", `${p.dailyTotal} (${p.rate} руб./сутки)`],
+        ["Итоговый расчет:", diff < 0 ? `Перерасход к выплате: ${Math.abs(diff)} руб.` : `Остаток к возврату: ${diff} руб.`],
         [],
+        ["ОБОРОТНАЯ СТОРОНА ФОРМЫ № АО-1 (ОТЧЕТ О РАСХОДАХ)"],
         ["№", "Дата", "Номер документа", "Наименование документа (расхода)", "Сумма (руб.)"]
       ];
 
       sorted.forEach((e, idx) => {
-        ao1Data.push([idx + 1, e.date, e.no, e.name, Number(e.sum || 0)]);
+        ao1Data.push([idx + 1, formatDateRu(e.date), e.no, e.name, Number(e.sum || 0)]);
       });
 
       ao1Data.push([sorted.length + 1, "", "", `Авансовый отчет суточные за ${p.days} дн.`, Number(p.dailyTotal || 0)]);
       ao1Data.push(["", "", "", "ИТОГО ПО ОТЧЕТУ:", total]);
 
       const ws1 = XLSX.utils.aoa_to_sheet(ao1Data);
-      ws1['!cols'] = [{wch: 5}, {wch: 12}, {wch: 18}, {wch: 45}, {wch: 15}];
-      XLSX.utils.book_append_sheet(wb, ws1, "Оборотная сторона АО-1");
+      ws1['!cols'] = [{wch: 6}, {wch: 14}, {wch: 18}, {wch: 50}, {wch: 15}];
+      XLSX.utils.book_append_sheet(wb, ws1, "Авансовый отчет");
 
-      // Лист 2: Такси
       if (store.taxis.length > 0) {
         const taxiData = [
-          ["Дата", "Маршрут (Точка А — Точка Б)", "Цель служебной поездки", "Сумма (руб.)"]
+          ["ДЕТАЛИЗАЦИЯ СЛУЖЕБНЫХ ПОЕЗДОК НА ТАКСИ"],
+          ["Дата", "Маршрут поездки (Точка А — Точка Б)", "Служебная цель поездки", "Сумма (руб.)"]
         ];
         store.taxis.forEach(t => {
-          taxiData.push([t.date, t.route, t.purpose, Number(t.sum || 0)]);
+          taxiData.push([formatDateRu(t.date), t.route, t.purpose, Number(t.sum || 0)]);
         });
         const ws2 = XLSX.utils.aoa_to_sheet(taxiData);
-        ws2['!cols'] = [{wch: 12}, {wch: 45}, {wch: 35}, {wch: 14}];
+        ws2['!cols'] = [{wch: 14}, {wch: 50}, {wch: 35}, {wch: 14}];
         XLSX.utils.book_append_sheet(wb, ws2, "Детализация такси");
       }
 
       const fileName = `Авансовый_отчет_${(p.fio || 'сотрудника').replace(/\s+/g, '_')}.xlsx`;
-      
-      // Генерация бинарного Blob файла
       const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
       const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
 
-      // Если мобильный браузер поддерживает системное меню "Поделиться" (iOS/Android Share Sheet)
       if (navigator.canShare && navigator.canShare({ files: [new File([blob], fileName, { type: blob.type })] })) {
         const file = new File([blob], fileName, { type: blob.type });
         navigator.share({
           files: [file],
           title: 'Авансовый отчет',
           text: `Авансовый отчет: ${p.fio}`
-        }).catch(() => {
-          // Если пользователь закрыл меню
-        });
+        }).catch(() => {});
       } else {
-        // Стандартный fallback-метод через ссылку
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
@@ -969,18 +1072,61 @@
         document.body.removeChild(a);
         setTimeout(() => URL.revokeObjectURL(url), 2000);
       }
-      showToast("Файл готов!");
+      showToast("Файл Excel сформирован!");
     } catch(err) {
-      console.error("Ошибка сохранения Excel:", err);
-      showToast("Не удалось сохранить Excel: " + err.message);
+      console.error(err);
+      showToast("Ошибка сохранения Excel: " + err.message);
     }
   }
 
-  // ДЕМО (Омск ↔ Красноярск)
+  function generatePdfDirectly() {
+    try {
+      showToast("Формирование PDF...");
+      const element = document.getElementById('printable_report');
+      const p = store.passport;
+      const fileName = `Авансовый_отчет_${(p.fio || 'сотрудника').replace(/\s+/g, '_')}.pdf`;
+
+      const opt = {
+        margin:       [10, 10, 10, 10],
+        filename:     fileName,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      };
+
+      html2pdf().set(opt).from(element).outputPdf('blob').then(function(blob) {
+        if (navigator.canShare && navigator.canShare({ files: [new File([blob], fileName, { type: 'application/pdf' })] })) {
+          const file = new File([blob], fileName, { type: 'application/pdf' });
+          navigator.share({
+            files: [file],
+            title: 'Авансовый отчет PDF',
+            text: `Авансовый отчет: ${p.fio}`
+          }).catch(() => {});
+        } else {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = fileName;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(() => URL.revokeObjectURL(url), 2000);
+        }
+        showToast("PDF готов к сохранению!");
+      }).catch(function(err){
+        console.error(err);
+        showToast("Не удалось создать PDF");
+      });
+    } catch(err) {
+      console.error(err);
+      showToast("Ошибка PDF: " + err.message);
+    }
+  }
+
   function loadDemoScenario() {
-    document.getElementById('p_fio').value = "Иванов Иван Иванович";
-    document.getElementById('p_role').value = "Ведущий инженер";
-    document.getElementById('p_tab').value = "1042";
+    document.getElementById('p_fio').value = "Илгин Александр Александрович";
+    document.getElementById('p_role').value = "Руководитель команды открытия";
+    document.getElementById('p_tab').value = "0000013789";
     document.getElementById('p_city').value = "Красноярск";
     document.getElementById('p_date_start').value = "2026-10-01";
     document.getElementById('p_date_end').value = "2026-10-18";
