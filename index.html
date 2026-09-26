@@ -165,7 +165,6 @@
         <input type="text" id="p_city" placeholder="Красноярск">
       </div>
 
-      <!-- ЕДИНОЕ ПОЛЕ КАЛЕНДАРЯ-ДИАПАЗОНА С ФОРМАТОМ ДД.ММ.ГГГГ -->
       <div class="field">
         <label>Период командировки (Выезд ➔ Приезд) <span class="req-star">*</span></label>
         <input type="text" id="p_date_range" class="range-input" placeholder="Нажмите для выбора дат..." readonly>
@@ -365,7 +364,7 @@
     </div>
   </div>
 
-  <!-- ШАГ 4: ГОТОВЫЙ ОТЧЕТ И СКАЧИВАНИЕ С АВТОМАТИЧЕСКИМ СОХРАНЕНИЕМ -->
+  <!-- ШАГ 4: ГОТОВЫЙ ОТЧЕТ И СКАЧИВАНИЕ -->
   <div id="step-4" class="step-content">
     <div class="nav-bar" style="margin-bottom:10px; display:flex; flex-direction:column; gap:8px;">
       <div style="display:flex; gap:6px; width:100%;">
@@ -373,7 +372,7 @@
         <button type="button" id="btn_excel" class="btn btn-green" style="flex:2;" onclick="downloadExcelAndNotify()">📥 Скачать Excel (.xlsx)</button>
       </div>
       <button type="button" id="btn_pdf" class="btn btn-primary" onclick="generatePdfAndNotify()">📄 Сохранить в PDF</button>
-      <div style="text-align:center; font-size:11px; color:#8e8e93;">При скачивании отчёт автоматически сохраняется в реестр руководителя.</div>
+      <div style="text-align:center; font-size:11px; color:#8e8e93;">Отчёт сохраняется в реестр один раз при первом скачивании.</div>
     </div>
 
     <div id="printable_report">
@@ -405,7 +404,10 @@
   const DADATA_API_KEY = "74443bebf6f911f3792509fa4ad680d6977c3e14";
   const GOOGLE_SHEET_API = "https://script.google.com/macros/s/AKfycbwqfeeX8q61tkVz0Rhubm2hu14O7vOPhu40r9qx6IOR78adJUq_U3CNwGtx6CfF-3oItQ/exec";
 
-  // Резервный список на случай задержки сети
+  // Уникальный идентификатор текущего отчета (защита от дубликатов)
+  const CURRENT_REPORT_UID = Math.random().toString(36).substring(2, 8);
+  let isReportSubmittedToCloud = false;
+
   const BACKUP_EMPLOYEES = [
     { fio: "Илгин Александр Александрович", tab: "0000013789", role: "Руководитель команды открытия" },
     { fio: "Евдокимова Наталья Вячеславна", tab: "0000000415", role: "Продавец-кассир команды открытия" },
@@ -474,7 +476,6 @@
       dateFormat: "d.m.Y"
     });
 
-    // Автоматическая загрузка профиля и списка
     initUserAndEmployees();
   });
 
@@ -484,7 +485,7 @@
     if (!userId && tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
       userId = tg.initDataUnsafe.user.id;
     }
-    if (!userId) userId = "446642559"; // По умолчанию ID админа
+    if (!userId) userId = "446642559";
 
     fetch(`${GOOGLE_SHEET_API}?user_id=${userId}`)
       .then(r => r.json())
@@ -492,7 +493,6 @@
         let employees = (res && res.employees && res.employees.length > 0) ? res.employees : BACKUP_EMPLOYEES;
         renderEmployeeDropdown(employees);
 
-        // Если это сотрудник (не админ) и он найден
         if (res && res.currentUser && !res.isAdmin) {
           document.getElementById('p_fio').value = res.currentUser.fio;
           document.getElementById('p_role').value = res.currentUser.role;
@@ -502,9 +502,7 @@
           document.getElementById('p_tab').disabled = true;
           document.getElementById('admin_emp_card').style.display = 'none';
         } else {
-          // Руководитель: выбирает любого
           document.getElementById('admin_emp_card').style.display = 'block';
-          // По умолчанию подставляем руководителя
           document.getElementById('p_fio').value = "Илгин Александр Александрович";
           document.getElementById('p_role').value = "Руководитель команды открытия";
           document.getElementById('p_tab').value = "0000013789";
@@ -1049,7 +1047,10 @@
     showToast('⚡ Демо-сценарий загружен!');
   }
 
-  function sendReportToCloudInBackground() {
+  function sendReportToCloudOnce() {
+    // Если отчет уже отправлен в этой сессии, повторно сетевой запрос не шлем
+    if (isReportSubmittedToCloud) return;
+
     savePassport();
     let tgUser = {};
     if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
@@ -1062,6 +1063,7 @@
 
     const payload = {
       action: "submit_report",
+      report_uid: CURRENT_REPORT_UID,
       passport: store.passport,
       expenses: store.expenses,
       taxis: store.taxis,
@@ -1073,6 +1075,8 @@
       mode: "no-cors",
       headers: { "Content-Type": "text/plain" },
       body: JSON.stringify(payload)
+    }).then(() => {
+      isReportSubmittedToCloud = true;
     }).catch(err => {
       console.error("Ошибка отправки:", err);
     });
@@ -1083,7 +1087,7 @@
     btn.disabled = true;
     btn.innerText = "⏳ Сохранение...";
 
-    sendReportToCloudInBackground();
+    sendReportToCloudOnce();
 
     try {
       const p = store.passport;
@@ -1154,14 +1158,14 @@
         document.body.removeChild(a);
         setTimeout(() => URL.revokeObjectURL(url), 2000);
       }
-      showToast("✅ Excel скачан и сохранен в реестр!");
+      showToast("✅ Excel скачан!");
     } catch(err) {
       showToast("Ошибка формирования Excel: " + err.message);
     } finally {
       setTimeout(() => {
         btn.disabled = false;
         btn.innerText = "📥 Скачать Excel (.xlsx)";
-      }, 2000);
+      }, 1500);
     }
   }
 
@@ -1170,7 +1174,7 @@
     btn.disabled = true;
     btn.innerText = "⏳ Сохранение...";
 
-    sendReportToCloudInBackground();
+    sendReportToCloudOnce();
 
     try {
       const element = document.getElementById('printable_report');
@@ -1203,14 +1207,14 @@
           document.body.removeChild(a);
           setTimeout(() => URL.revokeObjectURL(url), 2000);
         }
-        showToast("✅ PDF готов и сохранен в реестр!");
+        showToast("✅ PDF готов!");
       }).catch(function(){
         showToast("Не удалось создать PDF");
       }).finally(function(){
         setTimeout(() => {
           btn.disabled = false;
           btn.innerText = "📄 Сохранить в PDF";
-        }, 2000);
+        }, 1500);
       });
     } catch(err) {
       showToast("Ошибка PDF: " + err.message);
