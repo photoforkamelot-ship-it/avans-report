@@ -142,6 +142,16 @@
       <button type="button" onclick="loadDemoScenario()">Заполнить ДЕМО</button>
     </div>
 
+    <!-- БЛОК ВЫБОРА СОТРУДНИКА ДЛЯ АДМИНА -->
+    <div id="admin_emp_card" class="card" style="background:#eef7ff; border:1px solid #cce5ff; display:none;">
+      <h3 style="margin:0 0 6px 0;">👤 Выбор сотрудника для заполнения отчета</h3>
+      <div class="field">
+        <select id="emp_select" onchange="onEmployeeSelect()">
+          <option value="">-- Выберите сотрудника из базы --</option>
+        </select>
+      </div>
+    </div>
+
     <!-- ШАГ 1: ПАСПОРТ -->
     <div id="step-1" class="step-content active">
       <div class="card">
@@ -415,7 +425,7 @@
 
 </div>
 
-<!-- МОДАЛКА РЕДАКТИРОВАНИЯ СОТРУДНИКА -->
+<!-- МОДАЛКА ДОБАВЛЕНИЯ/РЕДАКТИРОВАНИЯ СОТРУДНИКА -->
 <div id="emp_modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:10000; align-items:center; justify-content:center;">
   <div style="background:white; padding:16px; border-radius:12px; width:90%; max-width:400px;">
     <h3 id="modal_title" style="margin-top:0;">Редактировать сотрудника</h3>
@@ -505,7 +515,7 @@
     if (!userId && tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
       userId = tg.initDataUnsafe.user.id;
     }
-    if (!userId) userId = "446642559"; // Дефолт для тестов в браузере
+    if (!userId) userId = "446642559"; // Дефолт админа для браузера
 
     fetch(`${GOOGLE_SHEET_API}?user_id=${userId}`)
       .then(r => r.json())
@@ -513,24 +523,29 @@
         globalAppData = res;
         if (res.isAdmin) {
           document.getElementById('admin_top_tabs').style.display = 'flex';
+          document.getElementById('admin_emp_card').style.display = 'block';
+          renderEmployeeDropdown(res.employees);
           renderAdminEmployees();
           renderAdminReports();
           document.getElementById('reports_title').innerText = "📊 Все отправленные отчёты";
         } else {
           document.getElementById('admin_top_tabs').style.display = 'none';
+          document.getElementById('admin_emp_card').style.display = 'none';
           document.getElementById('reports_title').innerText = "📁 Мои отправленные отчёты";
-          renderAdminReports(); // Отобразит только его отчеты
+          renderAdminReports();
         }
 
-        if (res.currentUser) {
+        if (res.currentUser && !res.isAdmin) {
           document.getElementById('p_fio').value = res.currentUser.fio;
           document.getElementById('p_role').value = res.currentUser.role;
           document.getElementById('p_tab').value = res.currentUser.tab;
           document.getElementById('p_fio').disabled = true;
           document.getElementById('p_role').disabled = true;
           document.getElementById('p_tab').disabled = true;
-        } else if (!res.isAdmin) {
-          showToast("Пожалуйста, зарегистрируйте ваш табельный номер в боте Telegram");
+        } else if (res.isAdmin) {
+          document.getElementById('p_fio').value = "Илгин Александр Александрович";
+          document.getElementById('p_role').value = "Руководитель команды открытия";
+          document.getElementById('p_tab').value = "0000013789";
         }
       })
       .catch(() => {});
@@ -550,11 +565,30 @@
     } else if (tab === 'reports') {
       document.getElementById('tab-reports').style.display = 'block';
       event.target.classList.add('active');
-      loadAppData(); // Перезагружаем список отчетов
+      loadAppData();
     }
   }
 
-  // РЕНДЕР БАЗЫ СОТРУДНИКОВ ДЛЯ АДМИНА
+  function renderEmployeeDropdown(list) {
+    const sel = document.getElementById("emp_select");
+    sel.innerHTML = '<option value="">-- Выберите сотрудника для заполнения --</option>';
+    list.forEach((e, idx) => {
+      sel.innerHTML += `<option value="${idx}">${e.fio} (таб. ${e.tab})</option>`;
+    });
+  }
+
+  function onEmployeeSelect() {
+    const sel = document.getElementById("emp_select");
+    if (sel.value === "") return;
+    const emp = globalAppData.employees[sel.value];
+    if (emp) {
+      document.getElementById('p_fio').value = emp.fio;
+      document.getElementById('p_role').value = emp.role;
+      document.getElementById('p_tab').value = emp.tab;
+      showToast("Данные сотрудника подставлены!");
+    }
+  }
+
   function renderAdminEmployees() {
     const c = document.getElementById("admin_employees_container");
     if (!globalAppData.employees || globalAppData.employees.length === 0) {
@@ -611,8 +645,7 @@
     showToast("Сохранение...");
 
     fetch(GOOGLE_SHEET_API, {
-      method: "POST",
-      mode: "no-cors",
+      method: "POST", mode: "no-cors",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action, fio, role, tab, oldTab })
     }).then(() => {
@@ -648,7 +681,6 @@
     });
   }
 
-  // РЕНДЕР РЕЕСТРА ОТЧЕТОВ (ВЕЗДЕ: И ДЛЯ АДМИНА, И ДЛЯ СОТРУДНИКА)
   function renderAdminReports() {
     const c = document.getElementById("admin_reports_container");
     if (!globalAppData.reports || globalAppData.reports.length === 0) {
@@ -670,7 +702,7 @@
   }
 
   function deleteReport(reportId) {
-    if (!confirm(`Удалить отчет #${reportId} полностью (из базы и с диска)?`)) return;
+    if (!confirm(`Удалить отчет #${reportId} полностью?`)) return;
     showToast("Удаление отчета...");
     fetch(GOOGLE_SHEET_API, {
       method: "POST", mode: "no-cors",
