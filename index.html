@@ -8,9 +8,10 @@
   <style>
     :root {
       --primary: #007aff;
+      --primary-hover: #0056b3;
       --bg: #f2f2f7;
       --card: #ffffff;
-      --text: #000;
+      --text: #1c1c1e;
       --border: #d1d1d6;
       --success: #34c759;
       --danger: #ff3b30;
@@ -22,49 +23,80 @@
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       background: var(--bg); color: var(--text);
     }
-    .wrapper { max-width: 650px; margin: 0 auto; }
+    .wrapper { max-width: 680px; margin: 0 auto; }
     
     .demo-bar {
       background: linear-gradient(135deg, #ff9500, #ff5e3a);
-      color: white; padding: 10px 14px; border-radius: 12px;
+      color: white; padding: 12px 14px; border-radius: 12px;
       margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;
+      box-shadow: 0 3px 10px rgba(255, 149, 0, 0.25);
     }
     .demo-bar button {
       background: #fff; color: #d84315; font-weight: 700; border: none;
-      padding: 7px 12px; border-radius: 8px; font-size: 13px; cursor: pointer;
+      padding: 8px 14px; border-radius: 8px; font-size: 13px; cursor: pointer;
     }
-    .card { background: var(--card); border-radius: 12px; padding: 15px; margin-bottom: 12px; }
-    h2 { font-size: 17px; margin: 0 0 10px 0; }
-    h3 { font-size: 14px; margin: 0 0 6px 0; }
+    .card { background: var(--card); border-radius: 14px; padding: 15px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+    h2 { font-size: 18px; margin: 0 0 12px 0; font-weight: 700; }
+    h3 { font-size: 15px; margin: 0 0 8px 0; font-weight: 600; }
     
     .field { margin-bottom: 10px; display: flex; flex-direction: column; position: relative; }
-    .field label { font-size: 12px; font-weight: 600; color: #555; margin-bottom: 4px; }
+    .field label { font-size: 13px; font-weight: 600; color: #48484a; margin-bottom: 4px; }
     .field input, .field select {
-      height: 42px; padding: 0 10px; font-size: 14px;
-      border: 1px solid var(--border); border-radius: 8px; outline: none; background: #fff;
+      height: 44px; padding: 0 12px; font-size: 15px;
+      border: 1px solid var(--border); border-radius: 10px; outline: none; background: #fff; width: 100%;
     }
-    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .field input:focus, .field select:focus { border-color: var(--primary); }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     
     .btn {
-      height: 44px; display: flex; align-items: center; justify-content: center;
-      border-radius: 10px; font-size: 15px; font-weight: 600; border: none; cursor: pointer; width: 100%;
+      height: 46px; display: flex; align-items: center; justify-content: center;
+      border-radius: 11px; font-size: 15px; font-weight: 600; border: none; cursor: pointer; width: 100%;
+      text-decoration: none;
     }
     .btn-primary { background: var(--primary); color: #fff; }
     .btn-secondary { background: #e5e5ea; color: #1c1c1e; }
     .btn-green { background: var(--success); color: white; }
-    .btn-danger { background: #ffe5e5; color: var(--danger); height: 30px; font-size: 12px; border-radius: 6px; width: auto; padding: 0 8px; }
+    .btn-danger { background: #ffe5e5; color: var(--danger); height: 32px; font-size: 12px; border-radius: 6px; width: auto; padding: 0 10px; }
 
-    .nav-bar { display: flex; gap: 8px; margin-top: 12px; }
+    .nav-bar { display: flex; gap: 8px; margin-top: 14px; }
     .step-content { display: none; }
     .step-content.active { display: block; }
 
-    .checkbox-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 13px; cursor: pointer; }
+    .checkbox-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 14px; cursor: pointer; }
     .checkbox-row input { width: 18px; height: 18px; margin: 0; }
-    .sub-box { background: #f9f9fb; border-left: 3px solid var(--primary); padding: 8px; border-radius: 0 8px 8px 0; margin-bottom: 8px; display: none; }
+    .sub-box { background: #f9f9fb; border-left: 3px solid var(--primary); padding: 10px; border-radius: 0 8px 8px 0; margin-bottom: 8px; display: none; }
 
-    .addr-row { display: flex; gap: 6px; }
-    .addr-row input:first-child { flex: 2; }
-    .addr-row input:last-child { flex: 1.2; }
+    /* Поля точки А и Б с объектом */
+    .addr-row { display: flex; gap: 8px; position: relative; }
+    .addr-row .main-addr { flex: 2; position: relative; }
+    .addr-row .sub-obj { flex: 1.2; }
+
+    /* Автоподсказки адресов */
+    .suggest-box {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+      z-index: 1000;
+      display: none;
+      max-height: 180px;
+      overflow-y: auto;
+      margin-top: 2px;
+    }
+    .suggest-item {
+      padding: 10px 12px;
+      font-size: 13px;
+      border-bottom: 1px solid #f2f2f7;
+      cursor: pointer;
+    }
+    .suggest-item:hover, .suggest-item:active {
+      background: #f2f2f7;
+      color: var(--primary);
+    }
 
     .table-scroll { width: 100%; overflow-x: auto; margin: 10px 0; }
     table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 480px; background: white; }
@@ -72,6 +104,31 @@
     th { background: #f2f2f7; font-weight: 600; }
     .text-right { text-align: right; }
     .text-center { text-align: center; }
+
+    .review-item {
+      background: #ffffff;
+      border: 1px solid #e5e5ea;
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 10px;
+    }
+    .review-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    .review-header h3 { margin: 0; font-size: 14px; font-weight: 700; }
+    .review-btn-edit {
+      background: #e5e5ea;
+      color: #1c1c1e;
+      border: none;
+      border-radius: 6px;
+      padding: 4px 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
 
     #toast {
       position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
@@ -158,14 +215,15 @@
         <button type="button" class="btn btn-secondary" onclick="openExpense('misc')">🛒 Прочее</button>
       </div>
 
-      <!-- ВСПЛЫВАЮЩИЙ БЛОК -->
-      <div id="add-box" style="display:none; background:#f2f2f7; padding:10px; border-radius:10px;">
+      <!-- ВСПЛЫВАЮЩИЙ БЛОК ВВОДА -->
+      <div id="add-box" style="display:none; background:#f2f2f7; padding:12px; border-radius:12px; margin-bottom:12px;">
         <h3 id="add-title">Добавить расход</h3>
         <div class="field">
           <label>Дата документа *</label>
           <input type="date" id="e_date">
         </div>
 
+        <!-- ТРАНСПОРТ: САМОЛЕТ / АВТОБУС / ПОЕЗД -->
         <div id="box-transport" style="display:none;">
           <div class="field">
             <label>Маршрут (Город — Город)</label>
@@ -220,31 +278,48 @@
           </div>
         </div>
 
+        <!-- ТАКСИ С АДРЕСНЫМ КЛАССИФИКАТОРОМ -->
         <div id="box-taxi" style="display:none;">
           <div class="grid-2">
-            <div class="field"><label>Номер чека *</label><input type="text" id="e_taxi_no"></div>
-            <div class="field"><label>Сумма (₽) *</label><input type="number" id="e_taxi_sum"></div>
+            <div class="field"><label>Номер чека *</label><input type="text" id="e_taxi_no" placeholder="303"></div>
+            <div class="field"><label>Сумма (₽) *</label><input type="number" id="e_taxi_sum" placeholder="0"></div>
           </div>
+          
+          <!-- ТОЧКА А -->
           <div class="field">
             <label>Точка А (Откуда) *</label>
             <div class="addr-row">
-              <input type="text" id="e_taxi_from" placeholder="Адрес точки А">
-              <input type="text" id="e_taxi_obj_a" placeholder="Объект: Дом">
+              <div class="main-addr">
+                <input type="text" id="e_taxi_from" placeholder="Начните вводить адрес (улица, дом)..." autocomplete="off" oninput="fetchAddressSuggestions(this, 'sug_a')">
+                <div id="sug_a" class="suggest-box"></div>
+              </div>
+              <div class="sub-obj">
+                <input type="text" id="e_taxi_obj_a" placeholder="Объект: Дом">
+              </div>
             </div>
           </div>
+
+          <!-- ТОЧКА Б -->
           <div class="field">
             <label>Точка Б (Куда) *</label>
             <div class="addr-row">
-              <input type="text" id="e_taxi_to" placeholder="Адрес точки Б">
-              <input type="text" id="e_taxi_obj_b" placeholder="Объект: Аэропорт">
+              <div class="main-addr">
+                <input type="text" id="e_taxi_to" placeholder="Начните вводить адрес (улица, дом)..." autocomplete="off" oninput="fetchAddressSuggestions(this, 'sug_b')">
+                <div id="sug_b" class="suggest-box"></div>
+              </div>
+              <div class="sub-obj">
+                <input type="text" id="e_taxi_obj_b" placeholder="Объект: Аэропорт">
+              </div>
             </div>
           </div>
+
           <div class="field">
             <label>Цель поездки *</label>
-            <input type="text" id="e_taxi_purpose" placeholder="Поездка в аэропорт / в отель">
+            <input type="text" id="e_taxi_purpose" placeholder="Поездка в аэропорт / к заказчику">
           </div>
         </div>
 
+        <!-- ПРОЖИВАНИЕ -->
         <div id="box-hotel" style="display:none;">
           <div class="field">
             <label>Форма бизнеса</label>
@@ -259,6 +334,7 @@
           </div>
         </div>
 
+        <!-- ПРОЧЕЕ -->
         <div id="box-misc" style="display:none;">
           <div class="grid-2">
             <div class="field"><label>Номер чека *</label><input type="text" id="e_misc_no"></div>
@@ -283,18 +359,23 @@
     </div>
   </div>
 
-  <!-- ШАГ 3: САМОПРОВЕРКА -->
+  <!-- ШАГ 3: РАЗВЕРНУТАЯ САМОПРОВЕРКА РАСХОДОВ -->
   <div id="step-3" class="step-content">
     <div class="card">
-      <h2>3. Проверка расходов по чекам</h2>
-      <div id="review_blocks" style="font-size:13px; line-height:1.6;"></div>
+      <h2>3. Проверка расходов по документам</h2>
+      <div style="font-size: 13px; color: #636366; margin-bottom: 12px;">
+        Сверьте данные по каждому разделу. Для исправления нажмите «✏️ Изменить» напротив нужного блока.
+      </div>
+      <div id="review_cards_container"></div>
     </div>
+
     <div class="card" style="background:#eef7ff; border:1px solid #b8daff;">
-      <h3>Итоговый нарратив:</h3>
-      <div id="review_narrative" style="font-size:13px; line-height:1.5;"></div>
+      <h3>Итоговый связный отчет командировки:</h3>
+      <div id="review_narrative" style="font-size:13px; line-height:1.6;"></div>
     </div>
+
     <div class="nav-bar">
-      <button type="button" class="btn btn-secondary" onclick="goToStep(2)">← Изменить</button>
+      <button type="button" class="btn btn-secondary" onclick="goToStep(2)">← Вернуться к списку</button>
       <button type="button" class="btn btn-primary" onclick="goToStep(4)">Сформировать отчет 🚀</button>
     </div>
   </div>
@@ -302,22 +383,22 @@
   <!-- ШАГ 4: ГОТОВЫЙ ОТЧЕТ -->
   <div id="step-4" class="step-content">
     <div class="nav-bar" style="margin-bottom:10px;">
-      <button type="button" class="btn btn-secondary" onclick="goToStep(3)">← Назад</button>
+      <button type="button" class="btn btn-secondary" onclick="goToStep(3)">← Назад к проверке</button>
       <button type="button" class="btn btn-green" onclick="sendToTelegramBot()">📤 Отправить в Telegram (Excel)</button>
     </div>
 
-    <div class="card" style="padding:8px;">
-      <h3 style="margin:0 0 4px 0;">1. Сведения о командировке</h3>
+    <div class="card" style="padding:10px;">
+      <h3 style="margin:0 0 6px 0;">1. Сведения о командировке</h3>
       <div class="table-scroll"><table id="tbl_pass"><tbody></tbody></table></div>
     </div>
 
-    <div class="card" style="padding:8px;">
-      <h3 style="margin:0 0 4px 0;">2. Оборотная сторона формы № АО-1</h3>
+    <div class="card" style="padding:10px;">
+      <h3 style="margin:0 0 6px 0;">2. Оборотная сторона формы № АО-1</h3>
       <div class="table-scroll"><table id="tbl_ao1"><thead><tr><th style="width:30px;" class="text-center">№</th><th style="width:80px;">Дата</th><th style="width:120px;">Номер документа</th><th>Наименование</th><th style="width:90px;" class="text-right">Сумма (₽)</th></tr></thead><tbody></tbody></table></div>
     </div>
 
-    <div class="card" id="card_taxi" style="padding:8px; display:none;">
-      <h3 style="margin:0 0 4px 0;">3. Детализация такси</h3>
+    <div class="card" id="card_taxi" style="padding:10px; display:none;">
+      <h3 style="margin:0 0 6px 0;">3. Детализация такси</h3>
       <div class="table-scroll"><table id="tbl_taxi"><thead><tr><th style="width:80px;">Дата</th><th>Маршрут (Точка А — Точка Б)</th><th style="width:150px;">Цель</th><th style="width:80px;" class="text-right">Сумма (₽)</th></tr></thead><tbody></tbody></table></div>
     </div>
   </div>
@@ -335,12 +416,87 @@
     expenses: [], taxis: []
   };
   let curCategory = '';
+  let addrTimer = null;
 
   window.addEventListener('DOMContentLoaded', () => {
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.has('fio')) document.getElementById('p_fio').value = urlParams.get('fio');
     if (urlParams.has('role')) document.getElementById('p_role').value = urlParams.get('role');
     if (urlParams.has('tab')) document.getElementById('p_tab').value = urlParams.get('tab');
+  });
+
+  // ПОИСК И АДРЕСНЫЙ СПРАВОЧНИК
+  const localAddrPresets = [
+    "ул. Взлетная, д. 1", "ул. Взлетная, д. 5", "ул. Ленина, д. 12",
+    "ул. Мира, д. 10", "ул. Цветочная, д. 3", "Аэропорт Омск-Центральный",
+    "Аэропорт Красноярск (Емельяново)", "Автовокзал Омск", "Автовокзал Красноярск"
+  ];
+
+  function fetchAddressSuggestions(input, listId) {
+    clearTimeout(addrTimer);
+    const query = input.value.trim();
+    const box = document.getElementById(listId);
+
+    if (query.length < 2) {
+      box.style.display = 'none';
+      return;
+    }
+
+    addrTimer = setTimeout(() => {
+      // 1. Поиск в локальном справочнике
+      const matched = localAddrPresets.filter(a => a.toLowerCase().includes(query.toLowerCase()));
+      
+      // 2. Параллельный запрос к открытому справочнику OpenStreetMap
+      const city = document.getElementById('p_city').value.trim();
+      const searchQuery = city ? `${city}, ${query}` : query;
+      const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=5&countrycodes=ru&q=${encodeURIComponent(searchQuery)}`;
+
+      fetch(url)
+        .then(res => res.json())
+        .then(data => {
+          let items = [...matched];
+          if (data && data.length > 0) {
+            data.forEach(d => {
+              const a = d.address;
+              const street = a.road || '';
+              const house = a.house_number ? 'д. ' + a.house_number : '';
+              if (street) {
+                const fullStr = [a.city || a.town || city, street, house].filter(Boolean).join(', ');
+                if (!items.includes(fullStr)) items.push(fullStr);
+              }
+            });
+          }
+          renderAddressSuggestions(items, input.id, listId);
+        })
+        .catch(() => {
+          renderAddressSuggestions(matched, input.id, listId);
+        });
+    }, 250);
+  }
+
+  function renderAddressSuggestions(list, inputId, listId) {
+    const box = document.getElementById(listId);
+    if (!list || list.length === 0) {
+      box.style.display = 'none';
+      return;
+    }
+    box.innerHTML = list.slice(0, 6).map(addr => `
+      <div class="suggest-item" onclick="chooseAddress('${inputId}', '${listId}', '${addr.replace(/'/g, "\\'")}')">
+        📍 ${addr}
+      </div>
+    `).join('');
+    box.style.display = 'block';
+  }
+
+  function chooseAddress(inputId, listId, val) {
+    document.getElementById(inputId).value = val;
+    document.getElementById(listId).style.display = 'none';
+  }
+
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.main-addr')) {
+      document.querySelectorAll('.suggest-box').forEach(b => b.style.display = 'none');
+    }
   });
 
   function showToast(m) {
@@ -356,7 +512,10 @@
       }
       savePassport(); renderExpenseList();
     }
-    if (s === 3) { savePassport(); renderReview(); }
+    if (s === 3) { 
+      savePassport(); 
+      renderDetailedReview(); 
+    }
     if (s === 4) { renderFinal(); }
 
     document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
@@ -432,22 +591,22 @@
 
       let name = curCategory==='plane' ? 'Чек, Маршрутная квитанция, Авиабилет' : (curCategory==='bus' ? 'Билет Автобус' : 'ЖД Электронный билет, чек');
       if (route) name += ` (${route})`;
-      store.expenses.push({ id: Date.now()+'1', date, no, name, sum, dir, cat: curCategory });
+      store.expenses.push({ id: Date.now()+'1', date, no, name, sum, dir, cat: curCategory, route });
 
       if (document.getElementById('chk_fee').checked) {
         const feeNo = document.getElementById('e_fee_no').value.trim() || no;
         const feeSum = parseFloat(document.getElementById('e_fee_sum').value) || 0;
-        if (feeSum > 0) store.expenses.push({ id: Date.now()+'2', date, no: feeNo, name: curCategory==='bus'?'Чек Автобус (сборы, комиссии)':'Чек (сервисный сбор)', sum: feeSum, dir, cat: curCategory });
+        if (feeSum > 0) store.expenses.push({ id: Date.now()+'2', date, no: feeNo, name: curCategory==='bus'?'Чек Автобус (сборы, комиссии)':'Чек (сервисный сбор)', sum: feeSum, dir, cat: curCategory, route });
       }
       if (document.getElementById('chk_bag').checked) {
         const bagNo = document.getElementById('e_bag_no').value.trim() || no;
         const bagSum = parseFloat(document.getElementById('e_bag_sum').value) || 0;
-        if (bagSum > 0) store.expenses.push({ id: Date.now()+'3', date, no: bagNo, name: curCategory==='plane'?'Чек, Багаж к Авиабилету':`Багаж Автобус (${route})`, sum: bagSum, dir, cat: curCategory });
+        if (bagSum > 0) store.expenses.push({ id: Date.now()+'3', date, no: bagNo, name: curCategory==='plane'?'Чек, Багаж к Авиабилету':`Багаж Автобус (${route})`, sum: bagSum, dir, cat: curCategory, route });
       }
       if (document.getElementById('chk_ins').checked) {
         const insNo = document.getElementById('e_ins_no').value.trim() || no;
         const insSum = parseFloat(document.getElementById('e_ins_sum').value) || 0;
-        if (insSum > 0) store.expenses.push({ id: Date.now()+'4', date, no: insNo, name: 'Чек (страхование)', sum: insSum, dir, cat: curCategory });
+        if (insSum > 0) store.expenses.push({ id: Date.now()+'4', date, no: insNo, name: 'Чек (страхование)', sum: insSum, dir, cat: curCategory, route });
       }
     } 
     else if (curCategory === 'taxi') {
@@ -475,7 +634,7 @@
       store.expenses.push({ id: Date.now()+'m', date, no, name: `Чек, ${name}`, sum, cat: 'misc' });
     }
 
-    closeExpense(); renderExpenseList(); showToast('Добавлено!');
+    closeExpense(); renderExpenseList(); showToast('Позиция добавлена!');
   }
 
   function renderExpenseList() {
@@ -500,29 +659,137 @@
     renderExpenseList();
   }
 
-  function renderReview() {
+  // РАЗВЕРНУТАЯ САМОПРОВЕРКА (ШАГ 3)
+  function renderDetailedReview() {
     const p = store.passport;
-    const thereSum = store.expenses.filter(e => e.dir === 'there').reduce((s,e) => s+e.sum, 0);
-    const backSum = store.expenses.filter(e => e.dir === 'back').reduce((s,e) => s+e.sum, 0);
-    const hotelSum = store.expenses.filter(e => e.cat === 'hotel').reduce((s,e) => s+e.sum, 0);
-    const taxiSum = store.taxis.reduce((s,t) => s+t.sum, 0);
+    const box = document.getElementById('review_cards_container');
+    box.innerHTML = '';
+
+    // 1. Паспорт и аванс
+    box.innerHTML += `
+      <div class="review-item">
+        <div class="review-header">
+          <h3>1. Данные сотрудника и аванс</h3>
+          <button type="button" class="review-btn-edit" onclick="goToStep(1)">✏️ Изменить</button>
+        </div>
+        <div style="font-size:13px; line-height:1.5;">
+          • <strong>Сотрудник:</strong> ${p.fio} (${p.role}, таб. № ${p.tab})<br>
+          • <strong>Командировка:</strong> г. ${p.city} с ${p.dStart} по ${p.dEnd} (${p.days} дн.)<br>
+          • <strong>Запрошено авансом:</strong> <span style="font-weight:700; color:var(--primary);">${p.advance.toLocaleString('ru-RU')} ₽</span>
+        </div>
+      </div>
+    `;
+
+    // 2. Проезд Туда
+    const thereExp = store.expenses.filter(e => e.dir === 'there');
+    const thereSum = thereExp.reduce((s,e) => s + e.sum, 0);
+    let thereDetails = thereExp.map(e => `&nbsp;&nbsp;— ${e.name}: <strong>${e.sum.toLocaleString('ru-RU')} ₽</strong> (док. № ${e.no})`).join('<br>');
+    box.innerHTML += `
+      <div class="review-item">
+        <div class="review-header">
+          <h3>2. Проезд в командировку (Туда)</h3>
+          <button type="button" class="review-btn-edit" onclick="goToStep(2)">✏️ Изменить</button>
+        </div>
+        <div style="font-size:13px; line-height:1.5;">
+          ${thereExp.length > 0 
+            ? `ИТОГО за проезд "Туда": <strong>${thereSum.toLocaleString('ru-RU')} ₽</strong> по чекам:<br>${thereDetails}` 
+            : 'Расходы на проезд "Туда" не добавлены.'}
+        </div>
+      </div>
+    `;
+
+    // 3. Проживание
+    const hotelExp = store.expenses.filter(e => e.cat === 'hotel');
+    const hotelSum = hotelExp.reduce((s,e) => s + e.sum, 0);
+    let hotelDetails = hotelExp.map(e => `&nbsp;&nbsp;— ${e.name}: <strong>${e.sum.toLocaleString('ru-RU')} ₽</strong> (договор/чек № ${e.no})`).join('<br>');
+    box.innerHTML += `
+      <div class="review-item">
+        <div class="review-header">
+          <h3>3. Расходы на проживание</h3>
+          <button type="button" class="review-btn-edit" onclick="goToStep(2)">✏️ Изменить</button>
+        </div>
+        <div style="font-size:13px; line-height:1.5;">
+          ${hotelExp.length > 0 
+            ? `ИТОГО за проживание: <strong>${hotelSum.toLocaleString('ru-RU')} ₽</strong>:<br>${hotelDetails}` 
+            : 'Расходы на проживание не добавлены.'}
+        </div>
+      </div>
+    `;
+
+    // 4. Такси
+    const taxiSum = store.taxis.reduce((s,t) => s + t.sum, 0);
+    let taxiDetails = store.taxis.map((t, idx) => 
+      `&nbsp;&nbsp;${idx+1}) <strong>${t.date}</strong> | ${t.route} — <strong>${t.sum.toLocaleString('ru-RU')} ₽</strong> <em>(${t.purpose})</em>`
+    ).join('<br>');
+    box.innerHTML += `
+      <div class="review-item">
+        <div class="review-header">
+          <h3>4. Поездки на такси (${store.taxis.length} поездки)</h3>
+          <button type="button" class="review-btn-edit" onclick="goToStep(2)">✏️ Изменить</button>
+        </div>
+        <div style="font-size:13px; line-height:1.5;">
+          ${store.taxis.length > 0 
+            ? `ИТОГО по чекам такси: <strong>${taxiSum.toLocaleString('ru-RU')} ₽</strong>:<br>${taxiDetails}` 
+            : 'Поездки на такси не зарегистрированы.'}
+        </div>
+      </div>
+    `;
+
+    // 5. Проезд Обратно
+    const backExp = store.expenses.filter(e => e.dir === 'back');
+    const backSum = backExp.reduce((s,e) => s + e.sum, 0);
+    let backDetails = backExp.map(e => `&nbsp;&nbsp;— ${e.name}: <strong>${e.sum.toLocaleString('ru-RU')} ₽</strong> (док. № ${e.no})`).join('<br>');
+    box.innerHTML += `
+      <div class="review-item">
+        <div class="review-header">
+          <h3>5. Проезд из командировки (Обратно)</h3>
+          <button type="button" class="review-btn-edit" onclick="goToStep(2)">✏️ Изменить</button>
+        </div>
+        <div style="font-size:13px; line-height:1.5;">
+          ${backExp.length > 0 
+            ? `ИТОГО за проезд "Обратно": <strong>${backSum.toLocaleString('ru-RU')} ₽</strong> по чекам:<br>${backDetails}` 
+            : 'Расходы на проезд "Обратно" не добавлены.'}
+        </div>
+      </div>
+    `;
+
+    // 6. Суточные
+    box.innerHTML += `
+      <div class="review-item">
+        <div class="review-header">
+          <h3>6. Суточные за время командировки</h3>
+          <button type="button" class="review-btn-edit" onclick="goToStep(1)">✏️ Изменить</button>
+        </div>
+        <div style="font-size:13px; line-height:1.5;">
+          • Расчет: <strong>${p.days} суток</strong> × <strong>${p.rate} ₽/сутки</strong><br>
+          • Общая сумма суточных: <span style="font-weight:700; color:var(--primary);">${p.dailyTotal.toLocaleString('ru-RU')} ₽</span>
+        </div>
+      </div>
+    `;
+
+    // Связный нарратив
     const total = store.expenses.reduce((s,e)=>s+e.sum,0) + p.dailyTotal;
     const diff = p.advance - total;
 
-    document.getElementById('review_blocks').innerHTML = `
-      <div>👤 <strong>${p.fio}</strong> (${p.city}, ${p.days} дн.)</div>
-      <div>💰 <strong>Аванс:</strong> ${p.advance.toLocaleString('ru-RU')} ₽ | <strong>Суточные:</strong> ${p.dailyTotal.toLocaleString('ru-RU')} ₽ (${p.rate} ₽/дн)</div>
-      <div>✈️ <strong>Проезд Туда:</strong> ${thereSum.toLocaleString('ru-RU')} ₽</div>
-      <div>🏨 <strong>Проживание:</strong> ${hotelSum.toLocaleString('ru-RU')} ₽</div>
-      <div>🚕 <strong>Такси (${store.taxis.length} поездок):</strong> ${taxiSum.toLocaleString('ru-RU')} ₽</div>
-      <div>🚌 <strong>Проезд Обратно:</strong> ${backSum.toLocaleString('ru-RU')} ₽</div>
-    `;
+    let narrative = `Мы проверили и утвердили следующие расходы:<br>`;
+    narrative += `<strong>${p.dStart}</strong> Вы поехали в командировку в <strong>г. ${p.city}</strong>. `;
+    if (thereExp.length > 0) narrative += `Затраты на проезд составили ${thereSum.toLocaleString('ru-RU')} ₽. `;
+    if (hotelExp.length > 0) narrative += `Проживали на сумму <strong>${hotelSum.toLocaleString('ru-RU')} ₽</strong>. `;
+    if (store.taxis.length > 0) narrative += `Использовали ${store.taxis.length} раза такси на сумму ${taxiSum.toLocaleString('ru-RU')} ₽. `;
+    if (backExp.length > 0) narrative += `<strong>${p.dEnd}</strong> вернулись обратно домой (расход на проезд: ${backSum.toLocaleString('ru-RU')} ₽). `;
+    narrative += `Начислены суточные за <strong>${p.days} дн.</strong> на сумму <strong>${p.dailyTotal.toLocaleString('ru-RU')} ₽</strong>.<br><br>`;
+    
+    narrative += `<strong>Всего расходов:</strong> ${total.toLocaleString('ru-RU')} ₽<br>`;
+    narrative += `<strong>Выдано авансом:</strong> ${p.advance.toLocaleString('ru-RU')} ₽<br>`;
+    if (diff < 0) {
+      narrative += `<strong style="color:var(--danger); font-size:14px;">Перерасход к выплате сотруднику: ${Math.abs(diff).toLocaleString('ru-RU')} ₽</strong>`;
+    } else if (diff > 0) {
+      narrative += `<strong style="color:var(--warning); font-size:14px;">Остаток к возврату в кассу: ${diff.toLocaleString('ru-RU')} ₽</strong>`;
+    } else {
+      narrative += `<strong>Аванс израсходован точно под ноль (0,00 ₽)</strong>`;
+    }
 
-    document.getElementById('review_narrative').innerHTML = `
-      Командировка в <strong>${p.city}</strong> (${p.dStart} — ${p.dEnd}).<br>
-      Итого расходов: <strong>${total.toLocaleString('ru-RU')} ₽</strong>.<br>
-      ${diff < 0 ? `<strong style="color:var(--danger)">Перерасход: ${Math.abs(diff).toLocaleString('ru-RU')} ₽</strong>` : `<strong style="color:var(--warning)">К возврату: ${diff.toLocaleString('ru-RU')} ₽</strong>`}
-    `;
+    document.getElementById('review_narrative').innerHTML = narrative;
   }
 
   function renderFinal() {
@@ -576,12 +843,12 @@
     savePassport();
 
     store.expenses = [
-      { id: 'd1', date: '2026-10-01', no: '4212136762', name: 'Чек, Маршрутная квитанция, Авиабилет (Омск - Красноярск)', sum: 11500, dir: 'there', cat: 'plane' },
-      { id: 'd2', date: '2026-10-01', no: '5841', name: 'Чек (сервисный сбор)', sum: 1290, dir: 'there', cat: 'plane' },
+      { id: 'd1', date: '2026-10-01', no: '4212136762', name: 'Чек, Маршрутная квитанция, Авиабилет (Омск - Красноярск)', sum: 11500, dir: 'there', cat: 'plane', route: 'Омск - Красноярск' },
+      { id: 'd2', date: '2026-10-01', no: '5841', name: 'Чек (сервисный сбор)', sum: 1290, dir: 'there', cat: 'plane', route: 'Омск - Красноярск' },
       { id: 'd3', date: '2026-10-02', no: 'ДОГ-205e', name: 'Чек, Договор Аренда квартиры (проживание)', sum: 54000, cat: 'hotel' },
-      { id: 'd4', date: '2026-10-18', no: 'КД010247', name: 'Билет Автобус (Красноярск - Омск)', sum: 4200, dir: 'back', cat: 'bus' },
-      { id: 'd5', date: '2026-10-18', no: 'БАГ-3107', name: 'Багаж Автобус (Красноярск - Омск)', sum: 800, dir: 'back', cat: 'bus' },
-      { id: 'd6', date: '2026-10-18', no: 'ПОЛ-192', name: 'Чек (страхование)', sum: 500, dir: 'back', cat: 'bus' },
+      { id: 'd4', date: '2026-10-18', no: 'КД010247', name: 'Билет Автобус (Красноярск - Омск)', sum: 4200, dir: 'back', cat: 'bus', route: 'Красноярск - Омск' },
+      { id: 'd5', date: '2026-10-18', no: 'БАГ-3107', name: 'Багаж Автобус (Красноярск - Омск)', sum: 800, dir: 'back', cat: 'bus', route: 'Красноярск - Омск' },
+      { id: 'd6', date: '2026-10-18', no: 'ПОЛ-192', name: 'Чек (страхование)', sum: 500, dir: 'back', cat: 'bus', route: 'Красноярск - Омск' },
       { id: 'd7', date: '2026-10-01', no: '303', name: 'Чек, услуги такси', sum: 780, cat: 'taxi' },
       { id: 'd8', date: '2026-10-01', no: '206', name: 'Чек, услуги такси', sum: 920, cat: 'taxi' },
       { id: 'd9', date: '2026-10-18', no: '412', name: 'Чек, услуги такси', sum: 450, cat: 'taxi' },
