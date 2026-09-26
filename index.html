@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Мастер авансового отчета</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <!-- Библиотека генерации настоящего Excel файла прямо в телефоне -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <style>
     :root {
       --primary: #007aff;
@@ -70,33 +72,15 @@
     .addr-row .main-addr { flex: 2; position: relative; }
     .addr-row .sub-obj { flex: 1.2; }
 
-    /* Выпадающий список подсказок ФИАС */
+    /* Выпадающие подсказки ФИАС */
     .suggest-box {
-      position: absolute;
-      top: 100%;
-      left: 0;
-      right: 0;
-      background: #ffffff;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      box-shadow: 0 4px 14px rgba(0,0,0,0.15);
-      z-index: 1000;
-      display: none;
-      max-height: 200px;
-      overflow-y: auto;
-      margin-top: 2px;
+      position: absolute; top: 100%; left: 0; right: 0;
+      background: #ffffff; border: 1px solid var(--border); border-radius: 8px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.15); z-index: 1000; display: none;
+      max-height: 200px; overflow-y: auto; margin-top: 2px;
     }
-    .suggest-item {
-      padding: 10px 12px;
-      font-size: 13px;
-      border-bottom: 1px solid #f2f2f7;
-      cursor: pointer;
-      line-height: 1.4;
-    }
-    .suggest-item:hover, .suggest-item:active {
-      background: #f2f2f7;
-      color: var(--primary);
-    }
+    .suggest-item { padding: 10px 12px; font-size: 13px; border-bottom: 1px solid #f2f2f7; cursor: pointer; line-height: 1.4; }
+    .suggest-item:hover, .suggest-item:active { background: #f2f2f7; color: var(--primary); }
 
     .table-scroll { width: 100%; overflow-x: auto; margin: 10px 0; }
     table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 480px; background: white; }
@@ -105,30 +89,10 @@
     .text-right { text-align: right; }
     .text-center { text-align: center; }
 
-    .review-item {
-      background: #ffffff;
-      border: 1px solid #e5e5ea;
-      border-radius: 10px;
-      padding: 12px;
-      margin-bottom: 10px;
-    }
-    .review-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 6px;
-    }
+    .review-item { background: #ffffff; border: 1px solid #e5e5ea; border-radius: 10px; padding: 12px; margin-bottom: 10px; }
+    .review-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
     .review-header h3 { margin: 0; font-size: 14px; font-weight: 700; }
-    .review-btn-edit {
-      background: #e5e5ea;
-      color: #1c1c1e;
-      border: none;
-      border-radius: 6px;
-      padding: 4px 8px;
-      font-size: 12px;
-      font-weight: 600;
-      cursor: pointer;
-    }
+    .review-btn-edit { background: #e5e5ea; color: #1c1c1e; border: none; border-radius: 6px; padding: 4px 8px; font-size: 12px; font-weight: 600; cursor: pointer; }
 
     #toast {
       position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
@@ -149,8 +113,29 @@
     <button type="button" onclick="loadDemoScenario()">Заполнить ДЕМО</button>
   </div>
 
-  <!-- ШАГ 1: ПАСПОРТ -->
+  <!-- ШАГ 1: ПАСПОРТ И СПРАВОЧНИК СОТРУДНИКОВ -->
   <div id="step-1" class="step-content active">
+    
+    <div class="card" style="background:#eef7ff; border:1px solid #cce5ff;">
+      <h3>👤 Справочник сотрудников</h3>
+      <div class="field">
+        <label>Выбрать из списка для автозаполнения:</label>
+        <select id="emp_select" onchange="onEmployeeSelect()">
+          <option value="">-- Выберите сотрудника --</option>
+        </select>
+      </div>
+      <button type="button" class="btn btn-secondary" style="height:36px; font-size:13px;" onclick="toggleAddEmpBox()">➕ Добавить нового сотрудника</button>
+
+      <div id="add_emp_box" style="display:none; margin-top:10px; background:#fff; padding:10px; border-radius:8px; border:1px solid #b8daff;">
+        <div class="field"><label>ФИО *</label><input type="text" id="new_emp_fio" placeholder="Петров Василий Андреевич"></div>
+        <div class="grid-2">
+          <div class="field"><label>Должность *</label><input type="text" id="new_emp_role" placeholder="Инженер ПТО"></div>
+          <div class="field"><label>Табельный № *</label><input type="text" id="new_emp_tab" placeholder="1055"></div>
+        </div>
+        <button type="button" class="btn btn-primary" style="height:38px; font-size:13px;" onclick="saveNewEmployee()">Сохранить сотрудника</button>
+      </div>
+    </div>
+
     <div class="card">
       <h2>1. Сведения о командировке</h2>
       <div class="field">
@@ -278,19 +263,18 @@
           </div>
         </div>
 
-        <!-- ТАКСИ С ФИАС ПОДСКАЗКАМИ -->
+        <!-- ТАКСИ С ПОДСКАЗКАМИ ФИАС (DaData) -->
         <div id="box-taxi" style="display:none;">
           <div class="grid-2">
             <div class="field"><label>Номер чека *</label><input type="text" id="e_taxi_no" placeholder="303"></div>
             <div class="field"><label>Сумма (₽) *</label><input type="number" id="e_taxi_sum" placeholder="0"></div>
           </div>
           
-          <!-- ТОЧКА А -->
           <div class="field">
             <label>Точка А (Откуда) *</label>
             <div class="addr-row">
               <div class="main-addr">
-                <input type="text" id="e_taxi_from" placeholder="Начните вводить адрес (улица, дом)..." autocomplete="off" oninput="fetchFiasSuggestions(this, 'sug_a')">
+                <input type="text" id="e_taxi_from" placeholder="Адрес (улица, дом)..." autocomplete="off" oninput="fetchFiasSuggestions(this, 'sug_a')">
                 <div id="sug_a" class="suggest-box"></div>
               </div>
               <div class="sub-obj">
@@ -299,12 +283,11 @@
             </div>
           </div>
 
-          <!-- ТОЧКА Б -->
           <div class="field">
             <label>Точка Б (Куда) *</label>
             <div class="addr-row">
               <div class="main-addr">
-                <input type="text" id="e_taxi_to" placeholder="Начните вводить адрес (улица, дом)..." autocomplete="off" oninput="fetchFiasSuggestions(this, 'sug_b')">
+                <input type="text" id="e_taxi_to" placeholder="Адрес (улица, дом)..." autocomplete="off" oninput="fetchFiasSuggestions(this, 'sug_b')">
                 <div id="sug_b" class="suggest-box"></div>
               </div>
               <div class="sub-obj">
@@ -380,11 +363,11 @@
     </div>
   </div>
 
-  <!-- ШАГ 4: ГОТОВЫЙ ОТЧЕТ -->
+  <!-- ШАГ 4: ГОТОВЫЙ ОТЧЕТ И СКАЧИВАНИЕ EXCEL -->
   <div id="step-4" class="step-content">
     <div class="nav-bar" style="margin-bottom:10px;">
       <button type="button" class="btn btn-secondary" onclick="goToStep(3)">← Назад к проверке</button>
-      <button type="button" class="btn btn-green" onclick="sendToTelegramBot()">📤 Отправить в Telegram (Excel)</button>
+      <button type="button" class="btn btn-green" onclick="downloadExcelDirectly()">📥 Скачать Excel (.xlsx)</button>
     </div>
 
     <div class="card" style="padding:10px;">
@@ -411,7 +394,7 @@
   let tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
   if (tg) { tg.ready(); tg.expand(); }
 
-  // API Ключ DaData (ФИАС / ГАР)
+  // ОБНОВЛЕННЫЙ РАБОЧИЙ API-КЛЮЧ DADATA (ФИАС / ГАР)
   const DADATA_API_KEY = "74443bebf6f911f3792509fa4ad680d6977c3e14";
 
   let store = {
@@ -421,14 +404,75 @@
   let curCategory = '';
   let fiasTimer = null;
 
+  // --- СПРАВОЧНИК СОТРУДНИКОВ (localStorage) ---
+  function getEmployees() {
+    const saved = localStorage.getItem("my_company_employees");
+    if (saved) {
+      try { return JSON.parse(saved); } catch(e){}
+    }
+    return [
+      { fio: "Иванов Иван Иванович", role: "Ведущий инженер", tab: "1042" },
+      { fio: "Смирнов Алексей Петрович", role: "Главный специалист", tab: "1088" },
+      { fio: "Кузнецова Анна Сергеевна", role: "Менеджер проекта", tab: "1105" }
+    ];
+  }
+
+  function renderEmployeeSelect() {
+    const emps = getEmployees();
+    const sel = document.getElementById("emp_select");
+    sel.innerHTML = '<option value="">-- Выберите сотрудника --</option>';
+    emps.forEach((emp, idx) => {
+      sel.innerHTML += `<option value="${idx}">${emp.fio} (таб. ${emp.tab})</option>`;
+    });
+  }
+
+  function onEmployeeSelect() {
+    const sel = document.getElementById("emp_select");
+    if (!sel.value) return;
+    const emp = getEmployees()[sel.value];
+    if (emp) {
+      document.getElementById("p_fio").value = emp.fio;
+      document.getElementById("p_role").value = emp.role;
+      document.getElementById("p_tab").value = emp.tab;
+      showToast("Сотрудник подставлен!");
+    }
+  }
+
+  function toggleAddEmpBox() {
+    const b = document.getElementById("add_emp_box");
+    b.style.display = b.style.display === "block" ? "none" : "block";
+  }
+
+  function saveNewEmployee() {
+    const fio = document.getElementById("new_emp_fio").value.trim();
+    const role = document.getElementById("new_emp_role").value.trim();
+    const tab = document.getElementById("new_emp_tab").value.trim();
+
+    if (!fio || !role || !tab) {
+      showToast("Заполните ФИО, должность и табельный номер");
+      return;
+    }
+
+    const emps = getEmployees();
+    emps.push({ fio, role, tab });
+    localStorage.setItem("my_company_employees", JSON.stringify(emps));
+
+    renderEmployeeSelect();
+    document.getElementById("emp_select").value = emps.length - 1;
+    onEmployeeSelect();
+
+    document.getElementById("new_emp_fio").value = "";
+    document.getElementById("new_emp_role").value = "";
+    document.getElementById("new_emp_tab").value = "";
+    toggleAddEmpBox();
+    showToast("Сотрудник сохранен в справочник!");
+  }
+
   window.addEventListener('DOMContentLoaded', () => {
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.has('fio')) document.getElementById('p_fio').value = urlParams.get('fio');
-    if (urlParams.has('role')) document.getElementById('p_role').value = urlParams.get('role');
-    if (urlParams.has('tab')) document.getElementById('p_tab').value = urlParams.get('tab');
+    renderEmployeeSelect();
   });
 
-  // ИНТЕГРАЦИЯ С DADATA (ФИАС / ГАР)
+  // ПОИСК ФИАС (DaData)
   function fetchFiasSuggestions(input, listId) {
     clearTimeout(fiasTimer);
     const query = input.value.trim();
@@ -441,15 +485,8 @@
 
     fiasTimer = setTimeout(() => {
       const city = document.getElementById('p_city').value.trim();
-      const payload = {
-        query: query,
-        count: 5
-      };
-
-      // Фильтрация подсказок по городу командировки
-      if (city) {
-        payload.locations = [{ city: city }];
-      }
+      const payload = { query: query, count: 5 };
+      if (city) payload.locations = [{ city: city }];
 
       fetch("https://suggestions.dadata.ru/suggestions/api/4_1/rs/suggest/address", {
         method: "POST",
@@ -475,7 +512,7 @@
         box.style.display = 'block';
       })
       .catch(err => {
-        console.error("Ошибка ФИАС DaData:", err);
+        console.error("Ошибка ФИАС:", err);
         box.style.display = 'none';
       });
     }, 250);
@@ -505,10 +542,7 @@
       }
       savePassport(); renderExpenseList();
     }
-    if (s === 3) { 
-      savePassport(); 
-      renderDetailedReview(); 
-    }
+    if (s === 3) { savePassport(); renderDetailedReview(); }
     if (s === 4) { renderFinal(); }
 
     document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
@@ -652,13 +686,11 @@
     renderExpenseList();
   }
 
-  // РАЗВЕРНУТАЯ САМОПРОВЕРКА (ШАГ 3)
   function renderDetailedReview() {
     const p = store.passport;
     const box = document.getElementById('review_cards_container');
     box.innerHTML = '';
 
-    // 1. Паспорт и аванс
     box.innerHTML += `
       <div class="review-item">
         <div class="review-header">
@@ -673,7 +705,6 @@
       </div>
     `;
 
-    // 2. Проезд Туда
     const thereExp = store.expenses.filter(e => e.dir === 'there');
     const thereSum = thereExp.reduce((s,e) => s + e.sum, 0);
     let thereDetails = thereExp.map(e => `&nbsp;&nbsp;— ${e.name}: <strong>${e.sum.toLocaleString('ru-RU')} ₽</strong> (док. № ${e.no})`).join('<br>');
@@ -691,7 +722,6 @@
       </div>
     `;
 
-    // 3. Проживание
     const hotelExp = store.expenses.filter(e => e.cat === 'hotel');
     const hotelSum = hotelExp.reduce((s,e) => s + e.sum, 0);
     let hotelDetails = hotelExp.map(e => `&nbsp;&nbsp;— ${e.name}: <strong>${e.sum.toLocaleString('ru-RU')} ₽</strong> (договор/чек № ${e.no})`).join('<br>');
@@ -709,7 +739,6 @@
       </div>
     `;
 
-    // 4. Такси
     const taxiSum = store.taxis.reduce((s,t) => s + t.sum, 0);
     let taxiDetails = store.taxis.map((t, idx) => 
       `&nbsp;&nbsp;${idx+1}) <strong>${t.date}</strong> | ${t.route} — <strong>${t.sum.toLocaleString('ru-RU')} ₽</strong> <em>(${t.purpose})</em>`
@@ -728,7 +757,6 @@
       </div>
     `;
 
-    // 5. Проезд Обратно
     const backExp = store.expenses.filter(e => e.dir === 'back');
     const backSum = backExp.reduce((s,e) => s + e.sum, 0);
     let backDetails = backExp.map(e => `&nbsp;&nbsp;— ${e.name}: <strong>${e.sum.toLocaleString('ru-RU')} ₽</strong> (док. № ${e.no})`).join('<br>');
@@ -746,7 +774,6 @@
       </div>
     `;
 
-    // 6. Суточные
     box.innerHTML += `
       <div class="review-item">
         <div class="review-header">
@@ -760,7 +787,6 @@
       </div>
     `;
 
-    // Связный нарратив
     const total = store.expenses.reduce((s,e)=>s+e.sum,0) + p.dailyTotal;
     const diff = p.advance - total;
 
@@ -813,15 +839,55 @@
     }
   }
 
-  function sendToTelegramBot() {
-    if (tg) {
-      tg.sendData(JSON.stringify(store));
-    } else {
-      alert("Отправка работает внутри Telegram. Для сохранения используйте печать/PDF.");
+  // СКАЧИВАНИЕ EXCEL ПРЯМО НА ТЕЛЕФОНЕ
+  function downloadExcelDirectly() {
+    const p = store.passport;
+    const sorted = [...store.expenses].sort((a,b) => new Date(a.date) - new Date(b.date));
+    const total = sorted.reduce((s,e)=>s+e.sum,0) + p.dailyTotal;
+    const diff = p.advance - total;
+
+    const wb = XLSX.utils.book_new();
+
+    // Лист 1: АО-1
+    const ao1Data = [
+      ["СВЕДЕНИЯ О КОМАНДИРОВКЕ И РАСХОДАХ К АО-1"],
+      ["Подотчетное лицо:", p.fio, "", "Должность / Таб №:", `${p.role} / ${p.tab}`],
+      ["Город командировки:", p.city, "", "Сроки нахождения:", `${p.dStart} — ${p.dEnd} (${p.days} дн.)`],
+      ["Получено авансом (руб.):", p.advance, "", "Итог расчета:", diff < 0 ? `Перерасход: ${Math.abs(diff)} руб.` : `Остаток: ${diff} руб.`],
+      [],
+      ["№", "Дата", "Номер документа", "Наименование документа (расхода)", "Сумма (руб.)"]
+    ];
+
+    sorted.forEach((e, idx) => {
+      ao1Data.push([idx + 1, e.date, e.no, e.name, e.sum]);
+    });
+
+    ao1Data.push([sorted.length + 1, "", "", `Авансовый отчет суточные за ${p.days} дн.`, p.dailyTotal]);
+    ao1Data.push(["", "", "", "ИТОГО ПО ОТЧЕТУ:", total]);
+
+    const ws1 = XLSX.utils.aoa_to_sheet(ao1Data);
+    ws1['!cols'] = [{wch: 5}, {wch: 12}, {wch: 18}, {wch: 45}, {wch: 15}];
+    XLSX.utils.book_append_sheet(wb, ws1, "Оборотная сторона АО-1");
+
+    // Лист 2: Такси
+    if (store.taxis.length > 0) {
+      const taxiData = [
+        ["Дата", "Маршрут (Точка А — Точка Б)", "Цель служебной поездки", "Сумма (руб.)"]
+      ];
+      store.taxis.forEach(t => {
+        taxiData.push([t.date, t.route, t.purpose, t.sum]);
+      });
+      const ws2 = XLSX.utils.aoa_to_sheet(taxiData);
+      ws2['!cols'] = [{wch: 12}, {wch: 45}, {wch: 35}, {wch: 14}];
+      XLSX.utils.book_append_sheet(wb, ws2, "Детализация такси");
     }
+
+    const fileName = `Авансовый_отчет_${p.fio.replace(/\s+/g, '_')}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+    showToast("Файл Excel сохранен!");
   }
 
-  // ДЕМО: Омск ↔ Красноярск
+  // ДЕМО (Омск ↔ Красноярск)
   function loadDemoScenario() {
     document.getElementById('p_fio').value = "Иванов Иван Иванович";
     document.getElementById('p_role').value = "Ведущий инженер";
