@@ -132,6 +132,7 @@
   </div>
 
   <div id="tab-form" class="main-tab-content">
+    <!-- ДЕМО-ПАНЕЛЬ ДОСТУПНА ВСЕМ (И АДМИНУ, И СОТРУДНИКАМ) -->
     <div class="demo-bar">
       <div>
         <div style="font-weight: 700; font-size: 12px;">⚡ Демо: Омск ↔ Красноярск</div>
@@ -350,7 +351,7 @@
       </div>
     </div>
 
-    <!-- ШАГ 3: САМОПРОВЕРКА С ПОЛНОЙ ДЕТАЛИЗАЦИЕЙ -->
+    <!-- ШАГ 3: САМОПРОВЕРКА -->
     <div id="step-3" class="step-content">
       <div class="card">
         <h2>3. Проверка расходов по документам</h2>
@@ -533,6 +534,7 @@
           renderAdminReports();
         }
 
+        // ЖЕСТКАЯ ПОДСТАНОВКА ДАННЫХ СОТРУДНИКА БЕЗ ВОЗМОЖНОСТИ ПЕРЕЗАПИСИ ЧУЖИМИ ДАННЫМИ
         if (res.currentUser && !res.isAdmin) {
           document.getElementById('p_fio').value = res.currentUser.fio;
           document.getElementById('p_role').value = res.currentUser.role;
@@ -895,7 +897,6 @@
     const p = store.passport;
     const box = document.getElementById('review_cards_container');
     
-    // Сборка развернутой детализации по всем категориям
     const thereExp = store.expenses.filter(e => e.dir === 'there');
     const thereSum = thereExp.reduce((s,e) => s + Number(e.sum || 0), 0);
     let thereDetails = thereExp.map(e => `&nbsp;&nbsp;— ${e.name}: <strong>${Number(e.sum).toLocaleString('ru-RU')} ₽</strong> (${formatRuDateString(e.date)}, док. № ${e.no})`).join('<br>');
@@ -979,12 +980,13 @@
     }
   }
 
+  // ЗАЩИЩЕННЫЙ И ПОЛНЫЙ ДЕМО-СЦЕНАРИЙ: СТРОГО СОХРАНЯЕТ ФИО АКТУАЛЬНОГО ПОЛЬЗОВАТЕЛЯ
   function loadDemoScenario() {
-    document.getElementById('p_fio').value = "Илгин Александр Александрович";
-    document.getElementById('p_role').value = "Руководитель команды открытия";
-    document.getElementById('p_tab').value = "0000013789";
+    const activeFio = document.getElementById('p_fio').value;
+    const activeRole = document.getElementById('p_role').value;
+    const activeTab = document.getElementById('p_tab').value;
+
     document.getElementById('p_city').value = "Красноярск";
-    
     document.getElementById('p_date_start').value = "01.10.2026";
     document.getElementById('p_date_end').value = "18.10.2026";
     if (datePickerRange) {
@@ -994,6 +996,13 @@
     document.getElementById('p_advance').value = "80000";
     document.getElementById('p_days').value = "18";
     document.getElementById('p_rate').value = "1500";
+
+    // СТРОГО СОХРАНЯЕМ ИМЯ ТОГО, КТО СЕЙЧАС ОТКРЫЛ ФОРМУ
+    if (activeFio) {
+      document.getElementById('p_fio').value = activeFio;
+      document.getElementById('p_role').value = activeRole;
+      document.getElementById('p_tab').value = activeTab;
+    }
     
     calcDaily();
     savePassport();
@@ -1019,7 +1028,7 @@
     ];
 
     renderExpenseList();
-    showToast('⚡ Демо-сценарий со всеми расходами и такси загружен!');
+    showToast('⚡ Полный демо-сценарий загружен (ваше ФИО сохранено)!');
   }
 
   function sendReportToCloudOnce() {
