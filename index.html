@@ -25,7 +25,10 @@
       --warning: #ff9500;
     }
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-    ::selection { background: #007aff; color: #ffffff; }
+    
+    /* ЯРКОЕ ВИДИМОЕ ВЫДЕЛЕНИЕ ТЕКСТА ВО ВСЕХ ПОЛЯХ */
+    ::selection { background: #007aff !important; color: #ffffff !important; }
+    ::-moz-selection { background: #007aff !important; color: #ffffff !important; }
 
     body {
       margin: 0; padding: 10px;
@@ -59,8 +62,17 @@
       height: 40px; padding: 0 10px; font-size: 14px;
       border: 1px solid var(--border); border-radius: 8px; outline: none; background: #fff; width: 100%;
       color: var(--text);
+      -webkit-user-select: text;
+      user-select: text;
     }
+    .field input:focus, .field select:focus { border-color: var(--primary); }
     .field input:disabled { background: #e5e5ea; color: #3a3a3c; font-weight: 600; }
+    
+    .field input.input-error, .field select.input-error {
+      border-color: var(--danger) !important;
+      background-color: #fffaf9 !important;
+      box-shadow: 0 0 0 3px rgba(255, 59, 48, 0.15) !important;
+    }
 
     .range-input {
       cursor: pointer;
@@ -125,14 +137,12 @@
 
 <div class="wrapper">
   
-  <!-- ПЕРЕКЛЮЧАТЕЛЬ ВКЛАДОК (ДЛЯ АДМИНА) -->
   <div id="admin_top_tabs" class="top-tabs" style="display:none;">
     <button type="button" class="tab-btn active" onclick="switchMainTab('form')">📝 Создать отчет</button>
     <button type="button" class="tab-btn" onclick="switchMainTab('employees')">👥 База сотрудников</button>
     <button type="button" class="tab-btn" onclick="switchMainTab('reports')">📊 Все отчёты</button>
   </div>
 
-  <!-- ВКЛАДКА 1: ФОРМА СОЗДАНИЯ ОТЧЕТА -->
   <div id="tab-form" class="main-tab-content">
     <div class="demo-bar">
       <div>
@@ -142,9 +152,8 @@
       <button type="button" onclick="loadDemoScenario()">Заполнить ДЕМО</button>
     </div>
 
-    <!-- БЛОК ВЫБОРА СОТРУДНИКА ДЛЯ АДМИНА -->
     <div id="admin_emp_card" class="card" style="background:#eef7ff; border:1px solid #cce5ff; display:none;">
-      <h3 style="margin:0 0 6px 0;">👤 Выбор сотрудника для заполнения отчета</h3>
+      <h3 style="margin:0 0 6px 0;">👑 Панель руководителя: выбор сотрудника</h3>
       <div class="field">
         <select id="emp_select" onchange="onEmployeeSelect()">
           <option value="">-- Выберите сотрудника из базы --</option>
@@ -938,19 +947,48 @@
     tb.innerHTML = rowsHtml;
   }
 
+  // ВЕРНУЛИ ПОЛНОЦЕННЫЙ ДЕМО-СЦЕНАРИЙ
   function loadDemoScenario() {
     document.getElementById('p_fio').value = "Илгин Александр Александрович";
     document.getElementById('p_role').value = "Руководитель команды открытия";
     document.getElementById('p_tab').value = "0000013789";
     document.getElementById('p_city').value = "Красноярск";
+    
     document.getElementById('p_date_start').value = "01.10.2026";
     document.getElementById('p_date_end').value = "18.10.2026";
-    if (datePickerRange) datePickerRange.setDate(["01.10.2026", "18.10.2026"]);
+    if (datePickerRange) {
+      datePickerRange.setDate(["01.10.2026", "18.10.2026"]);
+    }
+    
     document.getElementById('p_advance').value = "80000";
     document.getElementById('p_days').value = "18";
     document.getElementById('p_rate').value = "1500";
-    calcDaily(); savePassport();
-    goToStep(2); showToast('⚡ Демо загружено!');
+    
+    calcDaily();
+    savePassport();
+
+    store.expenses = [
+      { id: 'd1', date: '01.10.2026', no: '4212136762', name: 'Авиабилет (Омск - Красноярск)', sum: 11500, dir: 'there', cat: 'plane', route: 'Омск - Красноярск' },
+      { id: 'd2', date: '01.10.2026', no: '5841', name: 'Чек (сервисный сбор)', sum: 1290, dir: 'there', cat: 'plane', route: 'Омск - Красноярск' },
+      { id: 'd3', date: '02.10.2026', no: 'ДОГ-205e', name: 'Аренда квартиры', sum: 54000, cat: 'hotel' },
+      { id: 'd4', date: '18.10.2026', no: 'КД010247', name: 'Билет Автобус (Красноярск - Омск)', sum: 4200, dir: 'back', cat: 'bus', route: 'Красноярск - Омск' },
+      { id: 'd5', date: '18.10.2026', no: 'БАГ-3107', name: 'Чек, багаж', sum: 800, dir: 'back', cat: 'bus', route: 'Красноярск - Омск' },
+      { id: 'd6', date: '18.10.2026', no: 'ПОЛ-192', name: 'Чек, страхование', sum: 500, dir: 'back', cat: 'bus', route: 'Красноярск - Омск' },
+      { id: 'd7', date: '01.10.2026', no: '303', name: 'Чек, такси', sum: 780, cat: 'taxi' },
+      { id: 'd8', date: '01.10.2026', no: '206', name: 'Чек, такси', sum: 920, cat: 'taxi' },
+      { id: 'd9', date: '18.10.2026', no: '412', name: 'Чек, такси', sum: 450, cat: 'taxi' },
+      { id: 'd10', date: '18.10.2026', no: '119', name: 'Чек, такси', sum: 390, cat: 'taxi' }
+    ];
+
+    store.taxis = [
+      { date: '01.10.2026', no: '303', sum: 780, route: 'г. Омск, ул. Ленина, д. 12 (Дом) — Аэропорт Омск-Центральный (Аэропорт)', purpose: 'Поездка в аэропорт вылета' },
+      { date: '01.10.2026', no: '206', sum: 920, route: 'Аэропорт Красноярск (Аэропорт) — г. Красноярск, ул. Взлетная, д. 5 (Апартаменты)', purpose: 'Проезд из аэропорта к месту проживания' },
+      { date: '18.10.2026', no: '412', sum: 450, route: 'г. Красноярск, ул. Взлетная, д. 5 (Апартаменты) — Автовокзал Красноярск (Автовокзал)', purpose: 'Проезд на автовокзал' },
+      { date: '18.10.2026', no: '119', sum: 390, route: 'Автовокзал Омск (Автовокзал) — г. Омск, ул. Ленина, д. 12 (Дом)', purpose: 'Возвращение с вокзала домой' }
+    ];
+
+    renderExpenseList();
+    showToast('⚡ Демо-сценарий загружен!');
   }
 
   function sendReportToCloudOnce() {
@@ -984,14 +1022,95 @@
     const btn = document.getElementById("btn_excel");
     btn.disabled = true; btn.innerText = "⏳ Сохранение...";
     sendReportToCloudOnce();
-    setTimeout(() => { btn.disabled = false; btn.innerText = "📥 Скачать Excel (.xlsx)"; showToast("✅ Excel скачан!"); }, 1500);
+    try {
+      const p = store.passport;
+      const sorted = [...store.expenses];
+      const total = sorted.reduce((s,e)=>s + Number(e.sum || 0), 0) + (p.dailyTotal || 0);
+      const diff = (p.advance || 0) - total;
+
+      const wb = XLSX.utils.book_new();
+      const ao1Data = [
+        ["СВЕДЕНИЯ О КОМАНДИРОВКЕ И ПОДОТЧЕТНОМ ЛИЦЕ"],
+        ["ФИО подотчетного лица:", p.fio],
+        ["Должность:", p.role],
+        ["Табельный номер:", p.tab],
+        ["Город командировки:", p.city],
+        ["Срок командировки:", `${formatRuDateString(p.dStart)} — ${formatRuDateString(p.dEnd)} (${p.days} дней)`],
+        ["Количество суток:", p.days],
+        ["Получено авансом (руб.):", p.advance],
+        ["Суточные (руб.):", `${p.dailyTotal} (${p.rate} руб./сутки)`],
+        ["Итоговый расчет:", diff < 0 ? `Перерасход к выплате: ${Math.abs(diff)} руб.` : `Остаток к возврату: ${diff} руб.`],
+        [],
+        ["ОБОРОТНАЯ СТОРОНА ФОРМЫ № АО-1 (ОТЧЕТ О РАСХОДАХ)"],
+        ["№", "Дата", "Номер документа", "Наименование документа (расхода)", "Сумма (руб.)"]
+      ];
+
+      sorted.forEach((e, idx) => { ao1Data.push([idx + 1, formatRuDateString(e.date), e.no, e.name, Number(e.sum || 0)]); });
+      ao1Data.push([sorted.length + 1, "", "", `Авансовый отчет суточные за ${p.days} дн.`, Number(p.dailyTotal || 0)]);
+      ao1Data.push(["", "", "", "ИТОГО ПО ОТЧЕТУ:", total]);
+
+      const ws1 = XLSX.utils.aoa_to_sheet(ao1Data);
+      ws1['!cols'] = [{wch: 6}, {wch: 14}, {wch: 18}, {wch: 50}, {wch: 15}];
+      XLSX.utils.book_append_sheet(wb, ws1, "Авансовый отчет");
+
+      if (store.taxis.length > 0) {
+        const taxiData = [
+          ["ДЕТАЛИЗАЦИЯ СЛУЖЕБНЫХ ПОЕЗДОК НА ТАКСИ"],
+          ["Дата", "Маршрут поездки (Точка А — Точка Б)", "Служебная цель поездки", "Сумма (руб.)"]
+        ];
+        store.taxis.forEach(t => { taxiData.push([formatRuDateString(t.date), t.route, t.purpose, Number(t.sum || 0)]); });
+        const ws2 = XLSX.utils.aoa_to_sheet(taxiData);
+        ws2['!cols'] = [{wch: 14}, {wch: 50}, {wch: 35}, {wch: 14}];
+        XLSX.utils.book_append_sheet(wb, ws2, "Детализация такси");
+      }
+
+      const fileName = `Авансовый_отчет_${(p.fio || 'сотрудника').replace(/\s+/g, '_')}.xlsx`;
+      const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+
+      if (navigator.canShare && navigator.canShare({ files: [new File([blob], fileName, { type: blob.type })] })) {
+        navigator.share({ files: [new File([blob], fileName, { type: blob.type })], title: 'Авансовый отчет', text: `Авансовый отчет: ${p.fio}` }).catch(() => {});
+      } else {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url; a.download = fileName;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      }
+      showToast("✅ Excel скачан!");
+    } catch(err) {
+      showToast("Ошибка Excel: " + err.message);
+    } finally {
+      setTimeout(() => { btn.disabled = false; btn.innerText = "📥 Скачать Excel (.xlsx)"; }, 1500);
+    }
   }
 
   function generatePdfAndNotify() {
     const btn = document.getElementById("btn_pdf");
     btn.disabled = true; btn.innerText = "⏳ Сохранение...";
     sendReportToCloudOnce();
-    setTimeout(() => { btn.disabled = false; btn.innerText = "📄 Сохранить в PDF"; showToast("✅ PDF готов!"); }, 1500);
+    try {
+      const element = document.getElementById('printable_report');
+      const p = store.passport;
+      const fileName = `Авансовый_отчет_${(p.fio || 'сотрудника').replace(/\s+/g, '_')}.pdf`;
+      const opt = { margin: [10, 10, 10, 10], filename: fileName, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
+
+      html2pdf().set(opt).from(element).outputPdf('blob').then(function(blob) {
+        if (navigator.canShare && navigator.canShare({ files: [new File([blob], fileName, { type: 'application/pdf' })] })) {
+          navigator.share({ files: [new File([blob], fileName, { type: 'application/pdf' })], title: 'Авансовый отчет PDF', text: `Авансовый отчет: ${p.fio}` }).catch(() => {});
+        } else {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url; a.download = fileName;
+          document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        }
+        showToast("✅ PDF готов!");
+      }).finally(() => {
+        setTimeout(() => { btn.disabled = false; btn.innerText = "📄 Сохранить в PDF"; }, 1500);
+      });
+    } catch(err) {
+      showToast("Ошибка PDF: " + err.message);
+      btn.disabled = false; btn.innerText = "📄 Сохранить в PDF";
+    }
   }
 </script>
 
