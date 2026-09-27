@@ -207,6 +207,7 @@
     <button type="button" id="tab_btn_emp" class="tab-btn" style="display:none;" onclick="switchMainTab('employees')">👥 База сотрудников</button>
   </div>
 
+  <!-- Плашка просмотра отчета -->
   <div id="review_banner" class="review-banner">
     <div>
       <div style="font-weight:700; color:#004085; font-size:13px;">👁️ Просмотр отчёта:</div>
@@ -218,6 +219,7 @@
     </div>
   </div>
 
+  <!-- Плашка незавершенного черновика -->
   <div id="draft_bar" class="draft-bar" style="display:none;">
     <div style="font-size:12px; color:#856404;">
       <strong>Найден сохраненный черновик:</strong><br>
@@ -589,7 +591,7 @@
 
   let CURRENT_REPORT_UID = Math.random().toString(36).substring(2, 8);
   let isReportSubmittedToCloud = false;
-  let isViewingRemoteReport = false; // Блокирует фоновое перетирание данных
+  let isViewingRemoteReport = false;
   let autoSaveTimeout = null;
   let pendingEditExpenseId = null;
 
@@ -642,7 +644,6 @@
   }
 
   function saveCurrentDraftLocal() {
-    // В режиме просмотра ни в коем случае не пишем чужие данные в локальный черновик!
     if (isViewingRemoteReport) return;
     try {
       savePassport();
@@ -740,7 +741,6 @@
   }
 
   function autoSaveDraftToCloud() {
-    // В режиме просмотра чужих/готовых отчётов автосохранение СТРОГО заблокировано!
     if (isViewingRemoteReport) return;
     clearTimeout(autoSaveTimeout);
     autoSaveTimeout = setTimeout(() => {
@@ -820,7 +820,6 @@
 
         renderSeparatedReports(res.reports);
 
-        // Подставляем текущего сотрудника ТОЛЬКО если поле пустое и мы не смотрим чужой отчет!
         if (!document.getElementById('p_fio').value && !isViewingRemoteReport) {
           if (res.currentUser) {
             document.getElementById('p_fio').value = res.currentUser.fio;
@@ -927,16 +926,18 @@
     }
   }
 
-  // Полное и изолированное открытие любого отчета (без затирания нулями и Красноярском!)
   function openReportInReviewMode(reportId) {
     const rep = globalAppData.reports.find(r => r.id === reportId);
     if (!rep) { showToast("Отчёт не найден"); return; }
 
     try {
-      isViewingRemoteReport = true; // СТРОГО БЛОКИРУЕМ ЗАПИСЬ В ЧЕРНОВИКИ!
+      isViewingRemoteReport = true;
 
       if (rep.rawJson) {
-        const data = typeof rep.rawJson === 'string' ? JSON.parse(rep.rawJson) : rep.rawJson;
+        let data = rep.rawJson;
+        if (typeof data === 'string') {
+          try { data = JSON.parse(data); } catch(e){}
+        }
         store.passport = data.passport || {};
         store.expenses = data.expenses || [];
         store.taxis = data.taxis || [];
@@ -977,7 +978,6 @@
 
       CURRENT_REPORT_UID = rep.id;
 
-      // Сразу физически прописываем данные в поля формы, чтобы ничего не обнулялось
       const p = store.passport;
       document.getElementById('p_fio').value = p.fio || '';
       document.getElementById('p_role').value = p.role || '';
@@ -993,7 +993,6 @@
         datePickerRange.setDate([p.dStart, p.dEnd]);
       }
 
-      // Переключаем на Шаг 4 (Итоги) БЕЗ вызова перезатирающего savePassport()
       switchMainTab('form');
       document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
       document.getElementById('step-4').classList.add('active');
@@ -1205,7 +1204,6 @@
     }
     if (s === 3) { savePassport(); autoSaveDraftToCloud(); renderDetailedReview(); }
     if (s === 4) {
-      // Сохраняем ТОЛЬКО если это не режим просмотра чужого отчёта!
       if (!isViewingRemoteReport) {
         savePassport();
         autoSaveDraftToCloud();
@@ -1225,7 +1223,6 @@
   }
 
   function savePassport() {
-    // ЗАПРЕТ на перезапись store.passport, если открыт просмотр чужого отчёта!
     if (isViewingRemoteReport) return;
 
     const days = parseInt(document.getElementById('p_days').value) || 0;
@@ -1665,8 +1662,8 @@
 
   function buildNarrativeSummary() {
     const p = store.passport;
-    const total = store.expenses.reduce((s,e)=>s + Number(e.sum || 0), 0) + (p.dailyTotal || 0);
-    const diff = (p.advance || 0) - total;
+    const total = store.expenses.reduce((s,e)=>s + Number(e.sum || 0), 0) + (Number(p.dailyTotal) || 0);
+    const diff = (Number(p.advance) || 0) - total;
 
     function formatTransportList(dir) {
       const items = store.expenses.filter(e => e.dir === dir);
@@ -1802,8 +1799,8 @@
 
   function renderFinal() {
     const p = store.passport;
-    const total = store.expenses.reduce((s,e)=>s + Number(e.sum || 0), 0) + (p.dailyTotal || 0);
-    const diff = (p.advance || 0) - total;
+    const total = store.expenses.reduce((s,e)=>s + Number(e.sum || 0), 0) + (Number(p.dailyTotal) || 0);
+    const diff = (Number(p.advance) || 0) - total;
 
     let resText = diff < 0 ? `Перерасход к выплате: ${Math.abs(diff).toLocaleString('ru-RU')} ₽` : `Остаток к возврату: ${diff.toLocaleString('ru-RU')} ₽`;
 
@@ -1823,7 +1820,7 @@
     const sorted = [...store.expenses].sort((a, b) => parseDateToTimestamp(a.date) - parseDateToTimestamp(b.date));
     const tb = document.querySelector('#tbl_ao1 tbody');
     let rowsHtml = sorted.map((e, i) => `<tr><td class="text-center">${i+1}</td><td>${formatRuDateString(e.date)}</td><td>${e.no}</td><td>${e.name}</td><td class="text-right">${Number(e.sum).toLocaleString('ru-RU', {minimumFractionDigits:2})}</td></tr>`).join('');
-    rowsHtml += `<tr><td class="text-center">${sorted.length+1}</td><td></td><td></td><td><strong>Суточные за ${p.days} дн.</strong></td><td class="text-right"><strong>${Number(p.dailyTotal).toLocaleString('ru-RU', {minimumFractionDigits:2})}</strong></td></tr>`;
+    rowsHtml += `<tr><td class="text-center">${sorted.length+1}</td><td></td><td></td><td><strong>Суточные за ${p.days} дн.</strong></td><td class="text-right"><strong>${Number(p.dailyTotal || 0).toLocaleString('ru-RU', {minimumFractionDigits:2})}</strong></td></tr>`;
     tb.innerHTML = rowsHtml;
 
     const sortedTaxis = [...store.taxis].sort((a, b) => parseDateToTimestamp(a.date) - parseDateToTimestamp(b.date));
@@ -1838,7 +1835,6 @@
   }
 
   function loadDemoScenario() {
-    // ДЕМО ПОДСТАВЛЯЕТ ТОЛЬКО ПОЕЗДКУ, НЕ ТРОГАЯ ФИО, ДОЛЖНОСТЬ И ТАБЕЛЬНЫЙ ТЕКУЩЕГО СОТРУДНИКА!
     document.getElementById('p_city').value = "Красноярск";
     document.getElementById('p_date_start').value = "01.10.2026";
     document.getElementById('p_date_end').value = "18.10.2026";
@@ -1910,8 +1906,8 @@
     try {
       const p = store.passport;
       const sorted = [...store.expenses].sort((a, b) => parseDateToTimestamp(a.date) - parseDateToTimestamp(b.date));
-      const total = sorted.reduce((s,e)=>s + Number(e.sum || 0), 0) + (p.dailyTotal || 0);
-      const diff = (p.advance || 0) - total;
+      const total = sorted.reduce((s,e)=>s + Number(e.sum || 0), 0) + (Number(p.dailyTotal) || 0);
+      const diff = (Number(p.advance) || 0) - total;
 
       const wb = XLSX.utils.book_new();
       const ao1Data = [
