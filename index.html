@@ -50,15 +50,6 @@
       padding: 7px 12px; border-radius: 8px; font-size: 12px; cursor: pointer;
     }
 
-    .draft-bar {
-      background: #fff3cd; border: 1px solid #ffeeba; border-radius: 12px;
-      padding: 10px 12px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; gap: 8px;
-    }
-    .draft-bar-btns { display: flex; gap: 6px; flex-shrink: 0; }
-    .draft-bar button {
-      border: none; padding: 6px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer;
-    }
-
     .review-banner {
       background: #e8f3ff; border: 1px solid #b8daff; border-radius: 12px;
       padding: 10px 12px; margin-bottom: 10px; display: none; justify-content: space-between; align-items: center; gap: 8px;
@@ -207,7 +198,7 @@
     <button type="button" id="tab_btn_emp" class="tab-btn" style="display:none;" onclick="switchMainTab('employees')">👥 База сотрудников</button>
   </div>
 
-  <!-- Плашка просмотра отчета -->
+  <!-- Плашка режима просмотра чужого/готового отчета -->
   <div id="review_banner" class="review-banner">
     <div>
       <div style="font-weight:700; color:#004085; font-size:13px;">👁️ Просмотр отчёта:</div>
@@ -216,18 +207,6 @@
     <div class="review-banner-btns">
       <button type="button" class="btn btn-primary" style="height:32px; min-height:32px; padding:0 10px; font-size:12px;" onclick="enableEditingCurrentReport()">✏️ Изменить</button>
       <button type="button" class="btn btn-secondary" style="height:32px; min-height:32px; padding:0 10px; font-size:12px;" onclick="closeReviewMode()">✕ Закрыть</button>
-    </div>
-  </div>
-
-  <!-- Плашка незавершенного черновика -->
-  <div id="draft_bar" class="draft-bar" style="display:none;">
-    <div style="font-size:12px; color:#856404;">
-      <strong>Найден сохраненный черновик:</strong><br>
-      <span id="draft_desc">—</span>
-    </div>
-    <div class="draft-bar-btns">
-      <button type="button" style="background:var(--warning); color:white;" onclick="restoreDraft()">Восстановить</button>
-      <button type="button" style="background:#e5e5ea; color:#333;" onclick="discardDraft()">Новый</button>
     </div>
   </div>
 
@@ -255,21 +234,21 @@
         <h2>1. Сведения о командировке</h2>
         <div class="field">
           <label>ФИО сотрудника <span class="req-star">*</span></label>
-          <input type="text" id="p_fio" placeholder="Фамилия Имя Отчество" oninput="saveCurrentDraftLocal()">
+          <input type="text" id="p_fio" placeholder="Фамилия Имя Отчество" oninput="triggerCloudAutoSave()">
         </div>
         <div class="grid-2">
           <div class="field">
             <label>Должность <span class="req-star">*</span></label>
-            <input type="text" id="p_role" placeholder="Должность" oninput="saveCurrentDraftLocal()">
+            <input type="text" id="p_role" placeholder="Должность" oninput="triggerCloudAutoSave()">
           </div>
           <div class="field">
             <label>Таб. номер</label>
-            <input type="text" id="p_tab" placeholder="0000000000" oninput="saveCurrentDraftLocal()">
+            <input type="text" id="p_tab" placeholder="0000000000" oninput="triggerCloudAutoSave()">
           </div>
         </div>
         <div class="field">
           <label>Город командировки <span class="req-star">*</span></label>
-          <input type="text" id="p_city" placeholder="Город командировки" oninput="saveCurrentDraftLocal()">
+          <input type="text" id="p_city" placeholder="Например: Пермь" oninput="triggerCloudAutoSave()">
         </div>
 
         <div class="field">
@@ -281,16 +260,16 @@
 
         <div class="field">
           <label>Получено авансом под отчет (₽) <span class="req-star">*</span></label>
-          <input type="number" id="p_advance" placeholder="0" value="0" oninput="saveCurrentDraftLocal()">
+          <input type="number" id="p_advance" placeholder="0" value="" oninput="triggerCloudAutoSave()">
         </div>
         <div class="grid-2">
           <div class="field">
             <label>Количество суток</label>
-            <input type="number" id="p_days" value="0" oninput="calcDaily(); saveCurrentDraftLocal();">
+            <input type="number" id="p_days" value="0" oninput="calcDaily(); triggerCloudAutoSave();">
           </div>
           <div class="field">
             <label>Тариф суточных (₽/сутки)</label>
-            <input type="number" id="p_rate" value="1500" oninput="calcDaily(); saveCurrentDraftLocal();">
+            <input type="number" id="p_rate" value="1500" oninput="calcDaily(); triggerCloudAutoSave();">
           </div>
         </div>
         <div style="font-size: 13px; font-weight: 600; color: #444; margin-top: 4px;">
@@ -538,7 +517,22 @@
 
 </div>
 
-<!-- МОДАЛКА ПОДТВЕРЖДЕНИЯ РЕДАКТИРОВАНИЯ -->
+<!-- МОДАЛКА ПРЕДЛОЖЕНИЯ ОТКРЫТЬ ЧЕРНОВИК ИЗ ОБЛАКА -->
+<div id="cloud_draft_modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.55); z-index:10001; align-items:center; justify-content:center; padding:16px;">
+  <div style="background:white; padding:20px; border-radius:16px; width:100%; max-width:380px; box-shadow:0 12px 36px rgba(0,0,0,0.3); text-align:center;">
+    <div style="font-size:36px; margin-bottom:8px;">📝</div>
+    <h3 style="margin:0 0 8px 0; font-size:17px; color:#1c1c1e;">Найден незавершённый черновик</h3>
+    <div id="cloud_draft_modal_text" style="font-size:13px; color:#495057; margin-bottom:18px; line-height:1.5;">
+      Загрузка...
+    </div>
+    <div style="display:flex; flex-direction:column; gap:8px;">
+      <button type="button" class="btn btn-primary" onclick="confirmOpenCloudDraft()" style="height:42px; font-size:14px;">✏️ Продолжить заполнение</button>
+      <button type="button" class="btn btn-secondary" onclick="confirmDiscardCloudDraft()" style="height:38px; font-size:13px; color:#ff3b30;">🗑️ Начать с нуля (удалить черновик)</button>
+    </div>
+  </div>
+</div>
+
+<!-- МОДАЛКА ПОДТВЕРЖДЕНИЯ РЕДАКТИРОВАНИЯ РАСХОДА -->
 <div id="edit_confirm_modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:10000; align-items:center; justify-content:center;">
   <div style="background:white; padding:18px; border-radius:14px; width:90%; max-width:380px; box-shadow:0 10px 30px rgba(0,0,0,0.25); text-align:center;">
     <div style="font-size: 30px; margin-bottom: 6px;">✏️</div>
@@ -586,14 +580,12 @@
   const DADATA_API_KEY = "74443bebf6f911f3792509fa4ad680d6977c3e14";
   const GOOGLE_SHEET_API = "https://script.google.com/macros/s/AKfycbwqfeeX8q61tkVz0Rhubm2hu14O7vOPhu40r9qx6IOR78adJUq_U3CNwGtx6CfF-3oItQ/exec";
 
-  const DRAFTS_LIST_KEY = "avans_drafts_history_v4";
-  let currentActiveDraftId = "draft_" + Date.now();
-
   let CURRENT_REPORT_UID = Math.random().toString(36).substring(2, 8);
   let isReportSubmittedToCloud = false;
   let isViewingRemoteReport = false;
   let autoSaveTimeout = null;
   let pendingEditExpenseId = null;
+  let detectedDraftReport = null; // Найденный в облаке черновик
 
   let globalAppData = { employees: [], currentUser: null, reports: [], isAdmin: false };
   let store = {
@@ -631,129 +623,18 @@
     return `${day}.${month}.${year}`;
   }
 
-  function UtilitiesFormatDateNow() {
-    const d = new Date();
-    return `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${d.getFullYear()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  function getTelegramUser() {
+    if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) return tg.initDataUnsafe.user;
+    const urlParams = new URLSearchParams(window.location.search);
+    return { id: urlParams.get('user_id') || "446642559", first_name: store.passport.fio };
   }
 
-  function getStoredDrafts() {
-    try {
-      const s = localStorage.getItem(DRAFTS_LIST_KEY);
-      return s ? JSON.parse(s) : [];
-    } catch(e) { return []; }
-  }
-
-  function saveCurrentDraftLocal() {
-    if (isViewingRemoteReport) return;
-    try {
-      savePassport();
-      let drafts = getStoredDrafts();
-      const existingIdx = drafts.findIndex(d => d.id === currentActiveDraftId);
-      const draftObj = {
-        id: currentActiveDraftId,
-        date: UtilitiesFormatDateNow(),
-        updatedAt: Date.now(),
-        store: store,
-        dateRangeInput: document.getElementById('p_date_range').value
-      };
-
-      if (existingIdx >= 0) drafts[existingIdx] = draftObj;
-      else drafts.push(draftObj);
-
-      localStorage.setItem(DRAFTS_LIST_KEY, JSON.stringify(drafts));
-    } catch(e) {}
-  }
-
-  function checkExistingDraft() {
-    try {
-      const drafts = getStoredDrafts();
-      if (!drafts || drafts.length === 0) {
-        document.getElementById('draft_bar').style.display = 'none';
-        return;
-      }
-
-      drafts.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
-      const latestDraft = drafts[0];
-
-      if (latestDraft && latestDraft.store && (latestDraft.store.expenses.length > 0 || latestDraft.store.passport.city)) {
-        const dBar = document.getElementById('draft_bar');
-        const desc = document.getElementById('draft_desc');
-        const city = latestDraft.store.passport.city || 'командировка';
-        const expCount = latestDraft.store.expenses.length;
-        desc.innerText = `г. ${city} (${latestDraft.date || 'ранее'}), позиций: ${expCount}.`;
-        dBar.style.display = 'flex';
-      } else {
-        document.getElementById('draft_bar').style.display = 'none';
-      }
-    } catch(e) {}
-  }
-
-  function restoreDraft() {
-    try {
-      const drafts = getStoredDrafts();
-      if (!drafts || drafts.length === 0) return;
-      drafts.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
-      const latestDraft = drafts[0];
-
-      currentActiveDraftId = latestDraft.id;
-      store = latestDraft.store;
-      const p = store.passport;
-
-      document.getElementById('p_fio').value = p.fio || '';
-      document.getElementById('p_role').value = p.role || '';
-      document.getElementById('p_tab').value = p.tab || '';
-      document.getElementById('p_city').value = p.city || '';
-      document.getElementById('p_date_start').value = p.dStart || '';
-      document.getElementById('p_date_end').value = p.dEnd || '';
-      document.getElementById('p_advance').value = p.advance || 0;
-      document.getElementById('p_days').value = p.days || 0;
-      document.getElementById('p_rate').value = p.rate || 1500;
-
-      if (datePickerRange && p.dStart && p.dEnd) {
-        datePickerRange.setDate([p.dStart, p.dEnd]);
-      } else if (latestDraft.dateRangeInput) {
-        document.getElementById('p_date_range').value = latestDraft.dateRangeInput;
-      }
-
-      calcDaily();
-      renderExpenseList();
-      document.getElementById('draft_bar').style.display = 'none';
-      showToast('Черновик восстановлен!');
-    } catch(e) {
-      showToast('Ошибка восстановления черновика');
-    }
-  }
-
-  function discardDraft() {
-    // Полное удаление черновика из памяти, чтобы плашка не висела вечно
-    try {
-      localStorage.removeItem(DRAFTS_LIST_KEY);
-    } catch(e) {}
-    currentActiveDraftId = "draft_" + Date.now();
-    document.getElementById('draft_bar').style.display = 'none';
-    store.expenses = [];
-    store.taxis = [];
-    document.getElementById('p_city').value = '';
-    document.getElementById('p_advance').value = '0';
-    document.getElementById('p_days').value = '0';
-    if (datePickerRange) datePickerRange.clear();
-    calcDaily();
-    renderExpenseList();
-    showToast('Начат новый отчёт');
-  }
-
-  function clearDraftOnFinish() {
-    try {
-      localStorage.removeItem(DRAFTS_LIST_KEY);
-    } catch(e) {}
-  }
-
-  function autoSaveDraftToCloud() {
+  // --- СОХРАНЕНИЕ ЧЕРНОВИКА В ОБЛАКО (GOOGLE ТАБЛИЦУ) ---
+  function triggerCloudAutoSave() {
     if (isViewingRemoteReport) return;
     clearTimeout(autoSaveTimeout);
     autoSaveTimeout = setTimeout(() => {
       savePassport();
-      saveCurrentDraftLocal();
       let tgUser = getTelegramUser();
       fetch(GOOGLE_SHEET_API, {
         method: "POST", mode: "no-cors",
@@ -767,16 +648,13 @@
           telegram_user: tgUser
         })
       });
-    }, 1200);
-  }
-
-  function getTelegramUser() {
-    if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) return tg.initDataUnsafe.user;
-    const urlParams = new URLSearchParams(window.location.search);
-    return { id: urlParams.get('user_id') || "446642559", first_name: store.passport.fio };
+    }, 1000);
   }
 
   window.addEventListener('DOMContentLoaded', () => {
+    // Очищаем старые остатки из памяти браузера телефона
+    try { localStorage.clear(); } catch(e){}
+
     datePickerRange = flatpickr("#p_date_range", {
       mode: "range", locale: "ru", dateFormat: "d.m.Y", showMonths: 1,
       onChange: function(selectedDates) {
@@ -788,7 +666,7 @@
           const diffDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
           document.getElementById('p_days').value = diffDays > 0 ? diffDays : 1;
           calcDaily();
-          autoSaveDraftToCloud();
+          triggerCloudAutoSave();
         } else if (selectedDates.length === 1) {
           document.getElementById('p_date_start').value = formatFlatpickrToRu(selectedDates[0]);
           document.getElementById('p_date_end').value = "";
@@ -800,7 +678,6 @@
 
     datePickerExpense = flatpickr("#e_date", { locale: "ru", dateFormat: "d.m.Y" });
     loadAppData();
-    checkExistingDraft();
   });
 
   function loadAppData() {
@@ -814,7 +691,7 @@
       .then(res => {
         globalAppData = res;
 
-        // Панель руководителя и вкладка сотрудников видна только администратору
+        // Панель руководителя доступна только админу
         if (res.isAdmin) {
           document.getElementById('tab_btn_emp').style.display = 'block';
           document.getElementById('admin_emp_card').style.display = 'block';
@@ -829,7 +706,7 @@
 
         renderSeparatedReports(res.reports);
 
-        // Автоподстановка текущего пользователя
+        // Подстановка профиля сотрудника
         if (!document.getElementById('p_fio').value && !isViewingRemoteReport) {
           if (res.currentUser) {
             document.getElementById('p_fio').value = res.currentUser.fio;
@@ -841,11 +718,92 @@
             document.getElementById('p_tab').value = "0000013789";
           }
         }
+
+        // Проверяем наличие облачного черновика
+        checkCloudDraftPopup(res.reports, userId, res.isAdmin);
       })
       .catch((err) => {
-        document.getElementById('drafts_container').innerHTML = '<div style="color:var(--danger); font-size:12px;">Ошибка загрузки. Проверьте соединение.</div>';
+        document.getElementById('drafts_container').innerHTML = '<div style="color:var(--danger); font-size:12px;">Ошибка соединения.</div>';
         document.getElementById('done_reports_container').innerHTML = '';
       });
+  }
+
+  // --- МОДАЛЬНОЕ ОКНО ПРЕДЛОЖЕНИЯ ОТКРЫТЬ ЧЕРНОВИК ---
+  function checkCloudDraftPopup(reports, userId, isAdmin) {
+    if (!reports || reports.length === 0 || isViewingRemoteReport) return;
+    
+    // Ищем незавершённый черновик текущего пользователя
+    const userDrafts = reports.filter(r => r.isDraft && (!userId || String(r.tgId).trim() === String(userId).trim()));
+    if (userDrafts.length === 0) return;
+
+    detectedDraftReport = userDrafts[0];
+    let desc = `Командировка: <b>г. ${detectedDraftReport.city || '—'}</b><br>`;
+    if (detectedDraftReport.date) desc += `Период: ${detectedDraftReport.date}<br>`;
+    desc += `Накоплено расходов: <b>${Number(detectedDraftReport.sum || 0).toLocaleString('ru-RU')} ₽</b>`;
+
+    document.getElementById('cloud_draft_modal_text').innerHTML = desc;
+    document.getElementById('cloud_draft_modal').style.display = 'flex';
+  }
+
+  function confirmOpenCloudDraft() {
+    if (!detectedDraftReport) return;
+    document.getElementById('cloud_draft_modal').style.display = 'none';
+    
+    CURRENT_REPORT_UID = detectedDraftReport.id;
+    if (detectedDraftReport.rawJson) {
+      let data = detectedDraftReport.rawJson;
+      if (typeof data === 'string') {
+        try { data = JSON.parse(data); } catch(e){}
+      }
+      store.passport = data.passport || {};
+      store.expenses = data.expenses || [];
+      store.taxis = data.taxis || [];
+    }
+
+    const p = store.passport;
+    document.getElementById('p_fio').value = p.fio || '';
+    document.getElementById('p_role').value = p.role || '';
+    document.getElementById('p_tab').value = p.tab || '';
+    document.getElementById('p_city').value = p.city || '';
+    document.getElementById('p_date_start').value = p.dStart || '';
+    document.getElementById('p_date_end').value = p.dEnd || '';
+    document.getElementById('p_advance').value = p.advance || '';
+    document.getElementById('p_days').value = p.days || 0;
+    document.getElementById('p_rate').value = p.rate || 1500;
+
+    if (datePickerRange && p.dStart && p.dEnd) {
+      datePickerRange.setDate([p.dStart, p.dEnd]);
+    }
+
+    calcDaily();
+    renderExpenseList();
+    switchMainTab('form');
+    goToStep(1);
+    showToast("Черновик открыт для продолжения!");
+  }
+
+  function confirmDiscardCloudDraft() {
+    if (!detectedDraftReport) return;
+    document.getElementById('cloud_draft_modal').style.display = 'none';
+    
+    const draftIdToDelete = detectedDraftReport.id;
+    fetch(GOOGLE_SHEET_API, {
+      method: "POST", mode: "no-cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "delete_report", reportId: draftIdToDelete })
+    });
+
+    detectedDraftReport = null;
+    CURRENT_REPORT_UID = "rep_" + Date.now();
+    store.expenses = [];
+    store.taxis = [];
+    document.getElementById('p_city').value = '';
+    document.getElementById('p_advance').value = '';
+    document.getElementById('p_days').value = '0';
+    if (datePickerRange) datePickerRange.clear();
+    calcDaily();
+    renderExpenseList();
+    showToast("Черновик удален. Начат чистый отчёт.");
   }
 
   function switchMainTab(tab) {
@@ -882,7 +840,7 @@
       document.getElementById('p_fio').value = emp.fio;
       document.getElementById('p_role').value = emp.role;
       document.getElementById('p_tab').value = emp.tab;
-      autoSaveDraftToCloud();
+      triggerCloudAutoSave();
       showToast("Данные сотрудника подставлены!");
     }
   }
@@ -941,7 +899,7 @@
     if (!rep) { showToast("Отчёт не найден"); return; }
 
     try {
-      isViewingRemoteReport = true; // СТРОГО БЛОКИРУЕМ ЗАПИСЬ В ЧЕРНОВИКИ
+      isViewingRemoteReport = true; // Блокируем перезапись при просмотре
 
       if (rep.rawJson) {
         let data = rep.rawJson;
@@ -988,7 +946,6 @@
 
       CURRENT_REPORT_UID = rep.id;
 
-      // Сразу подставляем оригинальные данные сотрудника в поля
       const p = store.passport;
       document.getElementById('p_fio').value = p.fio || '';
       document.getElementById('p_role').value = p.role || '';
@@ -996,7 +953,7 @@
       document.getElementById('p_city').value = p.city || '';
       document.getElementById('p_date_start').value = p.dStart || '';
       document.getElementById('p_date_end').value = p.dEnd || '';
-      document.getElementById('p_advance').value = p.advance || 0;
+      document.getElementById('p_advance').value = p.advance || '';
       document.getElementById('p_days').value = p.days || 0;
       document.getElementById('p_rate').value = p.rate || 1500;
 
@@ -1004,7 +961,6 @@
         datePickerRange.setDate([p.dStart, p.dEnd]);
       }
 
-      // Переключаем на Шаг 4 без вызова перезатирающего savePassport()
       switchMainTab('form');
       document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
       document.getElementById('step-4').classList.add('active');
@@ -1029,7 +985,7 @@
     document.getElementById('p_city').value = p.city || '';
     document.getElementById('p_date_start').value = p.dStart || '';
     document.getElementById('p_date_end').value = p.dEnd || '';
-    document.getElementById('p_advance').value = p.advance || 0;
+    document.getElementById('p_advance').value = p.advance || '';
     document.getElementById('p_days').value = p.days || 0;
     document.getElementById('p_rate').value = p.rate || 1500;
 
@@ -1211,14 +1167,14 @@
         return;
       }
       savePassport();
-      autoSaveDraftToCloud();
+      triggerCloudAutoSave();
       renderExpenseList();
     }
-    if (s === 3) { savePassport(); autoSaveDraftToCloud(); renderDetailedReview(); }
+    if (s === 3) { savePassport(); triggerCloudAutoSave(); renderDetailedReview(); }
     if (s === 4) {
       if (!isViewingRemoteReport) {
         savePassport();
-        autoSaveDraftToCloud();
+        triggerCloudAutoSave();
       }
       renderFinal();
     }
@@ -1243,7 +1199,7 @@
       fio: document.getElementById('p_fio').value.trim() || 'Сотрудник',
       role: document.getElementById('p_role').value.trim() || 'Инженер',
       tab: document.getElementById('p_tab').value.trim() || '—',
-      city: document.getElementById('p_city').value.trim() || 'Красноярск',
+      city: document.getElementById('p_city').value.trim() || 'Пермь',
       dStart: formatRuDateString(document.getElementById('p_date_start').value),
       dEnd: formatRuDateString(document.getElementById('p_date_end').value),
       advance: parseFloat(document.getElementById('p_advance').value) || 0,
@@ -1510,7 +1466,7 @@
     }
 
     closeExpense();
-    autoSaveDraftToCloud();
+    triggerCloudAutoSave();
     renderExpenseList();
     showToast(editId ? 'Позиция обновлена!' : 'Позиция добавлена!');
   }
@@ -1538,7 +1494,7 @@
     const it = store.expenses.find(x => x.id === id);
     if (it && it.cat === 'taxi') store.taxis = store.taxis.filter(t => !(t.date === it.date && t.no === it.no));
     store.expenses = store.expenses.filter(x => x.id !== id);
-    autoSaveDraftToCloud();
+    triggerCloudAutoSave();
     renderExpenseList();
   }
 
@@ -1760,7 +1716,7 @@
 
     html += `<hr style="border:none; border-top:1px dashed #c7c7cc; margin:10px 0;">`;
     html += `<div>Всего расходов: <b>${total.toLocaleString('ru-RU')} ₽</b></div>`;
-    html += `<div>Получено авансом: <b>${Number(p.advance).toLocaleString('ru-RU')} ₽</b></div>`;
+    html += `<div>Получено авансом: <b>${Number(p.advance || 0).toLocaleString('ru-RU')} ₽</b></div>`;
 
     if (diff < 0) {
       html += `<div style="color:var(--danger); font-size:14px; font-weight:700; margin-top:5px;">🔴 Перерасход к выплате: ${Math.abs(diff).toLocaleString('ru-RU')} ₽</div>`;
@@ -1832,7 +1788,7 @@
     const sorted = [...store.expenses].sort((a, b) => parseDateToTimestamp(a.date) - parseDateToTimestamp(b.date));
     const tb = document.querySelector('#tbl_ao1 tbody');
     let rowsHtml = sorted.map((e, i) => `<tr><td class="text-center">${i+1}</td><td>${formatRuDateString(e.date)}</td><td>${e.no}</td><td>${e.name}</td><td class="text-right">${Number(e.sum).toLocaleString('ru-RU', {minimumFractionDigits:2})}</td></tr>`).join('');
-    rowsHtml += `<tr><td class="text-center">${sorted.length+1}</td><td></td><td></td><td><strong>Суточные за ${p.days} дн.</strong></td><td class="text-right"><strong>${Number(p.dailyTotal).toLocaleString('ru-RU', {minimumFractionDigits:2})}</strong></td></tr>`;
+    rowsHtml += `<tr><td class="text-center">${sorted.length+1}</td><td></td><td></td><td><strong>Суточные за ${p.days} дн.</strong></td><td class="text-right"><strong>${Number(p.dailyTotal || 0).toLocaleString('ru-RU', {minimumFractionDigits:2})}</strong></td></tr>`;
     tb.innerHTML = rowsHtml;
 
     const sortedTaxis = [...store.taxis].sort((a, b) => parseDateToTimestamp(a.date) - parseDateToTimestamp(b.date));
@@ -1878,7 +1834,7 @@
       { date: '18.10.2026', no: '119', sum: 390, route: 'Автовокзал Омск (Автовокзал) — г. Омск, ул. Ленина, д. 12 (Дом)', purpose: 'Возвращение с вокзала домой' }
     ];
 
-    saveCurrentDraftLocal();
+    triggerCloudAutoSave();
     renderExpenseList();
     showToast('⚡ Демо-сценарий загружен!');
   }
@@ -1907,7 +1863,6 @@
       body: JSON.stringify(payload)
     }).then(() => {
       isReportSubmittedToCloud = true;
-      clearDraftOnFinish();
     });
   }
 
@@ -1971,7 +1926,6 @@
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
       }
       showToast("✅ Excel скачан!");
-      clearDraftOnFinish();
       setTimeout(openChecklistModal, 800);
     } catch(err) {
       showToast("Ошибка Excel: " + err.message);
@@ -2000,7 +1954,6 @@
           document.body.appendChild(a); a.click(); document.body.removeChild(a);
         }
         showToast("✅ PDF готов!");
-        clearDraftOnFinish();
         setTimeout(openChecklistModal, 800);
       }).finally(() => {
         setTimeout(() => { btn.disabled = false; btn.innerText = "📄 Сохранить в PDF"; }, 1500);
