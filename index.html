@@ -177,6 +177,7 @@
       </div>
     </div>
 
+    <!-- ШАГ 1: ПАСПОРТ -->
     <div id="step-1" class="step-content active">
       <div class="card">
         <h2>1. Сведения о командировке</h2>
@@ -227,6 +228,7 @@
       <button type="button" class="btn btn-primary" onclick="goToStep(2)">Далее: Ввод расходов →</button>
     </div>
 
+    <!-- ШАГ 2: ВВОД РАСХОДОВ -->
     <div id="step-2" class="step-content">
       <div class="card">
         <h2>2. Добавление расходов</h2>
@@ -376,6 +378,7 @@
       </div>
     </div>
 
+    <!-- ШАГ 3: САМОПРОВЕРКА -->
     <div id="step-3" class="step-content">
       <div class="card">
         <h2>3. Проверка расходов по категориям</h2>
@@ -391,6 +394,7 @@
       </div>
     </div>
 
+    <!-- ШАГ 4: ГОТОВЫЙ ОТЧЕТ И СВЯЗНАЯ СВОДКА -->
     <div id="step-4" class="step-content">
       <div class="nav-bar" style="margin-bottom:10px; display:flex; flex-direction:column; gap:8px;">
         <div style="display:flex; gap:6px; width:100%;">
@@ -401,13 +405,15 @@
         <button type="button" class="btn btn-secondary" style="border:1px dashed var(--primary); color:var(--primary); font-size:13px;" onclick="openChecklistModal()">📦 Список документов для бухгалтерии</button>
       </div>
 
+      <!-- ФИНАЛЬНАЯ СВЯЗНАЯ СВОДКА (НАРРАТИВ) -->
       <div class="card" style="border-top: 3px solid var(--primary);">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
           <h3 style="margin:0;">💬 Финальная связная сводка-нарратив</h3>
           <button type="button" class="btn btn-secondary" style="height:26px; font-size:11px; width:auto; padding:0 8px;" onclick="copyNarrativeText()">📋 Копировать</button>
         </div>
         <div id="narrative_text" class="narrative-box">
-          </div>
+          <!-- Генерация текста сводки -->
+        </div>
       </div>
 
       <div id="printable_report">
@@ -429,6 +435,7 @@
     </div>
   </div>
 
+  <!-- ВКЛАДКА 2: УПРАВЛЕНИЕ СОТРУДНИКАМИ (ТОЛЬКО ДЛЯ АДМИНА) -->
   <div id="tab-employees" class="main-tab-content" style="display:none;">
     <div class="card">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
@@ -439,6 +446,7 @@
     </div>
   </div>
 
+  <!-- ВКЛАДКА 3: РЕЕСТР ОТЧЕТОВ -->
   <div id="tab-reports" class="main-tab-content" style="display:none;">
     <div class="card">
       <h2 id="reports_title">📊 Отправленные отчёты</h2>
@@ -448,6 +456,7 @@
 
 </div>
 
+<!-- МОДАЛКА ПЕРЕЧНЯ ДОКУМЕНТОВ ДЛЯ БУХГАЛТЕРИИ -->
 <div id="checklist_modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:10000; align-items:center; justify-content:center;">
   <div style="background:white; padding:16px; border-radius:14px; width:92%; max-width:540px; box-shadow:0 10px 30px rgba(0,0,0,0.25);">
     <h3 style="margin-top:0; font-size:16px; color:#1c1c1e;">📋 Документы для бухгалтерии</h3>
@@ -462,6 +471,7 @@
   </div>
 </div>
 
+<!-- МОДАЛКА СОТРУДНИКА -->
 <div id="emp_modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:10000; align-items:center; justify-content:center;">
   <div style="background:white; padding:16px; border-radius:12px; width:90%; max-width:400px;">
     <h3 id="modal_title" style="margin-top:0;">Редактировать сотрудника</h3>
@@ -977,8 +987,8 @@
 
       html += `<div style="margin-top:8px;">`;
       html += `<div style="font-weight:700; font-size:13px; color:#1c1c1e;">${idx + 1}. ${typeTitle}${routeLabel} ${segTotal.toLocaleString('ru-RU')} ₽:</div>`;
-      html += `<div style="font-size:12px; color:#3a3a3c; margin-top:2px;">А далее детализация этого расхода (по убыванию сумм):</div>`;
 
+      // Сортировка по убыванию сумм
       const sortedItems = [...g.items].sort((a,b) => Number(b.sum || 0) - Number(a.sum || 0));
 
       sortedItems.forEach(row => {
@@ -1108,19 +1118,16 @@
 
     let html = `<p>💬 <i>Мы проверили и утвердили следующие расходы:</i></p>`;
 
-    // 1. Выезд
     if (thereData) {
       html += `<p><b>${thereData.date}</b> Вы поехали в командировку в г. ${p.city} ${thereData.text}.</p>`;
     } else {
       html += `<p><b>${formatRuDateString(p.dStart)}</b> Вы поехали в командировку в г. ${p.city}.</p>`;
     }
 
-    // 2. Проживание
     if (hotelItems.length > 0) {
       html += `<p>Прожили в гостинице / арендованном жилье на сумму <b>${hotelSum.toLocaleString('ru-RU')} ₽</b>.</p>`;
     }
 
-    // 3. Такси
     if (store.taxis.length > 0) {
       html += `<p>Использовали <b>${store.taxis.length}</b> ${store.taxis.length === 1 ? 'раз' : (store.taxis.length < 5 ? 'раза' : 'раз')} такси:<ul>`;
       store.taxis.forEach(t => {
@@ -1129,23 +1136,19 @@
       html += `</ul></p>`;
     }
 
-    // 4. Прочее
     if (miscItems.length > 0) {
       const names = miscItems.map(m => m.customName || m.name.replace(/^Чек,\s*/i, '')).join(', ');
       html += `<p>Закупили хозтовары / сопутствующие материалы (${names}) на сумму <b>${miscSum.toLocaleString('ru-RU')} ₽</b>.</p>`;
     }
 
-    // 5. Возвращение
     if (backData) {
       html += `<p><b>${backData.date}</b> Вы вернулись из командировки домой ${backData.text}.</p>`;
     } else {
       html += `<p><b>${formatRuDateString(p.dEnd)}</b> Вы вернулись из командировки домой.</p>`;
     }
 
-    // 6. Суточные
     html += `<p>Начислены суточные за <b>${p.days}</b> дней на сумму <b>${Number(p.dailyTotal).toLocaleString('ru-RU')} ₽</b>.</p>`;
 
-    // 7. Итог
     html += `<hr style="border:none; border-top:1px dashed #c7c7cc; margin:10px 0;">`;
     html += `<div>Всего расходов: <b>${total.toLocaleString('ru-RU')} ₽</b></div>`;
     html += `<div>Получено авансом: <b>${Number(p.advance).toLocaleString('ru-RU')} ₽</b></div>`;
@@ -1301,17 +1304,20 @@
       <tr style="background:#f9f9fb;"><th>Итоговый расчет</th><td><strong>${resText}</strong></td></tr>
     `;
 
-    const sorted = [...store.expenses];
+    // Сортировка по возрастанию даты расходов для формы № АО-1
+    const sorted = [...store.expenses].sort((a, b) => parseDateToTimestamp(a.date) - parseDateToTimestamp(b.date));
     const tb = document.querySelector('#tbl_ao1 tbody');
     let rowsHtml = sorted.map((e, i) => `<tr><td class="text-center">${i+1}</td><td>${formatRuDateString(e.date)}</td><td>${e.no}</td><td>${e.name}</td><td class="text-right">${Number(e.sum).toLocaleString('ru-RU', {minimumFractionDigits:2})}</td></tr>`).join('');
     rowsHtml += `<tr><td class="text-center">${sorted.length+1}</td><td></td><td></td><td><strong>Суточные за ${p.days} дн.</strong></td><td class="text-right"><strong>${Number(p.dailyTotal).toLocaleString('ru-RU', {minimumFractionDigits:2})}</strong></td></tr>`;
     tb.innerHTML = rowsHtml;
 
+    // Сортировка по возрастанию даты для детализации поездок на такси
+    const sortedTaxis = [...store.taxis].sort((a, b) => parseDateToTimestamp(a.date) - parseDateToTimestamp(b.date));
     const cardTaxi = document.getElementById('card_taxi');
     const tbTaxi = document.querySelector('#tbl_taxi tbody');
-    if (store.taxis.length > 0 && tbTaxi && cardTaxi) {
+    if (sortedTaxis.length > 0 && tbTaxi && cardTaxi) {
       cardTaxi.style.display = 'block';
-      tbTaxi.innerHTML = store.taxis.map(t => `<tr><td>${formatRuDateString(t.date)}</td><td>${t.route}</td><td>${t.purpose}</td><td class="text-right">${Number(t.sum).toLocaleString('ru-RU', {minimumFractionDigits:2})}</td></tr>`).join('');
+      tbTaxi.innerHTML = sortedTaxis.map(t => `<tr><td>${formatRuDateString(t.date)}</td><td>${t.route}</td><td>${t.purpose}</td><td class="text-right">${Number(t.sum).toLocaleString('ru-RU', {minimumFractionDigits:2})}</td></tr>`).join('');
     } else if (cardTaxi) {
       cardTaxi.style.display = 'none';
     }
@@ -1366,12 +1372,16 @@
       tgUser = { id: urlParams.get('user_id') || "446642559", first_name: store.passport.fio };
     }
 
+    // Отправляем в реестр уже упорядоченные расходы
+    const sortedExpenses = [...store.expenses].sort((a, b) => parseDateToTimestamp(a.date) - parseDateToTimestamp(b.date));
+    const sortedTaxis = [...store.taxis].sort((a, b) => parseDateToTimestamp(a.date) - parseDateToTimestamp(b.date));
+
     const payload = {
       action: "submit_report",
       report_uid: CURRENT_REPORT_UID,
       passport: store.passport,
-      expenses: store.expenses,
-      taxis: store.taxis,
+      expenses: sortedExpenses,
+      taxis: sortedTaxis,
       checklist_text: buildDocChecklistText(),
       telegram_user: tgUser
     };
@@ -1389,7 +1399,8 @@
     sendReportToCloudOnce();
     try {
       const p = store.passport;
-      const sorted = [...store.expenses];
+      // Сортировка по возрастанию даты
+      const sorted = [...store.expenses].sort((a, b) => parseDateToTimestamp(a.date) - parseDateToTimestamp(b.date));
       const total = sorted.reduce((s,e)=>s + Number(e.sum || 0), 0) + (p.dailyTotal || 0);
       const diff = (p.advance || 0) - total;
 
@@ -1423,7 +1434,8 @@
           ["ДЕТАЛИЗАЦИЯ СЛУЖЕБНЫХ ПОЕЗДОК НА ТАКСИ"],
           ["Дата", "Маршрут поездки (Точка А — Точка Б)", "Служебная цель поездки", "Сумма (руб.)"]
         ];
-        store.taxis.forEach(t => { taxiData.push([formatRuDateString(t.date), t.route, t.purpose, Number(t.sum || 0)]); });
+        const sortedTaxis = [...store.taxis].sort((a, b) => parseDateToTimestamp(a.date) - parseDateToTimestamp(b.date));
+        sortedTaxis.forEach(t => { taxiData.push([formatRuDateString(t.date), t.route, t.purpose, Number(t.sum || 0)]); });
         const ws2 = XLSX.utils.aoa_to_sheet(taxiData);
         ws2['!cols'] = [{wch: 14}, {wch: 50}, {wch: 35}, {wch: 14}];
         XLSX.utils.book_append_sheet(wb, ws2, "Детализация такси");
