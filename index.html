@@ -204,7 +204,7 @@
   <div id="top_tabs" class="top-tabs">
     <button type="button" class="tab-btn active" onclick="switchMainTab('form')">📝 Заполнение</button>
     <button type="button" class="tab-btn" onclick="switchMainTab('reports')">📊 Все отчёты</button>
-    <button type="button" id="tab_btn_emp" class="tab-btn" onclick="switchMainTab('employees')">👥 База сотрудников</button>
+    <button type="button" id="tab_btn_emp" class="tab-btn" style="display:none;" onclick="switchMainTab('employees')">👥 База сотрудников</button>
   </div>
 
   <div id="review_banner" class="review-banner">
@@ -267,7 +267,7 @@
         </div>
         <div class="field">
           <label>Город командировки <span class="req-star">*</span></label>
-          <input type="text" id="p_city" placeholder="Красноярск" oninput="saveCurrentDraftLocal()">
+          <input type="text" id="p_city" placeholder="Город командировки" oninput="saveCurrentDraftLocal()">
         </div>
 
         <div class="field">
@@ -326,7 +326,7 @@
           <div id="box-transport" style="display:none;">
             <div class="field">
               <label>Маршрут (Город — Город) <span class="req-star">*</span></label>
-              <input type="text" id="e_route" placeholder="Омск - Красноярск">
+              <input type="text" id="e_route" placeholder="Город - Город">
             </div>
             <div class="field">
               <label>Направление</label>
@@ -589,7 +589,7 @@
 
   let CURRENT_REPORT_UID = Math.random().toString(36).substring(2, 8);
   let isReportSubmittedToCloud = false;
-  let isViewingRemoteReport = false;
+  let isViewingRemoteReport = false; // Блокирует фоновое перетирание данных
   let autoSaveTimeout = null;
   let pendingEditExpenseId = null;
 
@@ -642,6 +642,7 @@
   }
 
   function saveCurrentDraftLocal() {
+    // В режиме просмотра ни в коем случае не пишем чужие данные в локальный черновик!
     if (isViewingRemoteReport) return;
     try {
       savePassport();
@@ -739,6 +740,7 @@
   }
 
   function autoSaveDraftToCloud() {
+    // В режиме просмотра чужих/готовых отчётов автосохранение СТРОГО заблокировано!
     if (isViewingRemoteReport) return;
     clearTimeout(autoSaveTimeout);
     autoSaveTimeout = setTimeout(() => {
@@ -818,6 +820,7 @@
 
         renderSeparatedReports(res.reports);
 
+        // Подставляем текущего сотрудника ТОЛЬКО если поле пустое и мы не смотрим чужой отчет!
         if (!document.getElementById('p_fio').value && !isViewingRemoteReport) {
           if (res.currentUser) {
             document.getElementById('p_fio').value = res.currentUser.fio;
@@ -924,12 +927,13 @@
     }
   }
 
+  // Полное и изолированное открытие любого отчета (без затирания нулями и Красноярском!)
   function openReportInReviewMode(reportId) {
     const rep = globalAppData.reports.find(r => r.id === reportId);
     if (!rep) { showToast("Отчёт не найден"); return; }
 
     try {
-      isViewingRemoteReport = true;
+      isViewingRemoteReport = true; // СТРОГО БЛОКИРУЕМ ЗАПИСЬ В ЧЕРНОВИКИ!
 
       if (rep.rawJson) {
         const data = typeof rep.rawJson === 'string' ? JSON.parse(rep.rawJson) : rep.rawJson;
@@ -973,8 +977,27 @@
 
       CURRENT_REPORT_UID = rep.id;
 
+      // Сразу физически прописываем данные в поля формы, чтобы ничего не обнулялось
+      const p = store.passport;
+      document.getElementById('p_fio').value = p.fio || '';
+      document.getElementById('p_role').value = p.role || '';
+      document.getElementById('p_tab').value = p.tab || '';
+      document.getElementById('p_city').value = p.city || '';
+      document.getElementById('p_date_start').value = p.dStart || '';
+      document.getElementById('p_date_end').value = p.dEnd || '';
+      document.getElementById('p_advance').value = p.advance || 0;
+      document.getElementById('p_days').value = p.days || 0;
+      document.getElementById('p_rate').value = p.rate || 1500;
+
+      if (datePickerRange && p.dStart && p.dEnd) {
+        datePickerRange.setDate([p.dStart, p.dEnd]);
+      }
+
+      // Переключаем на Шаг 4 (Итоги) БЕЗ вызова перезатирающего savePassport()
       switchMainTab('form');
-      goToStep(4);
+      document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
+      document.getElementById('step-4').classList.add('active');
+      renderFinal();
 
       document.getElementById('banner_report_title').innerText = `${store.passport.fio} (г. ${store.passport.city})`;
       document.getElementById('review_banner').style.display = 'flex';
@@ -1181,7 +1204,14 @@
       renderExpenseList();
     }
     if (s === 3) { savePassport(); autoSaveDraftToCloud(); renderDetailedReview(); }
-    if (s === 4) { savePassport(); if(!isViewingRemoteReport) autoSaveDraftToCloud(); renderFinal(); }
+    if (s === 4) {
+      // Сохраняем ТОЛЬКО если это не режим просмотра чужого отчёта!
+      if (!isViewingRemoteReport) {
+        savePassport();
+        autoSaveDraftToCloud();
+      }
+      renderFinal();
+    }
 
     document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
     const target = document.getElementById('step-' + s);
@@ -1195,6 +1225,9 @@
   }
 
   function savePassport() {
+    // ЗАПРЕТ на перезапись store.passport, если открыт просмотр чужого отчёта!
+    if (isViewingRemoteReport) return;
+
     const days = parseInt(document.getElementById('p_days').value) || 0;
     const rate = parseFloat(document.getElementById('p_rate').value) || 0;
     store.passport = {
@@ -1805,6 +1838,7 @@
   }
 
   function loadDemoScenario() {
+    // ДЕМО ПОДСТАВЛЯЕТ ТОЛЬКО ПОЕЗДКУ, НЕ ТРОГАЯ ФИО, ДОЛЖНОСТЬ И ТАБЕЛЬНЫЙ ТЕКУЩЕГО СОТРУДНИКА!
     document.getElementById('p_city').value = "Красноярск";
     document.getElementById('p_date_start').value = "01.10.2026";
     document.getElementById('p_date_end').value = "18.10.2026";
