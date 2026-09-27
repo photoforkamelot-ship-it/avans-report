@@ -127,6 +127,22 @@
     .narrative-box ul { margin: 4px 0 8px 18px; padding: 0; }
     .narrative-box li { margin-bottom: 3px; }
 
+    .checklist-box {
+      background: #f9f9fb;
+      border: 1px solid #e5e5ea;
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 12px;
+      line-height: 1.5;
+      color: #2c2c2e;
+      max-height: 60vh;
+      overflow-y: auto;
+      text-align: left;
+    }
+    .checklist-box ol { margin: 0 0 0 18px; padding: 0; }
+    .checklist-box ul { margin: 3px 0 6px 18px; padding: 0; }
+    .checklist-box li { margin-bottom: 4px; }
+
     .emp-list-item, .report-list-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #e5e5ea; font-size: 12px; }
 
     #toast {
@@ -385,6 +401,7 @@
           <button type="button" id="btn_excel" class="btn btn-green" style="flex:2;" onclick="downloadExcelAndNotify()">📥 Скачать Excel (.xlsx)</button>
         </div>
         <button type="button" id="btn_pdf" class="btn btn-primary" onclick="generatePdfAndNotify()">📄 Сохранить в PDF</button>
+        <button type="button" class="btn btn-secondary" style="border:1px dashed var(--primary); color:var(--primary); font-size:13px;" onclick="openChecklistModal()">📦 Список документов для бухгалтерии</button>
       </div>
 
       <div class="card" style="border-top: 3px solid var(--primary);">
@@ -432,6 +449,20 @@
     </div>
   </div>
 
+</div>
+
+<div id="checklist_modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:10000; align-items:center; justify-content:center;">
+  <div style="background:white; padding:16px; border-radius:14px; width:92%; max-width:540px; box-shadow:0 10px 30px rgba(0,0,0,0.25);">
+    <h3 style="margin-top:0; font-size:16px; color:#1c1c1e;">📋 Документы для бухгалтерии</h3>
+    <div style="font-size:12px; color:#636366; margin-bottom:8px;">
+      Подготовьте и приложите к бумажному пакету следующие оригиналы:
+    </div>
+    <div id="checklist_content" class="checklist-box"></div>
+    <div style="display:flex; gap:8px; margin-top:14px;">
+      <button type="button" class="btn btn-primary" style="flex:1;" onclick="copyChecklistText()">📋 Скопировать список</button>
+      <button type="button" class="btn btn-secondary" style="flex:1;" onclick="closeChecklistModal()">Понятно</button>
+    </div>
+  </div>
 </div>
 
 <div id="emp_modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:10000; align-items:center; justify-content:center;">
@@ -887,10 +918,10 @@
     } else if (curCategory === 'hotel') {
       const biz = document.getElementById('e_hotel_biz').value;
       const no = document.getElementById('e_hotel_no').value.trim(), sum = parseFloat(document.getElementById('e_hotel_sum').value) || 0;
-      store.expenses.push({ id: Date.now()+'h', date, no, name: biz==='self'?'Аренда квартиры':'Гостиница', sum, cat: 'hotel' });
+      store.expenses.push({ id: Date.now()+'h', date, no, name: biz==='self'?'Аренда квартиры':'Гостиница', sum, cat: 'hotel', bizType: biz });
     } else {
       const no = document.getElementById('e_misc_no').value.trim(), name = document.getElementById('e_misc_name').value.trim(), sum = parseFloat(document.getElementById('e_misc_sum').value) || 0;
-      store.expenses.push({ id: Date.now()+'m', date, no, name: `Чек, ${name}`, sum, cat: 'misc' });
+      store.expenses.push({ id: Date.now()+'m', date, no, name: `Чек, ${name}`, customName: name, sum, cat: 'misc' });
     }
 
     closeExpense(); renderExpenseList(); showToast('Позиция добавлена!');
@@ -973,7 +1004,6 @@
     `;
   }
 
-  // НОВАЯ СВЯЗНАЯ СВОДКА С ГРУППИРОВКОЙ ПО ВИДАМ ТРАНСПОРТА И ДОП. РАСХОДАМ
   function buildNarrativeSummary() {
     const p = store.passport;
     const total = store.expenses.reduce((s,e)=>s + Number(e.sum || 0), 0) + (p.dailyTotal || 0);
@@ -983,17 +1013,11 @@
       const items = store.expenses.filter(e => e.dir === dir);
       if (items.length === 0) return null;
 
-      // Группируем по groupKey или связке дата+категория
       const groups = {};
       items.forEach(it => {
         const key = it.groupKey || (it.date + '_' + it.cat);
         if (!groups[key]) {
-          groups[key] = {
-            date: it.date,
-            cat: it.cat,
-            route: it.route || '',
-            items: []
-          };
+          groups[key] = { date: it.date, cat: it.cat, route: it.route || '', items: [] };
         }
         if (it.route && !groups[key].route) groups[key].route = it.route;
         groups[key].items.push(it);
@@ -1035,7 +1059,7 @@
 
     let html = `<p>💬 <i>Мы проверили и утвердили следующие расходы:</i></p>`;
 
-    // 1. Выезд Туда
+    // 1. Выезд
     if (thereData) {
       html += `<p><b>${thereData.date}</b> Вы поехали в командировку в г. ${p.city} ${thereData.text}.</p>`;
     } else {
@@ -1058,11 +1082,11 @@
 
     // 4. Прочее
     if (miscItems.length > 0) {
-      const names = miscItems.map(m => m.name.replace(/^Чек,\s*/i, '')).join(', ');
+      const names = miscItems.map(m => m.customName || m.name.replace(/^Чек,\s*/i, '')).join(', ');
       html += `<p>Закупили хозтовары / сопутствующие материалы (${names}) на сумму <b>${miscSum.toLocaleString('ru-RU')} ₽</b>.</p>`;
     }
 
-    // 5. Возвращение Обратно
+    // 5. Возвращение
     if (backData) {
       html += `<p><b>${backData.date}</b> Вы вернулись из командировки домой ${backData.text}.</p>`;
     } else {
@@ -1072,7 +1096,7 @@
     // 6. Суточные
     html += `<p>Начислены суточные за <b>${p.days}</b> дней на сумму <b>${Number(p.dailyTotal).toLocaleString('ru-RU')} ₽</b>.</p>`;
 
-    // 7. Итог расчета
+    // 7. Итог
     html += `<hr style="border:none; border-top:1px dashed #c7c7cc; margin:10px 0;">`;
     html += `<div>Всего расходов: <b>${total.toLocaleString('ru-RU')} ₽</b></div>`;
     html += `<div>Получено авансом: <b>${Number(p.advance).toLocaleString('ru-RU')} ₽</b></div>`;
@@ -1088,6 +1112,123 @@
     html += `<p style="margin-top:8px; font-weight:600;">Всё верно?</p>`;
 
     return html;
+  }
+
+  // ГЕНЕРАТОР ПЕРСОНАЛЬНОГО СПИСКА ДОКУМЕНТОВ ДЛЯ БУХГАЛТЕРИИ
+  function buildDocChecklistText() {
+    let list = [];
+    list.push("1. Авансовый отчёт на 2-х страницах");
+    list.push("2. Заявки на ДС (все заполненные и отправленные бланки) — НЕОБЯЗАТЕЛЬНО");
+    list.push("3. Служебная записка на суточные");
+    list.push("4. Документы, подтверждающие расходы:");
+
+    const sub = [];
+
+    // 4.1 Такси
+    if (store.taxis.length > 0) {
+      sub.push("4.1 Детализация поездок на такси — обязательно составляем и прикладываем распечатанный документ с маршрутами и целями поездок.");
+    }
+
+    // 4.2 Самолёт
+    const planes = store.expenses.filter(e => e.cat === 'plane');
+    if (planes.length > 0) {
+      let extra = [];
+      if (planes.some(p => p.name.includes('сбор') || p.name.includes('Сбор'))) extra.push("Чек сервисного сбора");
+      if (planes.some(p => p.name.includes('багаж') || p.name.includes('Багаж'))) extra.push("Багажная квитанция на самолёт / Багажный билет");
+      if (planes.some(p => p.name.includes('страхов') || p.name.includes('Страхов') || p.name.includes('полис'))) extra.push("Страховой полис");
+
+      let planeText = "4.2 Проезд САМОЛЁТОМ: обязательно прикладываем «Чек оплаты + Маршрутная квитанция + Авиабилет (посадочный талон/корешок)»";
+      if (extra.length > 0) {
+        planeText += `;\n   • Дополнительно: ${extra.join(', ')} (или общий чек покупки).`;
+      }
+      sub.push(planeText);
+    }
+
+    // 4.3 Автобус
+    const buses = store.expenses.filter(e => e.cat === 'bus');
+    if (buses.length > 0) {
+      let extra = [];
+      if (buses.some(b => b.name.includes('сбор') || b.name.includes('Сбор'))) extra.push("Чек оплаты сборов");
+      if (buses.some(b => b.name.includes('багаж') || b.name.includes('Багаж'))) extra.push("Багажная квитанция / багажный билет");
+      if (buses.some(b => b.name.includes('страхов') || b.name.includes('Страхов') || b.name.includes('полис'))) extra.push("Страховой полис");
+
+      let busText = "4.3 Проезд АВТОБУСОМ: обязательно прикладываем «Чек оплаты + Бумажный / Электронный билет»";
+      if (extra.length > 0) {
+        busText += `;\n   • Дополнительно: ${extra.join(', ')} (или общий чек покупки).`;
+      }
+      sub.push(busText);
+    }
+
+    // 4.4 Поезд
+    const trains = store.expenses.filter(e => e.cat === 'train');
+    if (trains.length > 0) {
+      let extra = [];
+      if (trains.some(t => t.name.includes('сбор') || t.name.includes('Сбор'))) extra.push("Чек сборов");
+      if (trains.some(t => t.name.includes('багаж') || t.name.includes('Багаж'))) extra.push("Багажная квитанция");
+      if (trains.some(t => t.name.includes('страхов') || t.name.includes('Страхов') || t.name.includes('полис'))) extra.push("Страховой полис");
+
+      let trainText = "4.4 Проезд ПОЕЗДОМ: обязательно прикладываем «Чек оплаты + ЖД билет» (если электричка через терминал — чек с терминала является билетом)";
+      if (extra.length > 0) {
+        trainText += `;\n   • Дополнительно: ${extra.join(', ')}.`;
+      }
+      sub.push(trainText);
+    }
+
+    // 4.5 Проживание
+    const hotels = store.expenses.filter(e => e.cat === 'hotel');
+    if (hotels.length > 0) {
+      const isSelf = hotels.some(h => h.bizType === 'self' || h.name.toLowerCase().includes('аренда'));
+      const isCorp = hotels.some(h => h.bizType === 'corp' || h.name.toLowerCase().includes('гостиница'));
+
+      if (isCorp) {
+        sub.push("4.5 Проживание в гостинице (ИП / ООО):\n   • Чек оплаты (с QR-кодом);\n   • Счёт / Акт гостиничной формы (с синей живой печатью организации);\n   • Справка о проживании.");
+      }
+      if (isSelf) {
+        sub.push("4.6 Проживание у Самозанятого:\n   • Чек самозанятого из налоговой (с QR-кодом);\n   • Договор аренды жилого помещения;\n   • Расписка о приёме/передаче квартиры (если оплата была наличными — НЕОБЯЗАТЕЛЬНО).");
+      }
+    }
+
+    // 4.7 Прочие расходы
+    const miscs = store.expenses.filter(e => e.cat === 'misc');
+    if (miscs.length > 0) {
+      miscs.forEach(m => {
+        const title = m.customName || m.name.replace(/^Чек,\s*/i, '');
+        sub.push(`4.7 Прочие расходы: обязательно прикладываем чек оплаты, подтверждающий расходы «${title}».`);
+      });
+    }
+
+    if (sub.length === 0) {
+      list.push("   (Дополнительные подтверждающие чеки к расходам)");
+    } else {
+      sub.forEach(s => list.push(s));
+    }
+
+    return list.join('\n\n');
+  }
+
+  function openChecklistModal() {
+    const raw = buildDocChecklistText();
+    // Красиво форматируем в HTML
+    const formatted = raw
+      .replace(/\n\n/g, '<br><br>')
+      .replace(/\n/g, '<br>')
+      .replace(/(4\.\d[^\:]*)/g, '<b>$1</b>');
+
+    document.getElementById('checklist_content').innerHTML = formatted;
+    document.getElementById('checklist_modal').style.display = 'flex';
+  }
+
+  function closeChecklistModal() {
+    document.getElementById('checklist_modal').style.display = 'none';
+  }
+
+  function copyChecklistText() {
+    const text = buildDocChecklistText();
+    navigator.clipboard.writeText(text).then(() => {
+      showToast("Перечень документов скопирован!");
+    }).catch(() => {
+      showToast("Не удалось скопировать");
+    });
   }
 
   function copyNarrativeText() {
@@ -1152,7 +1293,7 @@
     store.expenses = [
       { id: 'd1', date: '01.10.2026', no: '4212136762', name: 'Авиабилет (Омск - Красноярск)', sum: 11500, dir: 'there', cat: 'plane', route: 'Омск - Красноярск', groupKey: 'demo_there' },
       { id: 'd2', date: '01.10.2026', no: '5841', name: 'Сервисный Сбор', sum: 1290, dir: 'there', cat: 'plane', route: 'Омск - Красноярск', groupKey: 'demo_there' },
-      { id: 'd3', date: '02.10.2026', no: 'ДОГ-205e', name: 'Аренда квартиры', sum: 54000, cat: 'hotel' },
+      { id: 'd3', date: '02.10.2026', no: 'ДОГ-205e', name: 'Аренда квартиры', sum: 54000, cat: 'hotel', bizType: 'self' },
       { id: 'd4', date: '18.10.2026', no: 'КД010247', name: 'Билет на автобус (Красноярск - Омск)', sum: 4200, dir: 'back', cat: 'bus', route: 'Красноярск - Омск', groupKey: 'demo_back' },
       { id: 'd5', date: '18.10.2026', no: 'БАГ-3107', name: 'Багаж', sum: 800, dir: 'back', cat: 'bus', route: 'Красноярск - Омск', groupKey: 'demo_back' },
       { id: 'd6', date: '18.10.2026', no: 'ПОЛ-192', name: 'Страховой полис', sum: 500, dir: 'back', cat: 'bus', route: 'Красноярск - Омск', groupKey: 'demo_back' },
@@ -1259,6 +1400,7 @@
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
       }
       showToast("✅ Excel скачан!");
+      setTimeout(openChecklistModal, 800);
     } catch(err) {
       showToast("Ошибка Excel: " + err.message);
     } finally {
@@ -1286,6 +1428,7 @@
           document.body.appendChild(a); a.click(); document.body.removeChild(a);
         }
         showToast("✅ PDF готов!");
+        setTimeout(openChecklistModal, 800);
       }).finally(() => {
         setTimeout(() => { btn.disabled = false; btn.innerText = "📄 Сохранить в PDF"; }, 1500);
       });
