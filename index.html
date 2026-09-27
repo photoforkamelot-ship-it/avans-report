@@ -887,7 +887,7 @@
       const dir = document.getElementById('e_dir').value;
       const groupKey = 'grp_' + Date.now();
 
-      let name = curCategory==='plane' ? 'Авиабилет' : (curCategory==='bus' ? 'Билет Автобус' : 'ЖД Билет');
+      let name = curCategory==='plane' ? 'Авиабилет' : (curCategory==='bus' ? 'Билет на автобус' : 'Ж/д билет');
       if (route) name += ` (${route})`;
       store.expenses.push({ id: Date.now()+'1', date, no, name, sum, dir, cat: curCategory, route, groupKey, isMainTicket: true });
 
@@ -899,7 +899,7 @@
       if (document.getElementById('chk_bag').checked) {
         const bagNo = document.getElementById('e_bag_no').value.trim() || no;
         const bagSum = parseFloat(document.getElementById('e_bag_sum').value) || 0;
-        if (bagSum > 0) store.expenses.push({ id: Date.now()+'bag', date, no: bagNo, name: 'Квитанция, багаж', sum: bagSum, dir, cat: curCategory, groupKey });
+        if (bagSum > 0) store.expenses.push({ id: Date.now()+'bag', date, no: bagNo, name: 'Багаж', sum: bagSum, dir, cat: curCategory, groupKey });
       }
       if (document.getElementById('chk_ins').checked) {
         const insNo = document.getElementById('e_ins_no').value.trim() || no;
@@ -949,24 +949,75 @@
     renderExpenseList();
   }
 
+  // ФУНКЦИЯ ФОРМАТИРОВАНИЯ ТРАНСПОРТНОГО БЛОКА ДЛЯ ШАГА 3 (С СОРТИРОВКОЙ ПО УБЫВАНИЮ И ЗНАКОМ +)
+  function renderStep3TransportBlock(dir) {
+    const items = store.expenses.filter(e => e.dir === dir);
+    if (items.length === 0) return 'Нет расходов';
+
+    const groups = {};
+    items.forEach(it => {
+      const key = it.groupKey || (it.date + '_' + it.cat);
+      if (!groups[key]) {
+        groups[key] = { date: it.date, cat: it.cat, route: it.route || '', items: [] };
+      }
+      if (it.route && !groups[key].route) groups[key].route = it.route;
+      groups[key].items.push(it);
+    });
+
+    const groupArray = Object.values(groups).sort((a,b) => parseDateToTimestamp(a.date) - parseDateToTimestamp(b.date));
+    const totalDirSum = items.reduce((s,e) => s + Number(e.sum || 0), 0);
+
+    let html = `<div style="font-size:14px; font-weight:700; margin-bottom:6px;">ИТОГО: ${totalDirSum.toLocaleString('ru-RU')} ₽</div>`;
+
+    groupArray.forEach((g, idx) => {
+      const segTotal = g.items.reduce((s, x) => s + Number(x.sum || 0), 0);
+      
+      let typeTitle = 'ПРОЕЗД';
+      if (g.cat === 'plane') typeTitle = 'АВИАПЕРЕЛЕТ';
+      else if (g.cat === 'train') typeTitle = 'ПОЕЗДКА НА ПОЕЗДЕ';
+      else if (g.cat === 'bus') typeTitle = 'ПОЕЗДКА НА АВТОБУСЕ';
+
+      const routeLabel = g.route ? ` (${g.route})` : '';
+
+      html += `<div style="margin-top:8px;">`;
+      html += `<div style="font-weight:700; font-size:13px; color:#1c1c1e;">${idx + 1}. ${typeTitle}${routeLabel} ${segTotal.toLocaleString('ru-RU')} ₽:</div>`;
+      html += `<div style="font-size:12px; color:#3a3a3c; margin-top:2px;">А далее детализация этого расхода (по убыванию сумм):</div>`;
+
+      // Сортировка по убыванию сумм
+      const sortedItems = [...g.items].sort((a,b) => Number(b.sum || 0) - Number(a.sum || 0));
+
+      sortedItems.forEach(row => {
+        let cleanName = row.name;
+        if (cleanName.includes('(')) cleanName = cleanName.split('(')[0].trim();
+        cleanName = cleanName.replace(/^Чек,\s*/i, '');
+
+        const isExtra = !row.isMainTicket && (
+          cleanName.toLowerCase().includes('сбор') || 
+          cleanName.toLowerCase().includes('багаж') || 
+          cleanName.toLowerCase().includes('страхов') || 
+          cleanName.toLowerCase().includes('полис')
+        );
+
+        const prefix = isExtra ? '+' : '';
+        html += `<div style="padding-left:10px; font-size:12px; line-height:1.4; color:#2c2c2e;">${prefix}${cleanName} ${Number(row.sum).toLocaleString('ru-RU')} ₽</div>`;
+      });
+
+      html += `</div>`;
+    });
+
+    return html;
+  }
+
   function renderDetailedReview() {
     const p = store.passport;
     const box = document.getElementById('review_cards_container');
     
-    const thereExp = store.expenses.filter(e => e.dir === 'there');
-    const thereSum = thereExp.reduce((s,e) => s + Number(e.sum || 0), 0);
-    let thereDetails = thereExp.map(e => `&nbsp;&nbsp;— ${e.name}: <strong>${Number(e.sum).toLocaleString('ru-RU')} ₽</strong> (${formatRuDateString(e.date)}, док. № ${e.no})`).join('<br>');
-
     const hotelExp = store.expenses.filter(e => e.cat === 'hotel');
     const hotelSum = hotelExp.reduce((s,e) => s + Number(e.sum || 0), 0);
     let hotelDetails = hotelExp.map(e => `&nbsp;&nbsp;— ${e.name}: <strong>${Number(e.sum).toLocaleString('ru-RU')} ₽</strong> (${formatRuDateString(e.date)}, док. № ${e.no})`).join('<br>');
 
     const taxiSum = store.taxis.reduce((s,t) => s + Number(t.sum || 0), 0);
     let taxiDetails = store.taxis.map((t, idx) => `&nbsp;&nbsp;${idx+1}) <strong>${formatRuDateString(t.date)}</strong> | ${t.route} — <strong>${Number(t.sum).toLocaleString('ru-RU')} ₽</strong> <em>(${t.purpose})</em>`).join('<br>');
-
-    const backExp = store.expenses.filter(e => e.dir === 'back');
-    const backSum = backExp.reduce((s,e) => s + Number(e.sum || 0), 0);
-    let backDetails = backExp.map(e => `&nbsp;&nbsp;— ${e.name}: <strong>${Number(e.sum).toLocaleString('ru-RU')} ₽</strong> (${formatRuDateString(e.date)}, док. № ${e.no})`).join('<br>');
 
     const miscExp = store.expenses.filter(e => e.cat === 'misc');
     const miscSum = miscExp.reduce((s,e) => s + Number(e.sum || 0), 0);
@@ -978,8 +1029,8 @@
         <div style="font-size:12px; line-height:1.4;">• Сотрудник: ${p.fio} (${p.role}, таб. ${p.tab})<br>• Командировка: г. ${p.city} с ${formatRuDateString(p.dStart)} по ${formatRuDateString(p.dEnd)} (${p.days} дн.)<br>• Аванс: <b>${p.advance.toLocaleString('ru-RU')} ₽</b></div>
       </div>
       <div class="review-item">
-        <div class="review-header"><h3>2. Проезд «Туда»</h3><button type="button" class="review-btn-edit" onclick="goToStep(2)">✏️ Изменить</button></div>
-        <div style="font-size:12px; line-height:1.4;">${thereExp.length > 0 ? `ИТОГО: <strong>${thereSum.toLocaleString('ru-RU')} ₽</strong><br>${thereDetails}` : 'Нет расходов'}</div>
+        <div class="review-header"><h3>2. Проезд «ТУДА»</h3><button type="button" class="review-btn-edit" onclick="goToStep(2)">✏️ Изменить</button></div>
+        <div style="font-size:12px; line-height:1.4;">${renderStep3TransportBlock('there')}</div>
       </div>
       <div class="review-item">
         <div class="review-header"><h3>3. Проживание</h3><button type="button" class="review-btn-edit" onclick="goToStep(2)">✏️ Изменить</button></div>
@@ -990,8 +1041,8 @@
         <div style="font-size:12px; line-height:1.4;">${store.taxis.length > 0 ? `ИТОГО: <strong>${taxiSum.toLocaleString('ru-RU')} ₽</strong><br>${taxiDetails}` : 'Нет поездок'}</div>
       </div>
       <div class="review-item">
-        <div class="review-header"><h3>5. Проезд «Обратно»</h3><button type="button" class="review-btn-edit" onclick="goToStep(2)">✏️ Изменить</button></div>
-        <div style="font-size:12px; line-height:1.4;">${backExp.length > 0 ? `ИТОГО: <strong>${backSum.toLocaleString('ru-RU')} ₽</strong><br>${backDetails}` : 'Нет расходов'}</div>
+        <div class="review-header"><h3>5. Проезд «ОБРАТНО»</h3><button type="button" class="review-btn-edit" onclick="goToStep(2)">✏️ Изменить</button></div>
+        <div style="font-size:12px; line-height:1.4;">${renderStep3TransportBlock('back')}</div>
       </div>
       <div class="review-item">
         <div class="review-header"><h3>6. Прочие расходы</h3><button type="button" class="review-btn-edit" onclick="goToStep(2)">✏️ Изменить</button></div>
@@ -1034,9 +1085,13 @@
 
         const routeStr = g.route ? ` (Маршрут ${g.route})` : '';
 
-        const details = g.items.map(it => {
+        // Внутри скобок сортируем по убыванию сумм
+        const sortedItems = [...g.items].sort((a,b) => Number(b.sum || 0) - Number(a.sum || 0));
+
+        const details = sortedItems.map(it => {
           let label = it.name;
           if (label.includes('(')) label = label.split('(')[0].trim();
+          label = label.replace(/^Чек,\s*/i, '');
           return `${label} - ${Number(it.sum).toLocaleString('ru-RU')} ₽`;
         }).join('; ');
 
@@ -1114,7 +1169,6 @@
     return html;
   }
 
-  // ГЕНЕРАТОР ПЕРСОНАЛЬНОГО СПИСКА ДОКУМЕНТОВ ДЛЯ БУХГАЛТЕРИИ
   function buildDocChecklistText() {
     let list = [];
     list.push("1. Авансовый отчёт на 2-х страницах");
@@ -1124,12 +1178,10 @@
 
     const sub = [];
 
-    // 4.1 Такси
     if (store.taxis.length > 0) {
       sub.push("4.1 Детализация поездок на такси — обязательно составляем и прикладываем распечатанный документ с маршрутами и целями поездок.");
     }
 
-    // 4.2 Самолёт
     const planes = store.expenses.filter(e => e.cat === 'plane');
     if (planes.length > 0) {
       let extra = [];
@@ -1144,7 +1196,6 @@
       sub.push(planeText);
     }
 
-    // 4.3 Автобус
     const buses = store.expenses.filter(e => e.cat === 'bus');
     if (buses.length > 0) {
       let extra = [];
@@ -1159,7 +1210,6 @@
       sub.push(busText);
     }
 
-    // 4.4 Поезд
     const trains = store.expenses.filter(e => e.cat === 'train');
     if (trains.length > 0) {
       let extra = [];
@@ -1174,7 +1224,6 @@
       sub.push(trainText);
     }
 
-    // 4.5 Проживание
     const hotels = store.expenses.filter(e => e.cat === 'hotel');
     if (hotels.length > 0) {
       const isSelf = hotels.some(h => h.bizType === 'self' || h.name.toLowerCase().includes('аренда'));
@@ -1188,7 +1237,6 @@
       }
     }
 
-    // 4.7 Прочие расходы
     const miscs = store.expenses.filter(e => e.cat === 'misc');
     if (miscs.length > 0) {
       miscs.forEach(m => {
@@ -1208,7 +1256,6 @@
 
   function openChecklistModal() {
     const raw = buildDocChecklistText();
-    // Красиво форматируем в HTML
     const formatted = raw
       .replace(/\n\n/g, '<br><br>')
       .replace(/\n/g, '<br>')
@@ -1291,10 +1338,10 @@
     savePassport();
 
     store.expenses = [
-      { id: 'd1', date: '01.10.2026', no: '4212136762', name: 'Авиабилет (Омск - Красноярск)', sum: 11500, dir: 'there', cat: 'plane', route: 'Омск - Красноярск', groupKey: 'demo_there' },
-      { id: 'd2', date: '01.10.2026', no: '5841', name: 'Сервисный Сбор', sum: 1290, dir: 'there', cat: 'plane', route: 'Омск - Красноярск', groupKey: 'demo_there' },
+      { id: 'd1', date: '01.10.2026', no: '4212136762', name: 'Авиабилет (Омск - Красноярск)', sum: 11500, dir: 'there', cat: 'plane', route: 'Омск - Красноярск', groupKey: 'demo_there', isMainTicket: true },
+      { id: 'd2', date: '01.10.2026', no: '5841', name: 'Сервисный сбор', sum: 1290, dir: 'there', cat: 'plane', route: 'Омск - Красноярск', groupKey: 'demo_there' },
       { id: 'd3', date: '02.10.2026', no: 'ДОГ-205e', name: 'Аренда квартиры', sum: 54000, cat: 'hotel', bizType: 'self' },
-      { id: 'd4', date: '18.10.2026', no: 'КД010247', name: 'Билет на автобус (Красноярск - Омск)', sum: 4200, dir: 'back', cat: 'bus', route: 'Красноярск - Омск', groupKey: 'demo_back' },
+      { id: 'd4', date: '18.10.2026', no: 'КД010247', name: 'Билет на автобус (Красноярск - Омск)', sum: 4200, dir: 'back', cat: 'bus', route: 'Красноярск - Омск', groupKey: 'demo_back', isMainTicket: true },
       { id: 'd5', date: '18.10.2026', no: 'БАГ-3107', name: 'Багаж', sum: 800, dir: 'back', cat: 'bus', route: 'Красноярск - Омск', groupKey: 'demo_back' },
       { id: 'd6', date: '18.10.2026', no: 'ПОЛ-192', name: 'Страховой полис', sum: 500, dir: 'back', cat: 'bus', route: 'Красноярск - Омск', groupKey: 'demo_back' },
       { id: 'd7', date: '01.10.2026', no: '303', name: 'Чек, такси', sum: 780, cat: 'taxi' },
