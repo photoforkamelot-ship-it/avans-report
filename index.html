@@ -201,14 +201,12 @@
 
 <div class="wrapper">
   
-  <!-- Верхние табы: 3 вкладки -->
   <div id="top_tabs" class="top-tabs">
     <button type="button" class="tab-btn active" onclick="switchMainTab('form')">📝 Заполнение</button>
     <button type="button" class="tab-btn" onclick="switchMainTab('reports')">📊 Все отчёты</button>
     <button type="button" id="tab_btn_emp" class="tab-btn" onclick="switchMainTab('employees')">👥 База сотрудников</button>
   </div>
 
-  <!-- Плашка просмотра отчета -->
   <div id="review_banner" class="review-banner">
     <div>
       <div style="font-weight:700; color:#004085; font-size:13px;">👁️ Просмотр отчёта:</div>
@@ -220,7 +218,6 @@
     </div>
   </div>
 
-  <!-- Плашка восстановления черновика -->
   <div id="draft_bar" class="draft-bar" style="display:none;">
     <div style="font-size:12px; color:#856404;">
       <strong>Найден сохраненный черновик:</strong><br>
@@ -232,7 +229,6 @@
     </div>
   </div>
 
-  <!-- ВКЛАДКА 1: ФОРМА ЗАПОЛНЕНИЯ -->
   <div id="tab-form" class="main-tab-content">
     <div class="demo-bar">
       <div>
@@ -593,6 +589,7 @@
 
   let CURRENT_REPORT_UID = Math.random().toString(36).substring(2, 8);
   let isReportSubmittedToCloud = false;
+  let isViewingRemoteReport = false;
   let autoSaveTimeout = null;
   let pendingEditExpenseId = null;
 
@@ -619,9 +616,9 @@
   function formatRuDateString(dStr) {
     if (!dStr) return '';
     dStr = String(dStr).trim();
-    if (dStr.includes('.')) return dStr;
+    if (dStr.indexOf('.') > -1) return dStr;
     const parts = dStr.split('-');
-    if (parts.length === 3) return `${parts[2].padStart(2, '0')}.${parts[1].padStart(2, '0')}.${parts[0]}`;
+    if (parts.length === 3) return `${parts[2]}.${parts[1]}.${parts[0]}`;
     return dStr;
   }
 
@@ -645,6 +642,7 @@
   }
 
   function saveCurrentDraftLocal() {
+    if (isViewingRemoteReport) return;
     try {
       savePassport();
       let drafts = getStoredDrafts();
@@ -741,6 +739,7 @@
   }
 
   function autoSaveDraftToCloud() {
+    if (isViewingRemoteReport) return;
     clearTimeout(autoSaveTimeout);
     autoSaveTimeout = setTimeout(() => {
       savePassport();
@@ -805,7 +804,6 @@
       .then(res => {
         globalAppData = res;
 
-        // Показываем админские вкладки и панель выбора
         if (res.isAdmin) {
           document.getElementById('tab_btn_emp').style.display = 'block';
           document.getElementById('admin_emp_card').style.display = 'block';
@@ -820,7 +818,6 @@
 
         renderSeparatedReports(res.reports);
 
-        // Автозаполнение ваших данных по умолчанию
         if (!document.getElementById('p_fio').value) {
           if (res.currentUser) {
             document.getElementById('p_fio').value = res.currentUser.fio;
@@ -927,12 +924,13 @@
     }
   }
 
-  // Корректное открытие чужих и своих отчётов без искажения авторов
   function openReportInReviewMode(reportId) {
     const rep = globalAppData.reports.find(r => r.id === reportId);
     if (!rep) { showToast("Отчёт не найден"); return; }
 
     try {
+      isViewingRemoteReport = true;
+
       if (rep.rawJson) {
         const data = typeof rep.rawJson === 'string' ? JSON.parse(rep.rawJson) : rep.rawJson;
         store.passport = data.passport || {};
@@ -975,6 +973,7 @@
   }
 
   function enableEditingCurrentReport() {
+    isViewingRemoteReport = false;
     document.getElementById('review_banner').style.display = 'none';
     const p = store.passport;
 
@@ -1003,6 +1002,7 @@
   }
 
   function closeReviewMode() {
+    isViewingRemoteReport = false;
     document.getElementById('review_banner').style.display = 'none';
     switchMainTab('reports');
   }
@@ -1032,7 +1032,7 @@
           <small style="color:#8e8e93;">${emp.role} | Таб: ${emp.tab} | TG: ${emp.tgId || '—'}</small>
         </div>
         <div class="action-btn-group">
-          <button type="button" class="btn btn-secondary btn-action-view" onclick="openEditEmployeeModal(${idx})">✏️ Изменить</button>
+          <button type="button" class="btn btn-secondary btn-action-view" onclick="openEditEmployeeModal(${idx})">✏️ Изм.</button>
           <button type="button" class="btn btn-danger" onclick="deleteEmployee('${emp.tab}')">🗑️</button>
         </div>
       </div>
@@ -1161,7 +1161,7 @@
       if (!validateFields(reqFields)) { showToast('Заполните обязательные поля'); return; }
       if (!document.getElementById('p_date_end').value) {
         document.getElementById('p_date_range').classList.add('input-error');
-        showToast('Выберите дату окончания в календаре');
+        showToast('Выберите диапазон дат');
         return;
       }
       savePassport();
@@ -1300,7 +1300,6 @@
     }
   }
 
-  // Парсинг адреса и объектов такси
   function parseTaxiPoint(str) {
     if (!str) return { addr: '', obj: '' };
     str = String(str).trim();
@@ -1729,7 +1728,7 @@
       "4. Документы, подтверждающие расходы:"
     ];
 
-    if (store.taxis.length > 0) list.push("   • Детализация поездок на такси (с маршрутами и целями поездок).");
+    if (store.taxis.length > 0) list.push("   • Детализация поездок на такси (с маршрутами и целями).");
     if (store.expenses.some(e => e.cat === 'plane')) list.push("   • Самолёт: Чек оплаты + Маршрутная квитанция + Посадочные талоны.");
     if (store.expenses.some(e => e.cat === 'train')) list.push("   • Поезд: Чек оплаты + Ж/Д билет.");
     if (store.expenses.some(e => e.cat === 'bus')) list.push("   • Автобус: Чек оплаты + Билет на автобус.");
@@ -1793,7 +1792,6 @@
     }
   }
 
-  // Демо-данные с вашим реальным профилем
   function loadDemoScenario() {
     document.getElementById('p_fio').value = "Илгин Александр Александрович";
     document.getElementById('p_role').value = "Руководитель команды открытия";
@@ -1829,7 +1827,7 @@
       { date: '18.10.2026', no: '119', sum: 390, route: 'Автовокзал Омск (Автовокзал) — г. Омск, ул. Ленина, д. 12 (Дом)', purpose: 'Возвращение с вокзала домой' }
     ];
 
-    autoSaveDraftToCloud();
+    saveCurrentDraftLocal();
     renderExpenseList();
     showToast('⚡ Демо-сценарий загружен!');
   }
