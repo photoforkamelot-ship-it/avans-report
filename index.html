@@ -25,15 +25,15 @@
       --warning: #ff9500;
     }
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-    /* Цвет фона выделения текста (светло-оранжевый с сохранением исходного цвета текста) */
-::selection {
-  background: rgba(255, 149, 0, 0.35);
-}
 
-/* Цвет каретки/курсора и маркеров выделения для всех полей ввода */
-input, select, textarea {
-  caret-color: #ff9500;
-}
+    /* Оранжевое выделение текста и курсор */
+    ::selection {
+      background: rgba(255, 149, 0, 0.35);
+    }
+    input, select, textarea {
+      caret-color: #ff9500;
+    }
+
     body {
       margin: 0; padding: 10px;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -54,6 +54,17 @@ input, select, textarea {
       background: #fff; color: #d84315; font-weight: 700; border: none;
       padding: 7px 12px; border-radius: 8px; font-size: 12px; cursor: pointer;
     }
+
+    /* Плашка черновика */
+    .draft-bar {
+      background: #eef7ff; border: 1px solid #b8daff; border-radius: 12px;
+      padding: 10px 12px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;
+    }
+    .draft-bar-btns { display: flex; gap: 6px; }
+    .draft-bar button {
+      border: none; padding: 6px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer;
+    }
+
     .card { background: var(--card); border-radius: 12px; padding: 12px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
     h2 { font-size: 17px; margin: 0 0 10px 0; font-weight: 700; }
     h3 { font-size: 14px; margin: 0 0 8px 0; font-weight: 600; }
@@ -160,6 +171,7 @@ input, select, textarea {
 
 <div class="wrapper">
   
+  <!-- Верхние вкладки (админские) -->
   <div id="admin_top_tabs" class="top-tabs" style="display:none;">
     <button type="button" class="tab-btn active" onclick="switchMainTab('form')">📝 Создать отчет</button>
     <button type="button" class="tab-btn" onclick="switchMainTab('employees')">👥 База сотрудников</button>
@@ -167,6 +179,20 @@ input, select, textarea {
   </div>
 
   <div id="tab-form" class="main-tab-content">
+    
+    <!-- Плашка восстановления черновика (появляется только если есть сохраненные данные) -->
+    <div id="draft_bar" class="draft-bar" style="display:none;">
+      <div>
+        <div style="font-weight:700; font-size:12px; color:#0056b3;">💾 Найден незавершенный отчёт</div>
+        <div id="draft_desc" style="font-size:11px; color:#495057;">Есть сохраненные записи.</div>
+      </div>
+      <div class="draft-bar-btns">
+        <button type="button" style="background:var(--primary); color:white;" onclick="restoreDraft()">Продолжить</button>
+        <button type="button" style="background:#e5e5ea; color:#333;" onclick="discardDraft()">Начать заново</button>
+      </div>
+    </div>
+
+    <!-- Демо-панель -->
     <div class="demo-bar">
       <div>
         <div style="font-weight: 700; font-size: 12px;">⚡ Демо: Омск ↔ Красноярск</div>
@@ -175,6 +201,7 @@ input, select, textarea {
       <button type="button" onclick="loadDemoScenario()">Заполнить ДЕМО</button>
     </div>
 
+    <!-- Панель выбора сотрудника для руководителя -->
     <div id="admin_emp_card" class="card" style="background:#eef7ff; border:1px solid #cce5ff; display:none;">
       <h3 style="margin:0 0 6px 0;">👑 Панель руководителя: выбор сотрудника</h3>
       <div class="field">
@@ -190,21 +217,21 @@ input, select, textarea {
         <h2>1. Сведения о командировке</h2>
         <div class="field">
           <label>ФИО сотрудника <span class="req-star">*</span></label>
-          <input type="text" id="p_fio" placeholder="Фамилия Имя Отчество">
+          <input type="text" id="p_fio" placeholder="Фамилия Имя Отчество" oninput="saveCurrentDraft()">
         </div>
         <div class="grid-2">
           <div class="field">
             <label>Должность <span class="req-star">*</span></label>
-            <input type="text" id="p_role" placeholder="Должность">
+            <input type="text" id="p_role" placeholder="Должность" oninput="saveCurrentDraft()">
           </div>
           <div class="field">
             <label>Таб. номер</label>
-            <input type="text" id="p_tab" placeholder="0000000000">
+            <input type="text" id="p_tab" placeholder="0000000000" oninput="saveCurrentDraft()">
           </div>
         </div>
         <div class="field">
           <label>Город командировки <span class="req-star">*</span></label>
-          <input type="text" id="p_city" placeholder="Красноярск">
+          <input type="text" id="p_city" placeholder="Красноярск" oninput="saveCurrentDraft()">
         </div>
 
         <div class="field">
@@ -216,16 +243,16 @@ input, select, textarea {
 
         <div class="field">
           <label>Получено авансом под отчет (₽) <span class="req-star">*</span></label>
-          <input type="number" id="p_advance" placeholder="0" value="0">
+          <input type="number" id="p_advance" placeholder="0" value="0" oninput="saveCurrentDraft()">
         </div>
         <div class="grid-2">
           <div class="field">
             <label>Количество суток</label>
-            <input type="number" id="p_days" value="0" oninput="calcDaily()">
+            <input type="number" id="p_days" value="0" oninput="calcDaily(); saveCurrentDraft();">
           </div>
           <div class="field">
             <label>Тариф суточных (₽/сутки)</label>
-            <input type="number" id="p_rate" value="1500" oninput="calcDaily()">
+            <input type="number" id="p_rate" value="1500" oninput="calcDaily(); saveCurrentDraft();">
           </div>
         </div>
         <div style="font-size: 13px; font-weight: 600; color: #444; margin-top: 4px;">
@@ -502,6 +529,7 @@ input, select, textarea {
 
   const DADATA_API_KEY = "74443bebf6f911f3792509fa4ad680d6977c3e14";
   const GOOGLE_SHEET_API = "https://script.google.com/macros/s/AKfycbwqfeeX8q61tkVz0Rhubm2hu14O7vOPhu40r9qx6IOR78adJUq_U3CNwGtx6CfF-3oItQ/exec";
+  const STORAGE_KEY = "avans_report_draft_v1";
 
   const CURRENT_REPORT_UID = Math.random().toString(36).substring(2, 8);
   let isReportSubmittedToCloud = false;
@@ -543,6 +571,99 @@ input, select, textarea {
     return `${day}.${month}.${year}`;
   }
 
+  /* ЛОГИКА ЧЕРНОВИКА (LOCALSTORAGE) */
+  function saveCurrentDraft() {
+    try {
+      savePassport();
+      const draftData = {
+        store: store,
+        dateRangeInput: document.getElementById('p_date_range').value,
+        timestamp: Date.now()
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(draftData));
+    } catch(e) {}
+  }
+
+  function checkExistingDraft() {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (!saved) return;
+      const data = JSON.parse(saved);
+      if (data && data.store && (data.store.expenses.length > 0 || data.store.passport.city)) {
+        const dBar = document.getElementById('draft_bar');
+        const desc = document.getElementById('draft_desc');
+        const city = data.store.passport.city || 'командировка';
+        const expCount = data.store.expenses.length;
+        desc.innerText = `г. ${city}, сохранено позиций: ${expCount}.`;
+        dBar.style.display = 'flex';
+      }
+    } catch(e) {}
+  }
+
+  function restoreDraft() {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (!saved) return;
+      const data = JSON.parse(saved);
+      if (!data || !data.store) return;
+
+      store = data.store;
+      const p = store.passport;
+
+      // Если пользователь не админ, сохраняем его актуальные ФИО/должность
+      if (globalAppData.currentUser && !globalAppData.isAdmin) {
+        document.getElementById('p_fio').value = globalAppData.currentUser.fio;
+        document.getElementById('p_role').value = globalAppData.currentUser.role;
+        document.getElementById('p_tab').value = globalAppData.currentUser.tab;
+      } else {
+        document.getElementById('p_fio').value = p.fio || '';
+        document.getElementById('p_role').value = p.role || '';
+        document.getElementById('p_tab').value = p.tab || '';
+      }
+
+      document.getElementById('p_city').value = p.city || '';
+      document.getElementById('p_date_start').value = p.dStart || '';
+      document.getElementById('p_date_end').value = p.dEnd || '';
+      document.getElementById('p_advance').value = p.advance || 0;
+      document.getElementById('p_days').value = p.days || 0;
+      document.getElementById('p_rate').value = p.rate || 1500;
+
+      if (datePickerRange && p.dStart && p.dEnd) {
+        datePickerRange.setDate([p.dStart, p.dEnd]);
+      } else if (data.dateRangeInput) {
+        document.getElementById('p_date_range').value = data.dateRangeInput;
+      }
+
+      calcDaily();
+      renderExpenseList();
+      document.getElementById('draft_bar').style.display = 'none';
+      showToast('Черновик успешно восстановлен!');
+    } catch(e) {
+      showToast('Ошибка восстановления черновика');
+    }
+  }
+
+  function discardDraft() {
+    if (!confirm('Удалить сохраненный черновик и начать заново?')) return;
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+      document.getElementById('draft_bar').style.display = 'none';
+      store.expenses = [];
+      store.taxis = [];
+      document.getElementById('p_city').value = '';
+      document.getElementById('p_advance').value = '0';
+      document.getElementById('p_days').value = '0';
+      if (datePickerRange) datePickerRange.clear();
+      calcDaily();
+      renderExpenseList();
+      showToast('Черновик удален');
+    } catch(e) {}
+  }
+
+  function clearDraftOnFinish() {
+    try { localStorage.removeItem(STORAGE_KEY); } catch(e) {}
+  }
+
   window.addEventListener('DOMContentLoaded', () => {
     datePickerRange = flatpickr("#p_date_range", {
       mode: "range",
@@ -558,6 +679,7 @@ input, select, textarea {
           const diffDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
           document.getElementById('p_days').value = diffDays > 0 ? diffDays : 1;
           calcDaily();
+          saveCurrentDraft();
         } else if (selectedDates.length === 1) {
           document.getElementById('p_date_start').value = formatFlatpickrToRu(selectedDates[0]);
           document.getElementById('p_date_end').value = "";
@@ -570,6 +692,7 @@ input, select, textarea {
     datePickerExpense = flatpickr("#e_date", { locale: "ru", dateFormat: "d.m.Y" });
 
     loadAppData();
+    checkExistingDraft();
   });
 
   function loadAppData() {
@@ -606,9 +729,11 @@ input, select, textarea {
           document.getElementById('p_role').disabled = true;
           document.getElementById('p_tab').disabled = true;
         } else if (res.isAdmin) {
-          document.getElementById('p_fio').value = "Илгин Александр Александрович";
-          document.getElementById('p_role').value = "Руководитель команды открытия";
-          document.getElementById('p_tab').value = "0000013789";
+          if (!document.getElementById('p_fio').value) {
+            document.getElementById('p_fio').value = "Илгин Александр Александрович";
+            document.getElementById('p_role').value = "Руководитель команды открытия";
+            document.getElementById('p_tab').value = "0000013789";
+          }
         }
       })
       .catch(() => {});
@@ -648,6 +773,7 @@ input, select, textarea {
       document.getElementById('p_fio').value = emp.fio;
       document.getElementById('p_role').value = emp.role;
       document.getElementById('p_tab').value = emp.tab;
+      saveCurrentDraft();
       showToast("Данные сотрудника подставлены!");
     }
   }
@@ -826,10 +952,12 @@ input, select, textarea {
         showToast('Выберите дату окончания в календаре');
         return;
       }
-      savePassport(); renderExpenseList();
+      savePassport();
+      saveCurrentDraft();
+      renderExpenseList();
     }
-    if (s === 3) { savePassport(); renderDetailedReview(); }
-    if (s === 4) { savePassport(); renderFinal(); }
+    if (s === 3) { savePassport(); saveCurrentDraft(); renderDetailedReview(); }
+    if (s === 4) { savePassport(); saveCurrentDraft(); renderFinal(); }
 
     document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
     const target = document.getElementById('step-' + s);
@@ -938,7 +1066,10 @@ input, select, textarea {
       store.expenses.push({ id: Date.now()+'m', date, no, name: `Чек, ${name}`, customName: name, sum, cat: 'misc' });
     }
 
-    closeExpense(); renderExpenseList(); showToast('Позиция добавлена!');
+    closeExpense();
+    saveCurrentDraft();
+    renderExpenseList();
+    showToast('Позиция сохранена в черновик!');
   }
 
   function renderExpenseList() {
@@ -960,6 +1091,7 @@ input, select, textarea {
     const it = store.expenses.find(x => x.id === id);
     if (it && it.cat === 'taxi') store.taxis = store.taxis.filter(t => !(t.date === it.date && t.no === it.no));
     store.expenses = store.expenses.filter(x => x.id !== id);
+    saveCurrentDraft();
     renderExpenseList();
   }
 
@@ -995,7 +1127,6 @@ input, select, textarea {
       html += `<div style="margin-top:8px;">`;
       html += `<div style="font-weight:700; font-size:13px; color:#1c1c1e;">${idx + 1}. ${typeTitle}${routeLabel} ${segTotal.toLocaleString('ru-RU')} ₽:</div>`;
 
-      // Сортировка по убыванию сумм
       const sortedItems = [...g.items].sort((a,b) => Number(b.sum || 0) - Number(a.sum || 0));
 
       sortedItems.forEach(row => {
@@ -1311,14 +1442,14 @@ input, select, textarea {
       <tr style="background:#f9f9fb;"><th>Итоговый расчет</th><td><strong>${resText}</strong></td></tr>
     `;
 
-    // Сортировка по возрастанию даты расходов для формы № АО-1
+    // Хронологическая сортировка по возрастанию даты
     const sorted = [...store.expenses].sort((a, b) => parseDateToTimestamp(a.date) - parseDateToTimestamp(b.date));
     const tb = document.querySelector('#tbl_ao1 tbody');
     let rowsHtml = sorted.map((e, i) => `<tr><td class="text-center">${i+1}</td><td>${formatRuDateString(e.date)}</td><td>${e.no}</td><td>${e.name}</td><td class="text-right">${Number(e.sum).toLocaleString('ru-RU', {minimumFractionDigits:2})}</td></tr>`).join('');
     rowsHtml += `<tr><td class="text-center">${sorted.length+1}</td><td></td><td></td><td><strong>Суточные за ${p.days} дн.</strong></td><td class="text-right"><strong>${Number(p.dailyTotal).toLocaleString('ru-RU', {minimumFractionDigits:2})}</strong></td></tr>`;
     tb.innerHTML = rowsHtml;
 
-    // Сортировка по возрастанию даты для детализации поездок на такси
+    // Сортировка такси по возрастанию даты
     const sortedTaxis = [...store.taxis].sort((a, b) => parseDateToTimestamp(a.date) - parseDateToTimestamp(b.date));
     const cardTaxi = document.getElementById('card_taxi');
     const tbTaxi = document.querySelector('#tbl_taxi tbody');
@@ -1364,6 +1495,7 @@ input, select, textarea {
       { date: '18.10.2026', no: '119', sum: 390, route: 'Автовокзал Омск (Автовокзал) — г. Омск, ул. Ленина, д. 12 (Дом)', purpose: 'Возвращение с вокзала домой' }
     ];
 
+    saveCurrentDraft();
     renderExpenseList();
     showToast('⚡ Демо-сценарий загружен!');
   }
@@ -1379,7 +1511,6 @@ input, select, textarea {
       tgUser = { id: urlParams.get('user_id') || "446642559", first_name: store.passport.fio };
     }
 
-    // Отправляем в реестр уже упорядоченные расходы
     const sortedExpenses = [...store.expenses].sort((a, b) => parseDateToTimestamp(a.date) - parseDateToTimestamp(b.date));
     const sortedTaxis = [...store.taxis].sort((a, b) => parseDateToTimestamp(a.date) - parseDateToTimestamp(b.date));
 
@@ -1397,7 +1528,10 @@ input, select, textarea {
       method: "POST", mode: "no-cors",
       headers: { "Content-Type": "text/plain" },
       body: JSON.stringify(payload)
-    }).then(() => { isReportSubmittedToCloud = true; });
+    }).then(() => {
+      isReportSubmittedToCloud = true;
+      clearDraftOnFinish(); // Очищаем черновик после успешного сохранения
+    });
   }
 
   function downloadExcelAndNotify() {
@@ -1406,7 +1540,6 @@ input, select, textarea {
     sendReportToCloudOnce();
     try {
       const p = store.passport;
-      // Сортировка по возрастанию даты
       const sorted = [...store.expenses].sort((a, b) => parseDateToTimestamp(a.date) - parseDateToTimestamp(b.date));
       const total = sorted.reduce((s,e)=>s + Number(e.sum || 0), 0) + (p.dailyTotal || 0);
       const diff = (p.advance || 0) - total;
@@ -1461,6 +1594,7 @@ input, select, textarea {
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
       }
       showToast("✅ Excel скачан!");
+      clearDraftOnFinish();
       setTimeout(openChecklistModal, 800);
     } catch(err) {
       showToast("Ошибка Excel: " + err.message);
@@ -1489,6 +1623,7 @@ input, select, textarea {
           document.body.appendChild(a); a.click(); document.body.removeChild(a);
         }
         showToast("✅ PDF готов!");
+        clearDraftOnFinish();
         setTimeout(openChecklistModal, 800);
       }).finally(() => {
         setTimeout(() => { btn.disabled = false; btn.innerText = "📄 Сохранить в PDF"; }, 1500);
