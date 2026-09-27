@@ -586,7 +586,7 @@
   const DADATA_API_KEY = "74443bebf6f911f3792509fa4ad680d6977c3e14";
   const GOOGLE_SHEET_API = "https://script.google.com/macros/s/AKfycbwqfeeX8q61tkVz0Rhubm2hu14O7vOPhu40r9qx6IOR78adJUq_U3CNwGtx6CfF-3oItQ/exec";
 
-  const DRAFTS_LIST_KEY = "avans_drafts_history_v3";
+  const DRAFTS_LIST_KEY = "avans_drafts_history_v4";
   let currentActiveDraftId = "draft_" + Date.now();
 
   let CURRENT_REPORT_UID = Math.random().toString(36).substring(2, 8);
@@ -667,7 +667,10 @@
   function checkExistingDraft() {
     try {
       const drafts = getStoredDrafts();
-      if (!drafts || drafts.length === 0) return;
+      if (!drafts || drafts.length === 0) {
+        document.getElementById('draft_bar').style.display = 'none';
+        return;
+      }
 
       drafts.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
       const latestDraft = drafts[0];
@@ -679,6 +682,8 @@
         const expCount = latestDraft.store.expenses.length;
         desc.innerText = `г. ${city} (${latestDraft.date || 'ранее'}), позиций: ${expCount}.`;
         dBar.style.display = 'flex';
+      } else {
+        document.getElementById('draft_bar').style.display = 'none';
       }
     } catch(e) {}
   }
@@ -720,6 +725,10 @@
   }
 
   function discardDraft() {
+    // Полное удаление черновика из памяти, чтобы плашка не висела вечно
+    try {
+      localStorage.removeItem(DRAFTS_LIST_KEY);
+    } catch(e) {}
     currentActiveDraftId = "draft_" + Date.now();
     document.getElementById('draft_bar').style.display = 'none';
     store.expenses = [];
@@ -735,8 +744,7 @@
 
   function clearDraftOnFinish() {
     try {
-      let drafts = getStoredDrafts().filter(d => d.id !== currentActiveDraftId);
-      localStorage.setItem(DRAFTS_LIST_KEY, JSON.stringify(drafts));
+      localStorage.removeItem(DRAFTS_LIST_KEY);
     } catch(e) {}
   }
 
@@ -806,6 +814,7 @@
       .then(res => {
         globalAppData = res;
 
+        // Панель руководителя и вкладка сотрудников видна только администратору
         if (res.isAdmin) {
           document.getElementById('tab_btn_emp').style.display = 'block';
           document.getElementById('admin_emp_card').style.display = 'block';
@@ -820,6 +829,7 @@
 
         renderSeparatedReports(res.reports);
 
+        // Автоподстановка текущего пользователя
         if (!document.getElementById('p_fio').value && !isViewingRemoteReport) {
           if (res.currentUser) {
             document.getElementById('p_fio').value = res.currentUser.fio;
@@ -931,7 +941,7 @@
     if (!rep) { showToast("Отчёт не найден"); return; }
 
     try {
-      isViewingRemoteReport = true;
+      isViewingRemoteReport = true; // СТРОГО БЛОКИРУЕМ ЗАПИСЬ В ЧЕРНОВИКИ
 
       if (rep.rawJson) {
         let data = rep.rawJson;
@@ -978,6 +988,7 @@
 
       CURRENT_REPORT_UID = rep.id;
 
+      // Сразу подставляем оригинальные данные сотрудника в поля
       const p = store.passport;
       document.getElementById('p_fio').value = p.fio || '';
       document.getElementById('p_role').value = p.role || '';
@@ -993,6 +1004,7 @@
         datePickerRange.setDate([p.dStart, p.dEnd]);
       }
 
+      // Переключаем на Шаг 4 без вызова перезатирающего savePassport()
       switchMainTab('form');
       document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
       document.getElementById('step-4').classList.add('active');
@@ -1820,7 +1832,7 @@
     const sorted = [...store.expenses].sort((a, b) => parseDateToTimestamp(a.date) - parseDateToTimestamp(b.date));
     const tb = document.querySelector('#tbl_ao1 tbody');
     let rowsHtml = sorted.map((e, i) => `<tr><td class="text-center">${i+1}</td><td>${formatRuDateString(e.date)}</td><td>${e.no}</td><td>${e.name}</td><td class="text-right">${Number(e.sum).toLocaleString('ru-RU', {minimumFractionDigits:2})}</td></tr>`).join('');
-    rowsHtml += `<tr><td class="text-center">${sorted.length+1}</td><td></td><td></td><td><strong>Суточные за ${p.days} дн.</strong></td><td class="text-right"><strong>${Number(p.dailyTotal || 0).toLocaleString('ru-RU', {minimumFractionDigits:2})}</strong></td></tr>`;
+    rowsHtml += `<tr><td class="text-center">${sorted.length+1}</td><td></td><td></td><td><strong>Суточные за ${p.days} дн.</strong></td><td class="text-right"><strong>${Number(p.dailyTotal).toLocaleString('ru-RU', {minimumFractionDigits:2})}</strong></td></tr>`;
     tb.innerHTML = rowsHtml;
 
     const sortedTaxis = [...store.taxis].sort((a, b) => parseDateToTimestamp(a.date) - parseDateToTimestamp(b.date));
