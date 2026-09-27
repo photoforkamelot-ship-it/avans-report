@@ -589,7 +589,7 @@
 
   let CURRENT_REPORT_UID = Math.random().toString(36).substring(2, 8);
   let isReportSubmittedToCloud = false;
-  let isViewingRemoteReport = false;
+  let isViewingRemoteReport = false; // Флаг режима просмотра (блокирует фоновое сохранение черновиков)
   let autoSaveTimeout = null;
   let pendingEditExpenseId = null;
 
@@ -642,6 +642,7 @@
   }
 
   function saveCurrentDraftLocal() {
+    // Если мы просто смотрим чужой или свой сданный отчёт — ничего не пишем в черновики!
     if (isViewingRemoteReport) return;
     try {
       savePassport();
@@ -739,6 +740,7 @@
   }
 
   function autoSaveDraftToCloud() {
+    // В режиме просмотра чужих/готовых отчётов фоновое автосохранение СТРОГО ОТКЛЮЧЕНО
     if (isViewingRemoteReport) return;
     clearTimeout(autoSaveTimeout);
     autoSaveTimeout = setTimeout(() => {
@@ -804,6 +806,7 @@
       .then(res => {
         globalAppData = res;
 
+        // Показываем админские элементы
         if (res.isAdmin) {
           document.getElementById('tab_btn_emp').style.display = 'block';
           document.getElementById('admin_emp_card').style.display = 'block';
@@ -818,7 +821,8 @@
 
         renderSeparatedReports(res.reports);
 
-        if (!document.getElementById('p_fio').value) {
+        // Автоподстановка пользователя при создании нового отчёта
+        if (!document.getElementById('p_fio').value && !isViewingRemoteReport) {
           if (res.currentUser) {
             document.getElementById('p_fio').value = res.currentUser.fio;
             document.getElementById('p_role').value = res.currentUser.role;
@@ -899,7 +903,7 @@
           </div>
           <div class="action-btn-group">
             <button type="button" class="btn btn-primary btn-action-view" onclick="openReportInReviewMode('${rep.id}')">👁️ Открыть</button>
-            <button type="button" class="btn btn-danger" onclick="deleteReport('${rep.id}')">🗑️</button>
+            <button type="button" class="btn btn-danger btn-icon-del" onclick="deleteReport('${rep.id}')">🗑️</button>
           </div>
         </div>
       `).join('');
@@ -917,19 +921,20 @@
           <div class="action-btn-group">
             <button type="button" class="btn btn-primary btn-action-view" onclick="openReportInReviewMode('${rep.id}')">👁️ Просмотр</button>
             ${rep.url ? `<a href="${rep.url}" target="_blank" class="btn btn-secondary btn-action-view" style="display:inline-flex; align-items:center;">📄</a>` : ''}
-            ${globalAppData.isAdmin ? `<button type="button" class="btn btn-danger" onclick="deleteReport('${rep.id}')">🗑️</button>` : ''}
+            ${globalAppData.isAdmin ? `<button type="button" class="btn btn-danger btn-icon-del" onclick="deleteReport('${rep.id}')">🗑️</button>` : ''}
           </div>
         </div>
       `).join('');
     }
   }
 
+  // Полное открытие чужих и своих отчётов БЕЗ потери Перми, сроков, суточных и без подмены ФИО!
   function openReportInReviewMode(reportId) {
     const rep = globalAppData.reports.find(r => r.id === reportId);
     if (!rep) { showToast("Отчёт не найден"); return; }
 
     try {
-      isViewingRemoteReport = true;
+      isViewingRemoteReport = true; // Блокируем автосохранение чужого отчета в свой черновик!
 
       if (rep.rawJson) {
         const data = typeof rep.rawJson === 'string' ? JSON.parse(rep.rawJson) : rep.rawJson;
@@ -937,30 +942,45 @@
         store.expenses = data.expenses || [];
         store.taxis = data.taxis || [];
       } else {
+        // Если rawJson пуст — берем точные данные из строки реестра!
         const dateParts = (rep.date || '').split('—').map(s => s.trim());
         const dStart = dateParts[0] || '';
         const dEnd = dateParts[1] || dateParts[0] || '';
+
+        // Вычисляем дни
+        let calcDays = 1;
+        if (dStart && dEnd) {
+          const t1 = parseDateToTimestamp(dStart);
+          const t2 = parseDateToTimestamp(dEnd);
+          if (t2 >= t1 && t1 > 0) calcDays = Math.ceil((t2 - t1) / (1000 * 60 * 60 * 24)) + 1;
+        }
+
+        const repSum = parseFloat(rep.sum) || 0;
+        const dailySum = calcDays * 1500;
+        const mainSum = repSum >= dailySum ? (repSum - dailySum) : repSum;
 
         store.passport = {
           fio: rep.fio || 'Сотрудник',
           role: 'Сотрудник',
           tab: rep.tab || '—',
-          city: rep.city || '—',
+          city: rep.city || 'Пермь',
           dStart: dStart,
           dEnd: dEnd,
-          advance: 0,
-          days: 1,
+          advance: repSum,
+          days: calcDays,
           rate: 1500,
-          dailyTotal: 0
+          dailyTotal: dailySum
         };
+
         store.expenses = [
-          { id: 'gen1', date: dStart, no: rep.id, name: 'Расходы по отчёту (из реестра)', sum: parseFloat(rep.sum) || 0, cat: 'misc' }
+          { id: 'gen1', date: dStart, no: rep.id, name: `Расходы по отчёту (г. ${rep.city || ''})`, sum: mainSum, cat: 'misc' }
         ];
         store.taxis = [];
       }
 
       CURRENT_REPORT_UID = rep.id;
 
+      // Переключаем на Шаг 4 (Итоги)
       switchMainTab('form');
       goToStep(4);
 
@@ -1033,7 +1053,7 @@
         </div>
         <div class="action-btn-group">
           <button type="button" class="btn btn-secondary btn-action-view" onclick="openEditEmployeeModal(${idx})">✏️ Изм.</button>
-          <button type="button" class="btn btn-danger" onclick="deleteEmployee('${emp.tab}')">🗑️</button>
+          <button type="button" class="btn btn-danger btn-icon-del" onclick="deleteEmployee('${emp.tab}')">🗑️</button>
         </div>
       </div>
     `).join('');
@@ -1169,7 +1189,7 @@
       renderExpenseList();
     }
     if (s === 3) { savePassport(); autoSaveDraftToCloud(); renderDetailedReview(); }
-    if (s === 4) { savePassport(); autoSaveDraftToCloud(); renderFinal(); }
+    if (s === 4) { savePassport(); if(!isViewingRemoteReport) autoSaveDraftToCloud(); renderFinal(); }
 
     document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
     const target = document.getElementById('step-' + s);
@@ -1300,6 +1320,7 @@
     }
   }
 
+  // Чёткое разделение адреса и объекта такси (убирает скобки из поля адреса)
   function parseTaxiPoint(str) {
     if (!str) return { addr: '', obj: '' };
     str = String(str).trim();
@@ -1792,10 +1813,8 @@
     }
   }
 
+  // Демо НЕ ТРОГАЕТ сотрудника (оставляет текущего авторизованного или выбранного), подставляет только поездку
   function loadDemoScenario() {
-    document.getElementById('p_fio').value = "Илгин Александр Александрович";
-    document.getElementById('p_role').value = "Руководитель команды открытия";
-    document.getElementById('p_tab').value = "0000013789";
     document.getElementById('p_city').value = "Красноярск";
     document.getElementById('p_date_start').value = "01.10.2026";
     document.getElementById('p_date_end').value = "18.10.2026";
