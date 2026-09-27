@@ -580,94 +580,13 @@
 </div>
 
 <div id="toast"></div>
-<script>
-  const DADATA_API_KEY = "74443bebf6f911f3792509fa4ad680d6977c3e14";
-  const GOOGLE_SHEET_API = "https://script.google.com/macros/s/AKfycbwqfeeX8q61tkVz0Rhubm2hu14O7vOPhu40r9qx6IOR78adJUq_U3CNwGtx6CfF-3oItQ/exec";
-
-  const DRAFTS_LIST_KEY = "avans_drafts_history_v3";
-  let currentActiveDraftId = "draft_" + Date.now();
-
-  let CURRENT_REPORT_UID = Math.random().toString(36).substring(2, 8);
-  let isReportSubmittedToCloud = false;
-  let isViewingRemoteReport = false; // Флаг режима просмотра (блокирует фоновое сохранение черновиков)
-  let autoSaveTimeout = null;
-  let pendingEditExpenseId = null;
-
-  let globalAppData = { employees: [], currentUser: null, reports: [], isAdmin: false };
-  let store = {
-    passport: { fio:'', role:'', tab:'', city:'', dStart:'', dEnd:'', advance:0, days:0, rate:1500, dailyTotal:0 },
-    expenses: [], taxis: []
-  };
-  let curCategory = '';
-  let fiasTimer = null;
-  let datePickerRange = null;
-  let datePickerExpense = null;
-
-  const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
-  if (tg) { try { tg.ready(); tg.expand(); } catch(e){} }
-
-  function parseDateToTimestamp(dStr) {
-    if (!dStr) return 0;
-    const parts = dStr.split('.');
-    if (parts.length === 3) return new Date(parts[2], parts[1] - 1, parts[0]).getTime();
-    return new Date(dStr).getTime() || 0;
-  }
-
-  function formatRuDateString(dStr) {
-    if (!dStr) return '';
-    dStr = String(dStr).trim();
-    if (dStr.indexOf('.') > -1) return dStr;
-    const parts = dStr.split('-');
-    if (parts.length === 3) return `${parts[2]}.${parts[1]}.${parts[0]}`;
-    return dStr;
-  }
-
-  function formatFlatpickrToRu(d) {
-    const day = String(d.getDate()).padStart(2, '0');
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const year = d.getFullYear();
-    return `${day}.${month}.${year}`;
-  }
-
-  function UtilitiesFormatDateNow() {
-    const d = new Date();
-    return `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${d.getFullYear()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
-  }
-
-  function getStoredDrafts() {
-    try {
-      const s = localStorage.getItem(DRAFTS_LIST_KEY);
-      return s ? JSON.parse(s) : [];
-    } catch(e) { return []; }
-  }
-
-  function saveCurrentDraftLocal() {
-    // Если мы просто смотрим чужой или свой сданный отчёт — ничего не пишем в черновики!
-    if (isViewingRemoteReport) return;
-    try {
-      savePassport();
-      let drafts = getStoredDrafts();
-      const existingIdx = drafts.findIndex(d => d.id === currentActiveDraftId);
-      const draftObj = {
-        id: currentActiveDraftId,
-        date: UtilitiesFormatDateNow(),
-        updatedAt: Date.now(),
-        store: store,
-        dateRangeInput: document.getElementById('p_date_range').value
-      };
-
-      if (existingIdx >= 0) drafts[existingIdx] = draftObj;
-      else drafts.push(draftObj);
-
-      localStorage.setItem(DRAFTS_LIST_KEY, JSON.stringify(drafts));
-    } catch(e) {}
-  }
-
+  // Проверка и предложение последнего активного черновика
   function checkExistingDraft() {
     try {
       const drafts = getStoredDrafts();
       if (!drafts || drafts.length === 0) return;
 
+      // Находим самый свежий черновик по времени обновления
       drafts.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
       const latestDraft = drafts[0];
 
@@ -676,7 +595,7 @@
         const desc = document.getElementById('draft_desc');
         const city = latestDraft.store.passport.city || 'командировка';
         const expCount = latestDraft.store.expenses.length;
-        desc.innerText = `г. ${city} (${latestDraft.date || 'ранее'}), позиций: ${expCount}.`;
+        desc.innerText = `Последний: г. ${city} (${latestDraft.date || 'ранее'}), позиций: ${expCount}.`;
         dBar.style.display = 'flex';
       }
     } catch(e) {}
@@ -693,9 +612,16 @@
       store = latestDraft.store;
       const p = store.passport;
 
-      document.getElementById('p_fio').value = p.fio || '';
-      document.getElementById('p_role').value = p.role || '';
-      document.getElementById('p_tab').value = p.tab || '';
+      if (globalAppData.currentUser && !globalAppData.isAdmin) {
+        document.getElementById('p_fio').value = globalAppData.currentUser.fio;
+        document.getElementById('p_role').value = globalAppData.currentUser.role;
+        document.getElementById('p_tab').value = globalAppData.currentUser.tab;
+      } else {
+        document.getElementById('p_fio').value = p.fio || '';
+        document.getElementById('p_role').value = p.role || '';
+        document.getElementById('p_tab').value = p.tab || '';
+      }
+
       document.getElementById('p_city').value = p.city || '';
       document.getElementById('p_date_start').value = p.dStart || '';
       document.getElementById('p_date_end').value = p.dEnd || '';
@@ -719,6 +645,7 @@
   }
 
   function discardDraft() {
+    // Начать новый черновик, не затирая сохранённые старые
     currentActiveDraftId = "draft_" + Date.now();
     document.getElementById('draft_bar').style.display = 'none';
     store.expenses = [];
@@ -734,14 +661,14 @@
 
   function clearDraftOnFinish() {
     try {
-      let drafts = getStoredDrafts().filter(d => d.id !== currentActiveDraftId);
+      let drafts = getStoredDrafts();
+      drafts = drafts.filter(d => d.id !== currentActiveDraftId);
       localStorage.setItem(DRAFTS_LIST_KEY, JSON.stringify(drafts));
     } catch(e) {}
   }
 
+  // Автосохранение черновика в Google Таблицу
   function autoSaveDraftToCloud() {
-    // В режиме просмотра чужих/готовых отчётов фоновое автосохранение СТРОГО ОТКЛЮЧЕНО
-    if (isViewingRemoteReport) return;
     clearTimeout(autoSaveTimeout);
     autoSaveTimeout = setTimeout(() => {
       savePassport();
@@ -752,7 +679,6 @@
         headers: { "Content-Type": "text/plain" },
         body: JSON.stringify({
           action: "save_cloud_draft",
-          report_uid: CURRENT_REPORT_UID,
           passport: store.passport,
           expenses: store.expenses,
           taxis: store.taxis,
@@ -798,7 +724,9 @@
   function loadAppData() {
     const urlParams = new URLSearchParams(window.location.search);
     let userId = urlParams.get('user_id');
-    if (!userId && tg && tg.initDataUnsafe && tg.initDataUnsafe.user) userId = tg.initDataUnsafe.user.id;
+    if (!userId && tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
+      userId = tg.initDataUnsafe.user.id;
+    }
     if (!userId) userId = "446642559";
 
     fetch(`${GOOGLE_SHEET_API}?user_id=${userId}`)
@@ -806,7 +734,6 @@
       .then(res => {
         globalAppData = res;
 
-        // Показываем админские элементы
         if (res.isAdmin) {
           document.getElementById('tab_btn_emp').style.display = 'block';
           document.getElementById('admin_emp_card').style.display = 'block';
@@ -821,23 +748,20 @@
 
         renderSeparatedReports(res.reports);
 
-        // Автоподстановка пользователя при создании нового отчёта
-        if (!document.getElementById('p_fio').value && !isViewingRemoteReport) {
-          if (res.currentUser) {
-            document.getElementById('p_fio').value = res.currentUser.fio;
-            document.getElementById('p_role').value = res.currentUser.role;
-            document.getElementById('p_tab').value = res.currentUser.tab;
-          } else if (res.isAdmin) {
-            document.getElementById('p_fio').value = "Илгин Александр Александрович";
-            document.getElementById('p_role').value = "Руководитель команды открытия";
-            document.getElementById('p_tab').value = "0000013789";
-          }
+        if (res.currentUser && !res.isAdmin) {
+          document.getElementById('p_fio').value = res.currentUser.fio;
+          document.getElementById('p_role').value = res.currentUser.role;
+          document.getElementById('p_tab').value = res.currentUser.tab;
+          document.getElementById('p_fio').disabled = true;
+          document.getElementById('p_role').disabled = true;
+          document.getElementById('p_tab').disabled = true;
+        } else if (res.isAdmin && !document.getElementById('p_fio').value) {
+          document.getElementById('p_fio').value = "Илгин Александр Александрович";
+          document.getElementById('p_role').value = "Руководитель команды открытия";
+          document.getElementById('p_tab').value = "0000013789";
         }
       })
-      .catch((err) => {
-        document.getElementById('drafts_container').innerHTML = '<div style="color:var(--danger); font-size:12px;">Ошибка загрузки. Проверьте соединение.</div>';
-        document.getElementById('done_reports_container').innerHTML = '';
-      });
+      .catch(() => {});
   }
 
   function switchMainTab(tab) {
@@ -879,6 +803,7 @@
     }
   }
 
+  // Раздельный вывод черновиков и готовых отчётов с аккуратными кнопками
   function renderSeparatedReports(reports) {
     const dBox = document.getElementById("drafts_container");
     const rBox = document.getElementById("done_reports_container");
@@ -897,13 +822,13 @@
     } else {
       dBox.innerHTML = drafts.map((rep) => `
         <div class="report-card-item" style="border-left: 4px solid var(--warning);">
-          <div class="report-card-info">
-            <span class="badge-draft">ЧЕРНОВИК</span> <strong>${rep.fio || 'Без ФИО'}</strong><br>
-            <small style="color:#666;">г. ${rep.city || '—'} | ${rep.date || ''}<br>Накоплено: <b>${Number(rep.sum || 0).toLocaleString('ru-RU')} ₽</b></small>
+          <div>
+            <span class="badge-draft">ЧЕРНОВИК</span> <strong>${rep.fio || 'Не указано'}</strong><br>
+            <small style="color:#666;">г. ${rep.city || '—'} | ${rep.date} | Накоплено: <b>${Number(rep.sum).toLocaleString('ru-RU')} ₽</b></small>
           </div>
           <div class="action-btn-group">
-            <button type="button" class="btn btn-primary btn-action-view" onclick="openReportInReviewMode('${rep.id}')">👁️ Открыть</button>
-            <button type="button" class="btn btn-danger btn-icon-del" onclick="deleteReport('${rep.id}')">🗑️</button>
+            <button type="button" class="btn btn-primary btn-action-view" onclick="openReportInReviewMode('${rep.id}')">👁️ Просмотр</button>
+            <button type="button" class="btn btn-danger" onclick="deleteReport('${rep.id}')">🗑️</button>
           </div>
         </div>
       `).join('');
@@ -914,86 +839,68 @@
     } else {
       rBox.innerHTML = done.map((rep) => `
         <div class="report-card-item" style="border-left: 4px solid var(--success);">
-          <div class="report-card-info">
+          <div>
             <span class="badge-done">ГОТОВ</span> <strong>${rep.fio}</strong><br>
-            <small style="color:#666;">г. ${rep.city} | ${rep.date}<br>Итого: <b>${Number(rep.sum || 0).toLocaleString('ru-RU')} ₽</b></small>
+            <small style="color:#666;">г. ${rep.city} | ${rep.date} | Итого: <b>${Number(rep.sum).toLocaleString('ru-RU')} ₽</b></small>
           </div>
           <div class="action-btn-group">
             <button type="button" class="btn btn-primary btn-action-view" onclick="openReportInReviewMode('${rep.id}')">👁️ Просмотр</button>
-            ${rep.url ? `<a href="${rep.url}" target="_blank" class="btn btn-secondary btn-action-view" style="display:inline-flex; align-items:center;">📄</a>` : ''}
-            ${globalAppData.isAdmin ? `<button type="button" class="btn btn-danger btn-icon-del" onclick="deleteReport('${rep.id}')">🗑️</button>` : ''}
+            <a href="${rep.url}" target="_blank" class="btn btn-secondary btn-action-view" style="line-height:32px;">📄 Таблица</a>
+            ${globalAppData.isAdmin ? `<button type="button" class="btn btn-danger" onclick="deleteReport('${rep.id}')">🗑️</button>` : ''}
           </div>
         </div>
       `).join('');
     }
   }
 
-  // Полное открытие чужих и своих отчётов БЕЗ потери Перми, сроков, суточных и без подмены ФИО!
+  // Открытие отчета/черновика (включая чужие отчеты без ошибки)
   function openReportInReviewMode(reportId) {
     const rep = globalAppData.reports.find(r => r.id === reportId);
-    if (!rep) { showToast("Отчёт не найден"); return; }
+    if (!rep) {
+      showToast("Отчёт не найден");
+      return;
+    }
 
     try {
-      isViewingRemoteReport = true; // Блокируем автосохранение чужого отчета в свой черновик!
-
       if (rep.rawJson) {
-        const data = typeof rep.rawJson === 'string' ? JSON.parse(rep.rawJson) : rep.rawJson;
+        const data = JSON.parse(rep.rawJson);
         store.passport = data.passport || {};
         store.expenses = data.expenses || [];
         store.taxis = data.taxis || [];
       } else {
-        // Если rawJson пуст — берем точные данные из строки реестра!
-        const dateParts = (rep.date || '').split('—').map(s => s.trim());
-        const dStart = dateParts[0] || '';
-        const dEnd = dateParts[1] || dateParts[0] || '';
-
-        // Вычисляем дни
-        let calcDays = 1;
-        if (dStart && dEnd) {
-          const t1 = parseDateToTimestamp(dStart);
-          const t2 = parseDateToTimestamp(dEnd);
-          if (t2 >= t1 && t1 > 0) calcDays = Math.ceil((t2 - t1) / (1000 * 60 * 60 * 24)) + 1;
-        }
-
-        const repSum = parseFloat(rep.sum) || 0;
-        const dailySum = calcDays * 1500;
-        const mainSum = repSum >= dailySum ? (repSum - dailySum) : repSum;
-
+        // Если отчёт был создан ранее без сохранения JSON - восстанавливаем базовые поля
         store.passport = {
           fio: rep.fio || 'Сотрудник',
           role: 'Сотрудник',
           tab: rep.tab || '—',
-          city: rep.city || 'Пермь',
-          dStart: dStart,
-          dEnd: dEnd,
-          advance: repSum,
-          days: calcDays,
+          city: rep.city || '—',
+          dStart: rep.date ? rep.date.split(' ')[0] : '',
+          dEnd: rep.date ? rep.date.split(' ')[0] : '',
+          advance: 0,
+          days: 1,
           rate: 1500,
-          dailyTotal: dailySum
+          dailyTotal: 0
         };
-
         store.expenses = [
-          { id: 'gen1', date: dStart, no: rep.id, name: `Расходы по отчёту (г. ${rep.city || ''})`, sum: mainSum, cat: 'misc' }
+          { id: 'gen1', date: rep.date ? rep.date.split(' ')[0] : '', no: rep.id, name: 'Расходы по отчёту (из реестра)', sum: parseFloat(rep.sum) || 0, cat: 'misc' }
         ];
         store.taxis = [];
       }
 
-      CURRENT_REPORT_UID = rep.id;
+      CURRENT_REPORT_UID = rep.isDraft ? Math.random().toString(36).substring(2, 8) : rep.id;
 
-      // Переключаем на Шаг 4 (Итоги)
       switchMainTab('form');
       goToStep(4);
 
-      document.getElementById('banner_report_title').innerText = `${store.passport.fio} (г. ${store.passport.city})`;
+      document.getElementById('banner_report_title').innerText = `${rep.fio} (г. ${rep.city})`;
       document.getElementById('review_banner').style.display = 'flex';
       window.scrollTo(0, 0);
     } catch(e) {
-      showToast("Ошибка при открытии отчёта: " + e.message);
+      showToast("Ошибка отображения отчёта");
     }
   }
 
   function enableEditingCurrentReport() {
-    isViewingRemoteReport = false;
     document.getElementById('review_banner').style.display = 'none';
     const p = store.passport;
 
@@ -1007,10 +914,6 @@
     document.getElementById('p_days').value = p.days || 0;
     document.getElementById('p_rate').value = p.rate || 1500;
 
-    document.getElementById('p_fio').disabled = false;
-    document.getElementById('p_role').disabled = false;
-    document.getElementById('p_tab').disabled = false;
-
     if (datePickerRange && p.dStart && p.dEnd) {
       datePickerRange.setDate([p.dStart, p.dEnd]);
     }
@@ -1018,11 +921,10 @@
     calcDaily();
     renderExpenseList();
     goToStep(1);
-    showToast("Отчёт готов к редактированию!");
+    showToast("Отчёт открыт для редактирования!");
   }
 
   function closeReviewMode() {
-    isViewingRemoteReport = false;
     document.getElementById('review_banner').style.display = 'none';
     switchMainTab('reports');
   }
@@ -1047,13 +949,10 @@
     }
     c.innerHTML = globalAppData.employees.map((emp, idx) => `
       <div class="report-card-item">
-        <div class="report-card-info">
-          <strong>${emp.fio}</strong><br>
-          <small style="color:#8e8e93;">${emp.role} | Таб: ${emp.tab} | TG: ${emp.tgId || '—'}</small>
-        </div>
+        <div><strong>${emp.fio}</strong><br><small style="color:#8e8e93;">${emp.role} | Таб: ${emp.tab} | TG: ${emp.tgId || '—'}</small></div>
         <div class="action-btn-group">
-          <button type="button" class="btn btn-secondary btn-action-view" onclick="openEditEmployeeModal(${idx})">✏️ Изм.</button>
-          <button type="button" class="btn btn-danger btn-icon-del" onclick="deleteEmployee('${emp.tab}')">🗑️</button>
+          <button type="button" class="btn btn-secondary btn-action-view" onclick="openEditEmployeeModal(${idx})">✏️ Изменить</button>
+          <button type="button" class="btn btn-danger" onclick="deleteEmployee('${emp.tab}')">🗑️</button>
         </div>
       </div>
     `).join('');
@@ -1181,7 +1080,7 @@
       if (!validateFields(reqFields)) { showToast('Заполните обязательные поля'); return; }
       if (!document.getElementById('p_date_end').value) {
         document.getElementById('p_date_range').classList.add('input-error');
-        showToast('Выберите диапазон дат');
+        showToast('Выберите дату окончания в календаре');
         return;
       }
       savePassport();
@@ -1189,7 +1088,7 @@
       renderExpenseList();
     }
     if (s === 3) { savePassport(); autoSaveDraftToCloud(); renderDetailedReview(); }
-    if (s === 4) { savePassport(); if(!isViewingRemoteReport) autoSaveDraftToCloud(); renderFinal(); }
+    if (s === 4) { savePassport(); autoSaveDraftToCloud(); renderFinal(); }
 
     document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
     const target = document.getElementById('step-' + s);
@@ -1276,16 +1175,16 @@
 
   function toggleBox(id) { const el = document.getElementById(id); el.style.display = el.style.display==='block'?'none':'block'; }
 
+  // Модальный диалог подтверждения редактирования
   function promptEditExpense(id, title) {
     pendingEditExpenseId = id;
     document.getElementById('edit_confirm_text').innerHTML = `Желаете отредактировать:<br><b>${title}</b>?`;
     document.getElementById('btn_confirm_edit').onclick = function() {
-      const targetId = pendingEditExpenseId;
       closeEditConfirmModal();
-      if (targetId === 'passport') {
+      if (pendingEditExpenseId === 'passport') {
         goToStep(1);
       } else {
-        editExpenseItem(targetId);
+        editExpenseItem(pendingEditExpenseId);
       }
     };
     document.getElementById('edit_confirm_modal').style.display = 'flex';
@@ -1320,28 +1219,13 @@
     }
   }
 
-  // Чёткое разделение адреса и объекта такси (убирает скобки из поля адреса)
-  function parseTaxiPoint(str) {
-    if (!str) return { addr: '', obj: '' };
-    str = String(str).trim();
-    const match = str.match(/^(.*?)\s*\((.*?)\)$/);
-    if (match) {
-      return { addr: match[1].trim(), obj: match[2].trim() };
-    }
-    return { addr: str, obj: '' };
-  }
-
   function editExpenseItem(id) {
     let item = store.expenses.find(x => x.id === id);
-    if (!item) {
-      item = store.expenses.find(x => x.groupKey === id) || store.expenses[0];
-    }
-    if (!item) {
-      showToast("Запись не найдена");
-      return;
-    }
+    if (!item) return;
 
-    goToStep(2);
+    document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
+    document.getElementById('step-2').classList.add('active');
+
     openExpense(item.cat);
     document.getElementById('add-title').innerText = `✏️ Редактирование: ${item.name.split('(')[0].trim()}`;
     document.getElementById('edit_item_id').value = item.id;
@@ -1377,18 +1261,13 @@
         });
       }
     } else if (item.cat === 'taxi') {
-      const t = store.taxis.find(x => x.no === item.no && x.date === item.date) || store.taxis[0];
+      const t = store.taxis.find(x => x.no === item.no && x.date === item.date);
       document.getElementById('e_taxi_no').value = item.no || '';
       document.getElementById('e_taxi_sum').value = item.sum || '';
       if (t) {
         const parts = (t.route || '').split(' — ');
-        const ptA = parseTaxiPoint(parts[0] || '');
-        const ptB = parseTaxiPoint(parts[1] || '');
-
-        document.getElementById('e_taxi_from').value = ptA.addr;
-        document.getElementById('e_taxi_obj_a').value = ptA.obj;
-        document.getElementById('e_taxi_to').value = ptB.addr;
-        document.getElementById('e_taxi_obj_b').value = ptB.obj;
+        document.getElementById('e_taxi_from').value = parts[0] || '';
+        document.getElementById('e_taxi_to').value = parts[1] || '';
         document.getElementById('e_taxi_purpose').value = t.purpose || '';
       }
     } else if (item.cat === 'hotel') {
@@ -1404,7 +1283,7 @@
     setTimeout(() => {
       const box = document.getElementById('add-box');
       if (box) box.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 100);
+    }, 50);
   }
 
   function saveExpense() {
@@ -1487,11 +1366,8 @@
     document.getElementById('lbl_count').innerText = store.expenses.length;
     if (store.expenses.length === 0) { box.innerHTML = 'Пока ничего не добавлено.'; return; }
     box.innerHTML = store.expenses.map(e => `
-      <div style="display:flex; justify-content:space-between; align-items:center; background:#fff; padding:8px; border-radius:8px; margin-bottom:5px; border:1px solid #e5e5ea;">
-        <div style="flex:1; min-width:0; padding-right:8px;">
-          <strong>${e.name}</strong><br>
-          <small style="color:#8e8e93;">${formatRuDateString(e.date)} | № ${e.no}</small>
-        </div>
+      <div style="display:flex; justify-content:space-between; align-items:center; background:#fff; padding:6px 8px; border-radius:8px; margin-bottom:5px; border:1px solid #e5e5ea;">
+        <div><strong>${e.name}</strong><br><small style="color:#8e8e93;">${formatRuDateString(e.date)} | № ${e.no}</small></div>
         <div class="action-btn-group">
           <strong>${Number(e.sum).toLocaleString('ru-RU')} ₽</strong>
           <button type="button" class="btn btn-secondary btn-action-view" onclick="promptEditExpense('${e.id}', '${e.name.replace(/'/g, "\\'")}')">✏️</button>
@@ -1509,6 +1385,7 @@
     renderExpenseList();
   }
 
+  // Рендер транспортных блоков со штрих-пунктирным контуром и без карандашиков
   function renderStep3TransportBlock(dir) {
     const items = store.expenses.filter(e => e.dir === dir);
     if (items.length === 0) return 'Нет расходов';
@@ -1557,7 +1434,7 @@
           cleanName.toLowerCase().includes('полис')
         );
 
-        const prefix = isExtra ? '+ ' : '';
+        const prefix = isExtra ? '+' : '';
         html += `<div style="padding-left:8px; font-size:12px; line-height:1.4; color:#3a3a3c;">${prefix}${cleanName} ${Number(row.sum).toLocaleString('ru-RU')} ₽</div>`;
       });
 
@@ -1568,6 +1445,7 @@
     return html;
   }
 
+  // Шаг 3: Полностью очищен от карандашиков, блок 1 оформлен рамкой штрих-пунктиром
   function renderDetailedReview() {
     const p = store.passport;
     const box = document.getElementById('review_cards_container');
@@ -1583,7 +1461,7 @@
     const taxiSum = store.taxis.reduce((s,t) => s + Number(t.sum || 0), 0);
     let taxiDetails = store.taxis.map((t, idx) => {
       const matchExp = store.expenses.find(x => x.cat === 'taxi' && x.no === t.no && x.date === t.date);
-      const rowId = matchExp ? matchExp.id : (store.expenses.find(x => x.cat === 'taxi') || {}).id;
+      const rowId = matchExp ? matchExp.id : '';
       return `
         <div class="clickable-expense-row" onclick="promptEditExpense('${rowId}', 'Такси ${formatRuDateString(t.date)}: ${Number(t.sum).toLocaleString('ru-RU')} ₽')">
           <div>&nbsp;&nbsp;${idx+1}) <strong>${formatRuDateString(t.date)}</strong> | ${t.route} — <strong>${Number(t.sum).toLocaleString('ru-RU')} ₽</strong> <em>(${t.purpose})</em></div>
@@ -1606,7 +1484,7 @@
           <div style="font-size:12px; line-height:1.45;">
             • Сотрудник: <b>${p.fio}</b> (${p.role}, таб. ${p.tab})<br>
             • Командировка: г. ${p.city} с ${formatRuDateString(p.dStart)} по ${formatRuDateString(p.dEnd)} (${p.days} дн.)<br>
-            • Аванс: <b>${Number(p.advance || 0).toLocaleString('ru-RU')} ₽</b>
+            • Аванс: <b>${p.advance.toLocaleString('ru-RU')} ₽</b>
           </div>
         </div>
       </div>
@@ -1633,7 +1511,7 @@
       <div class="review-item">
         <div class="review-header"><h3>7. Суточные</h3></div>
         <div class="clickable-passport-box" onclick="promptEditExpense('passport', 'Расчет суточных')">
-          <div style="font-size:12px; line-height:1.4;">• ${p.days} сут. × ${p.rate} ₽ = <strong>${Number(p.dailyTotal || 0).toLocaleString('ru-RU')} ₽</strong></div>
+          <div style="font-size:12px; line-height:1.4;">• ${p.days} сут. × ${p.rate} ₽ = <strong>${p.dailyTotal.toLocaleString('ru-RU')} ₽</strong></div>
         </div>
       </div>
     `;
@@ -1742,19 +1620,66 @@
   }
 
   function buildDocChecklistText() {
-    let list = [
-      "1. Авансовый отчёт на 2-х страницах",
-      "2. Заявки на ДС (все бланки) — НЕОБЯЗАТЕЛЬНО",
-      "3. Служебная записка на суточные",
-      "4. Документы, подтверждающие расходы:"
-    ];
+    let list = [];
+    list.push("1. Авансовый отчёт на 2-х страницах");
+    list.push("2. Заявки на ДС (все заполненные и отправленные бланки) — НЕОБЯЗАТЕЛЬНО");
+    list.push("3. Служебная записка на суточные");
+    list.push("4. Документы, подтверждающие расходы:");
 
-    if (store.taxis.length > 0) list.push("   • Детализация поездок на такси (с маршрутами и целями).");
-    if (store.expenses.some(e => e.cat === 'plane')) list.push("   • Самолёт: Чек оплаты + Маршрутная квитанция + Посадочные талоны.");
-    if (store.expenses.some(e => e.cat === 'train')) list.push("   • Поезд: Чек оплаты + Ж/Д билет.");
-    if (store.expenses.some(e => e.cat === 'bus')) list.push("   • Автобус: Чек оплаты + Билет на автобус.");
-    if (store.expenses.some(e => e.cat === 'hotel')) list.push("   • Проживание: Договор/Акт + Чек с QR-кодом (или справка о проживании).");
-    if (store.expenses.some(e => e.cat === 'misc')) list.push("   • Прочие расходы: Чеки оплаты хозтоваров и материалов.");
+    const sub = [];
+    if (store.taxis.length > 0) sub.push("4.1 Детализация поездок на такси — обязательно составляем и прикладываем распечатанный документ с маршрутами и целями поездок.");
+
+    const planes = store.expenses.filter(e => e.cat === 'plane');
+    if (planes.length > 0) {
+      let extra = [];
+      if (planes.some(p => p.name.includes('сбор') || p.name.includes('Сбор'))) extra.push("Чек сервисного сбора");
+      if (planes.some(p => p.name.includes('багаж') || p.name.includes('Багаж'))) extra.push("Багажная квитанция на самолёт / Багажный билет");
+      if (planes.some(p => p.name.includes('страхов') || p.name.includes('Страхов') || p.name.includes('полис'))) extra.push("Страховой полис");
+      let planeText = "4.2 Проезд САМОЛЁТОМ: обязательно прикладываем «Чек оплаты + Маршрутная квитанция + Авиабилет (посадочный талон/корешок)»";
+      if (extra.length > 0) planeText += `;\n   • Дополнительно: ${extra.join(', ')} (или общий чек покупки).`;
+      sub.push(planeText);
+    }
+
+    const buses = store.expenses.filter(e => e.cat === 'bus');
+    if (buses.length > 0) {
+      let extra = [];
+      if (buses.some(b => b.name.includes('сбор') || b.name.includes('Сбор'))) extra.push("Чек оплаты сборов");
+      if (buses.some(b => b.name.includes('багаж') || b.name.includes('Багаж'))) extra.push("Багажная квитанция / багажный билет");
+      if (buses.some(b => b.name.includes('страхов') || b.name.includes('Страхов') || b.name.includes('полис'))) extra.push("Страховой полис");
+      let busText = "4.3 Проезд АВТОБУСОМ: обязательно прикладываем «Чек оплаты + Бумажный / Электронный билет»";
+      if (extra.length > 0) busText += `;\n   • Дополнительно: ${extra.join(', ')} (или общий чек покупки).`;
+      sub.push(busText);
+    }
+
+    const trains = store.expenses.filter(e => e.cat === 'train');
+    if (trains.length > 0) {
+      let extra = [];
+      if (trains.some(t => t.name.includes('сбор') || t.name.includes('Сбор'))) extra.push("Чек сборов");
+      if (trains.some(t => t.name.includes('багаж') || t.name.includes('Багаж'))) extra.push("Багажная квитанция");
+      if (trains.some(t => t.name.includes('страхов') || t.name.includes('Страхов') || t.name.includes('полис'))) extra.push("Страховой полис");
+      let trainText = "4.4 Проезд ПОЕЗДОМ: обязательно прикладываем «Чек оплаты + ЖД билет» (если электричка через терминал — чек с терминала является билетом)";
+      if (extra.length > 0) trainText += `;\n   • Дополнительно: ${extra.join(', ')}.`;
+      sub.push(trainText);
+    }
+
+    const hotels = store.expenses.filter(e => e.cat === 'hotel');
+    if (hotels.length > 0) {
+      const isSelf = hotels.some(h => h.bizType === 'self' || h.name.toLowerCase().includes('аренда'));
+      const isCorp = hotels.some(h => h.bizType === 'corp' || h.name.toLowerCase().includes('гостиница'));
+      if (isCorp) sub.push("4.5 Проживание в гостинице (ИП / ООО):\n   • Чек оплаты (с QR-кодом);\n   • Счёт / Акт гостиничной формы (с синей живой печатью организации);\n   • Справка о проживании.");
+      if (isSelf) sub.push("4.6 Проживание у Самозанятого:\n   • Чек самозанятого из налоговой (с QR-кодом);\n   • Договор аренды жилого помещения;\n   • Расписка о приёме/передаче квартиры (если оплата была наличными — НЕОБЯЗАТЕЛЬНО).");
+    }
+
+    const miscs = store.expenses.filter(e => e.cat === 'misc');
+    if (miscs.length > 0) {
+      miscs.forEach(m => {
+        const title = m.customName || m.name.replace(/^Чек,\s*/i, '');
+        sub.push(`4.7 Прочие расходы: обязательно прикладываем чек оплаты, подтверждающий расходы «${title}».`);
+      });
+    }
+
+    if (sub.length === 0) list.push("   (Дополнительные подтверждающие чеки к расходам)");
+    else sub.forEach(s => list.push(s));
 
     return list.join('\n\n');
   }
@@ -1790,8 +1715,8 @@
       <tr><th>Должность / Таб</th><td>${p.role} / ${p.tab}</td></tr>
       <tr><th>Город</th><td>г. ${p.city}</td></tr>
       <tr><th>Срок командировки</th><td>${formatRuDateString(p.dStart)} — ${formatRuDateString(p.dEnd)} (${p.days} дн.)</td></tr>
-      <tr><th>Аванс</th><td>${Number(p.advance || 0).toLocaleString('ru-RU')} ₽</td></tr>
-      <tr><th>Суточные</th><td>${Number(p.dailyTotal || 0).toLocaleString('ru-RU')} ₽</td></tr>
+      <tr><th>Аванс</th><td>${p.advance.toLocaleString('ru-RU')} ₽</td></tr>
+      <tr><th>Суточные</th><td>${p.dailyTotal.toLocaleString('ru-RU')} ₽</td></tr>
       <tr><th>Итого факт</th><td><strong>${total.toLocaleString('ru-RU')} ₽</strong></td></tr>
       <tr style="background:#f9f9fb;"><th>Итоговый расчет</th><td><strong>${resText}</strong></td></tr>
     `;
@@ -1813,7 +1738,6 @@
     }
   }
 
-  // Демо НЕ ТРОГАЕТ сотрудника (оставляет текущего авторизованного или выбранного), подставляет только поездку
   function loadDemoScenario() {
     document.getElementById('p_city').value = "Красноярск";
     document.getElementById('p_date_start').value = "01.10.2026";
@@ -1846,7 +1770,7 @@
       { date: '18.10.2026', no: '119', sum: 390, route: 'Автовокзал Омск (Автовокзал) — г. Омск, ул. Ленина, д. 12 (Дом)', purpose: 'Возвращение с вокзала домой' }
     ];
 
-    saveCurrentDraftLocal();
+    autoSaveDraftToCloud();
     renderExpenseList();
     showToast('⚡ Демо-сценарий загружен!');
   }
@@ -1979,5 +1903,6 @@
     }
   }
 </script>
+
 </body>
 </html>
