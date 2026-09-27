@@ -112,15 +112,14 @@
     .review-header h3 { margin: 0; font-size: 13px; font-weight: 700; }
     .review-btn-edit { background: #e5e5ea; border: none; border-radius: 5px; padding: 3px 6px; font-size: 11px; cursor: pointer; }
 
-    /* Блок нарратива */
     .narrative-box {
       background: #ffffff;
-      border: 1px solid #007aff44;
+      border: 1px solid #007aff33;
       border-left: 4px solid var(--primary);
       border-radius: 10px;
       padding: 12px 14px;
       font-size: 13px;
-      line-height: 1.55;
+      line-height: 1.6;
       color: #1c1c1e;
       margin-bottom: 10px;
     }
@@ -471,6 +470,15 @@
   let fiasTimer = null;
   let datePickerRange = null;
   let datePickerExpense = null;
+
+  function parseDateToTimestamp(dStr) {
+    if (!dStr) return 0;
+    const parts = dStr.split('.');
+    if (parts.length === 3) {
+      return new Date(parts[2], parts[1] - 1, parts[0]).getTime();
+    }
+    return 0;
+  }
 
   function formatRuDateString(dStr) {
     if (!dStr) return '';
@@ -846,25 +854,26 @@
       const sum = parseFloat(document.getElementById('e_ticket_sum').value) || 0;
       const route = document.getElementById('e_route').value.trim();
       const dir = document.getElementById('e_dir').value;
+      const groupKey = 'grp_' + Date.now();
+
       let name = curCategory==='plane' ? 'Авиабилет' : (curCategory==='bus' ? 'Билет Автобус' : 'ЖД Билет');
       if (route) name += ` (${route})`;
-      store.expenses.push({ id: Date.now()+'1', date, no, name, sum, dir, cat: curCategory, route });
+      store.expenses.push({ id: Date.now()+'1', date, no, name, sum, dir, cat: curCategory, route, groupKey, isMainTicket: true });
 
-      // Дополнительные сборы
       if (document.getElementById('chk_fee').checked) {
         const feeNo = document.getElementById('e_fee_no').value.trim() || no;
         const feeSum = parseFloat(document.getElementById('e_fee_sum').value) || 0;
-        if (feeSum > 0) store.expenses.push({ id: Date.now()+'fee', date, no: feeNo, name: 'Сервисный сбор', sum: feeSum, dir, cat: curCategory });
+        if (feeSum > 0) store.expenses.push({ id: Date.now()+'fee', date, no: feeNo, name: 'Сервисный сбор', sum: feeSum, dir, cat: curCategory, groupKey });
       }
       if (document.getElementById('chk_bag').checked) {
         const bagNo = document.getElementById('e_bag_no').value.trim() || no;
         const bagSum = parseFloat(document.getElementById('e_bag_sum').value) || 0;
-        if (bagSum > 0) store.expenses.push({ id: Date.now()+'bag', date, no: bagNo, name: 'Квитанция, багаж', sum: bagSum, dir, cat: curCategory });
+        if (bagSum > 0) store.expenses.push({ id: Date.now()+'bag', date, no: bagNo, name: 'Квитанция, багаж', sum: bagSum, dir, cat: curCategory, groupKey });
       }
       if (document.getElementById('chk_ins').checked) {
         const insNo = document.getElementById('e_ins_no').value.trim() || no;
         const insSum = parseFloat(document.getElementById('e_ins_sum').value) || 0;
-        if (insSum > 0) store.expenses.push({ id: Date.now()+'ins', date, no: insNo, name: 'Страховой полис', sum: insSum, dir, cat: curCategory });
+        if (insSum > 0) store.expenses.push({ id: Date.now()+'ins', date, no: insNo, name: 'Страховой полис', sum: insSum, dir, cat: curCategory, groupKey });
       }
     } else if (curCategory === 'taxi') {
       const no = document.getElementById('e_taxi_no').value.trim();
@@ -964,13 +973,61 @@
     `;
   }
 
+  // НОВАЯ СВЯЗНАЯ СВОДКА С ГРУППИРОВКОЙ ПО ВИДАМ ТРАНСПОРТА И ДОП. РАСХОДАМ
   function buildNarrativeSummary() {
     const p = store.passport;
     const total = store.expenses.reduce((s,e)=>s + Number(e.sum || 0), 0) + (p.dailyTotal || 0);
     const diff = (p.advance || 0) - total;
 
-    const thereItems = store.expenses.filter(e => e.dir === 'there');
-    const backItems = store.expenses.filter(e => e.dir === 'back');
+    function formatTransportList(dir) {
+      const items = store.expenses.filter(e => e.dir === dir);
+      if (items.length === 0) return null;
+
+      // Группируем по groupKey или связке дата+категория
+      const groups = {};
+      items.forEach(it => {
+        const key = it.groupKey || (it.date + '_' + it.cat);
+        if (!groups[key]) {
+          groups[key] = {
+            date: it.date,
+            cat: it.cat,
+            route: it.route || '',
+            items: []
+          };
+        }
+        if (it.route && !groups[key].route) groups[key].route = it.route;
+        groups[key].items.push(it);
+      });
+
+      const groupArray = Object.values(groups).sort((a,b) => parseDateToTimestamp(a.date) - parseDateToTimestamp(b.date));
+
+      const formattedSegments = groupArray.map(g => {
+        const segTotal = g.items.reduce((sum, x) => sum + Number(x.sum || 0), 0);
+        let transName = 'на транспорте';
+        if (g.cat === 'plane') transName = 'САМОЛЁТОМ';
+        else if (g.cat === 'bus') transName = 'НА АВТОБУСЕ';
+        else if (g.cat === 'train') transName = 'НА ПОЕЗДЕ';
+
+        const routeStr = g.route ? ` (Маршрут ${g.route})` : '';
+
+        const details = g.items.map(it => {
+          let label = it.name;
+          if (label.includes('(')) label = label.split('(')[0].trim();
+          return `${label} - ${Number(it.sum).toLocaleString('ru-RU')} ₽`;
+        }).join('; ');
+
+        return `${transName}${routeStr} за ${segTotal.toLocaleString('ru-RU')} ₽ (${details})`;
+      });
+
+      return {
+        date: groupArray[0].date,
+        text: formattedSegments.join(', затем ')
+      };
+    }
+
+    const thereData = formatTransportList('there');
+    const backData = formatTransportList('back');
+
     const hotelItems = store.expenses.filter(e => e.cat === 'hotel');
     const hotelSum = hotelItems.reduce((s,e) => s + Number(e.sum || 0), 0);
     const miscItems = store.expenses.filter(e => e.cat === 'misc');
@@ -978,15 +1035,14 @@
 
     let html = `<p>💬 <i>Мы проверили и утвердили следующие расходы:</i></p>`;
 
-    // 1. Выезд
-    if (thereItems.length > 0) {
-      const parts = thereItems.map(i => `${i.cat === 'plane' ? 'на самолёте' : (i.cat === 'bus' ? 'на автобусе' : (i.cat === 'train' ? 'на поезде' : i.name))} (${Number(i.sum).toLocaleString('ru-RU')} ₽)`);
-      html += `<p><b>${formatRuDateString(p.dStart)}</b> Вы поехали в командировку в г. ${p.city} ${parts.join(', затем ')}.</p>`;
+    // 1. Выезд Туда
+    if (thereData) {
+      html += `<p><b>${thereData.date}</b> Вы поехали в командировку в г. ${p.city} ${thereData.text}.</p>`;
     } else {
-      html += `<p><b>${formatRuDateString(p.dStart)}</b> Вы выехали в командировку в г. ${p.city}.</p>`;
+      html += `<p><b>${formatRuDateString(p.dStart)}</b> Вы поехали в командировку в г. ${p.city}.</p>`;
     }
 
-    // 2. Отель
+    // 2. Проживание
     if (hotelItems.length > 0) {
       html += `<p>Прожили в гостинице / арендованном жилье на сумму <b>${hotelSum.toLocaleString('ru-RU')} ₽</b>.</p>`;
     }
@@ -1003,32 +1059,33 @@
     // 4. Прочее
     if (miscItems.length > 0) {
       const names = miscItems.map(m => m.name.replace(/^Чек,\s*/i, '')).join(', ');
-      html += `<p>Закупили сопутствующие товары (${names}) на сумму <b>${miscSum.toLocaleString('ru-RU')} ₽</b>.</p>`;
+      html += `<p>Закупили хозтовары / сопутствующие материалы (${names}) на сумму <b>${miscSum.toLocaleString('ru-RU')} ₽</b>.</p>`;
     }
 
-    // 5. Возвращение
-    if (backItems.length > 0) {
-      const parts = backItems.map(i => `${i.cat === 'plane' ? 'на самолёте' : (i.cat === 'bus' ? 'на автобусе' : (i.cat === 'train' ? 'на поезде' : i.name))} (${Number(i.sum).toLocaleString('ru-RU')} ₽)`);
-      html += `<p><b>${formatRuDateString(p.dEnd)}</b> Вы вернулись из командировки домой ${parts.join(', затем ')}.</p>`;
+    // 5. Возвращение Обратно
+    if (backData) {
+      html += `<p><b>${backData.date}</b> Вы вернулись из командировки домой ${backData.text}.</p>`;
     } else {
       html += `<p><b>${formatRuDateString(p.dEnd)}</b> Вы вернулись из командировки домой.</p>`;
     }
 
     // 6. Суточные
-    html += `<p>Начислены суточные за <b>${p.days}</b> дн. на сумму <b>${Number(p.dailyTotal).toLocaleString('ru-RU')} ₽</b>.</p>`;
+    html += `<p>Начислены суточные за <b>${p.days}</b> дней на сумму <b>${Number(p.dailyTotal).toLocaleString('ru-RU')} ₽</b>.</p>`;
 
-    // 7. Итоги
-    html += `<hr style="border:none; border-top:1px dashed #c7c7cc; margin:8px 0;">`;
-    html += `<div>• Всего расходов: <b>${total.toLocaleString('ru-RU')} ₽</b></div>`;
-    html += `<div>• Получено авансом: <b>${Number(p.advance).toLocaleString('ru-RU')} ₽</b></div>`;
+    // 7. Итог расчета
+    html += `<hr style="border:none; border-top:1px dashed #c7c7cc; margin:10px 0;">`;
+    html += `<div>Всего расходов: <b>${total.toLocaleString('ru-RU')} ₽</b></div>`;
+    html += `<div>Получено авансом: <b>${Number(p.advance).toLocaleString('ru-RU')} ₽</b></div>`;
 
     if (diff < 0) {
-      html += `<div style="color:var(--danger); font-size:14px; font-weight:700; margin-top:4px;">🔴 Перерасход к выплате: ${Math.abs(diff).toLocaleString('ru-RU')} ₽</div>`;
+      html += `<div style="color:var(--danger); font-size:14px; font-weight:700; margin-top:5px;">🔴 Перерасход к выплате: ${Math.abs(diff).toLocaleString('ru-RU')} ₽</div>`;
     } else if (diff > 0) {
-      html += `<div style="color:var(--warning); font-size:14px; font-weight:700; margin-top:4px;">🟡 Остаток к возврату в кассу: ${diff.toLocaleString('ru-RU')} ₽</div>`;
+      html += `<div style="color:var(--warning); font-size:14px; font-weight:700; margin-top:5px;">🟡 Остаток к возврату в кассу: ${diff.toLocaleString('ru-RU')} ₽</div>`;
     } else {
-      html += `<div style="font-size:14px; font-weight:700; margin-top:4px;">🟢 Аванс израсходован полностью под ноль</div>`;
+      html += `<div style="font-size:14px; font-weight:700; margin-top:5px;">🟢 Аванс израсходован точно под ноль</div>`;
     }
+
+    html += `<p style="margin-top:8px; font-weight:600;">Всё верно?</p>`;
 
     return html;
   }
@@ -1049,10 +1106,8 @@
 
     let resText = diff < 0 ? `Перерасход к выплате: ${Math.abs(diff).toLocaleString('ru-RU')} ₽` : `Остаток к возврату: ${diff.toLocaleString('ru-RU')} ₽`;
 
-    // Выводим нарратив
     document.getElementById('narrative_text').innerHTML = buildNarrativeSummary();
 
-    // 1. Таблица паспорта
     document.querySelector('#tbl_pass tbody').innerHTML = `
       <tr><th style="width:30%;">Сотрудник</th><td><strong>${p.fio}</strong></td></tr>
       <tr><th>Должность / Таб</th><td>${p.role} / ${p.tab}</td></tr>
@@ -1064,14 +1119,12 @@
       <tr style="background:#f9f9fb;"><th>Итоговый расчет</th><td><strong>${resText}</strong></td></tr>
     `;
 
-    // 2. Таблица АО-1
     const sorted = [...store.expenses];
     const tb = document.querySelector('#tbl_ao1 tbody');
     let rowsHtml = sorted.map((e, i) => `<tr><td class="text-center">${i+1}</td><td>${formatRuDateString(e.date)}</td><td>${e.no}</td><td>${e.name}</td><td class="text-right">${Number(e.sum).toLocaleString('ru-RU', {minimumFractionDigits:2})}</td></tr>`).join('');
     rowsHtml += `<tr><td class="text-center">${sorted.length+1}</td><td></td><td></td><td><strong>Суточные за ${p.days} дн.</strong></td><td class="text-right"><strong>${Number(p.dailyTotal).toLocaleString('ru-RU', {minimumFractionDigits:2})}</strong></td></tr>`;
     tb.innerHTML = rowsHtml;
 
-    // 3. Детализация такси
     const cardTaxi = document.getElementById('card_taxi');
     const tbTaxi = document.querySelector('#tbl_taxi tbody');
     if (store.taxis.length > 0 && tbTaxi && cardTaxi) {
@@ -1097,12 +1150,12 @@
     savePassport();
 
     store.expenses = [
-      { id: 'd1', date: '01.10.2026', no: '4212136762', name: 'Авиабилет (Омск - Красноярск)', sum: 11500, dir: 'there', cat: 'plane', route: 'Омск - Красноярск' },
-      { id: 'd2', date: '01.10.2026', no: '5841', name: 'Сервисный сбор', sum: 1290, dir: 'there', cat: 'plane', route: 'Омск - Красноярск' },
+      { id: 'd1', date: '01.10.2026', no: '4212136762', name: 'Авиабилет (Омск - Красноярск)', sum: 11500, dir: 'there', cat: 'plane', route: 'Омск - Красноярск', groupKey: 'demo_there' },
+      { id: 'd2', date: '01.10.2026', no: '5841', name: 'Сервисный Сбор', sum: 1290, dir: 'there', cat: 'plane', route: 'Омск - Красноярск', groupKey: 'demo_there' },
       { id: 'd3', date: '02.10.2026', no: 'ДОГ-205e', name: 'Аренда квартиры', sum: 54000, cat: 'hotel' },
-      { id: 'd4', date: '18.10.2026', no: 'КД010247', name: 'Билет Автобус (Красноярск - Омск)', sum: 4200, dir: 'back', cat: 'bus', route: 'Красноярск - Омск' },
-      { id: 'd5', date: '18.10.2026', no: 'БАГ-3107', name: 'Квитанция, багаж', sum: 800, dir: 'back', cat: 'bus', route: 'Красноярск - Омск' },
-      { id: 'd6', date: '18.10.2026', no: 'ПОЛ-192', name: 'Страховой полис', sum: 500, dir: 'back', cat: 'bus', route: 'Красноярск - Омск' },
+      { id: 'd4', date: '18.10.2026', no: 'КД010247', name: 'Билет на автобус (Красноярск - Омск)', sum: 4200, dir: 'back', cat: 'bus', route: 'Красноярск - Омск', groupKey: 'demo_back' },
+      { id: 'd5', date: '18.10.2026', no: 'БАГ-3107', name: 'Багаж', sum: 800, dir: 'back', cat: 'bus', route: 'Красноярск - Омск', groupKey: 'demo_back' },
+      { id: 'd6', date: '18.10.2026', no: 'ПОЛ-192', name: 'Страховой полис', sum: 500, dir: 'back', cat: 'bus', route: 'Красноярск - Омск', groupKey: 'demo_back' },
       { id: 'd7', date: '01.10.2026', no: '303', name: 'Чек, такси', sum: 780, cat: 'taxi' },
       { id: 'd8', date: '01.10.2026', no: '206', name: 'Чек, такси', sum: 920, cat: 'taxi' },
       { id: 'd9', date: '18.10.2026', no: '412', name: 'Чек, такси', sum: 450, cat: 'taxi' },
