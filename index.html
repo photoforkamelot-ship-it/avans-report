@@ -112,6 +112,22 @@
     .review-header h3 { margin: 0; font-size: 13px; font-weight: 700; }
     .review-btn-edit { background: #e5e5ea; border: none; border-radius: 5px; padding: 3px 6px; font-size: 11px; cursor: pointer; }
 
+    /* Блок нарратива */
+    .narrative-box {
+      background: #ffffff;
+      border: 1px solid #007aff44;
+      border-left: 4px solid var(--primary);
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 13px;
+      line-height: 1.55;
+      color: #1c1c1e;
+      margin-bottom: 10px;
+    }
+    .narrative-box p { margin: 0 0 8px 0; }
+    .narrative-box ul { margin: 4px 0 8px 18px; padding: 0; }
+    .narrative-box li { margin-bottom: 3px; }
+
     .emp-list-item, .report-list-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #e5e5ea; font-size: 12px; }
 
     #toast {
@@ -135,7 +151,7 @@
     <div class="demo-bar">
       <div>
         <div style="font-weight: 700; font-size: 12px;">⚡ Демо: Омск ↔ Красноярск</div>
-        <div style="font-size: 11px; opacity: 0.9;">18 дней, самолет, автобус, такси, квартира</div>
+        <div style="font-size: 11px; opacity: 0.9;">18 дней, перелёт, проживание, такси, автобус</div>
       </div>
       <button type="button" onclick="loadDemoScenario()">Заполнить ДЕМО</button>
     </div>
@@ -149,7 +165,6 @@
       </div>
     </div>
 
-    <!-- ШАГ 1: ПАСПОРТ -->
     <div id="step-1" class="step-content active">
       <div class="card">
         <h2>1. Сведения о командировке</h2>
@@ -200,7 +215,6 @@
       <button type="button" class="btn btn-primary" onclick="goToStep(2)">Далее: Ввод расходов →</button>
     </div>
 
-    <!-- ШАГ 2: ВВОД РАСХОДОВ -->
     <div id="step-2" class="step-content">
       <div class="card">
         <h2>2. Добавление расходов</h2>
@@ -284,7 +298,7 @@
               <label>Точка А (Откуда) <span class="req-star">*</span></label>
               <div class="addr-row">
                 <div class="main-addr">
-                  <input type="text" id="e_taxi_from" placeholder="Любой город/поселок, улица, дом..." autocomplete="off" oninput="fetchFiasSuggestions(this, 'sug_a')">
+                  <input type="text" id="e_taxi_from" placeholder="Любой город, улица, дом..." autocomplete="off" oninput="fetchFiasSuggestions(this, 'sug_a')">
                   <div id="sug_a" class="suggest-box"></div>
                 </div>
                 <div class="sub-obj">
@@ -297,7 +311,7 @@
               <label>Точка Б (Куда) <span class="req-star">*</span></label>
               <div class="addr-row">
                 <div class="main-addr">
-                  <input type="text" id="e_taxi_to" placeholder="Любой город/поселок, улица, дом..." autocomplete="off" oninput="fetchFiasSuggestions(this, 'sug_b')">
+                  <input type="text" id="e_taxi_to" placeholder="Любой город, улица, дом..." autocomplete="off" oninput="fetchFiasSuggestions(this, 'sug_b')">
                   <div id="sug_b" class="suggest-box"></div>
                 </div>
                 <div class="sub-obj">
@@ -308,7 +322,7 @@
 
             <div class="field">
               <label>Цель поездки <span class="req-star">*</span></label>
-              <input type="text" id="e_taxi_purpose" placeholder="Поездка в аэропорт / к заказчику">
+              <input type="text" id="e_taxi_purpose" placeholder="Поездка в аэропорт / на объект">
             </div>
           </div>
 
@@ -350,19 +364,13 @@
       </div>
     </div>
 
-    <!-- ШАГ 3: САМОПРОВЕРКА -->
     <div id="step-3" class="step-content">
       <div class="card">
-        <h2>3. Проверка расходов по документам</h2>
+        <h2>3. Проверка расходов по категориям</h2>
         <div style="font-size: 12px; color: #636366; margin-bottom: 8px;">
-          Сверьте данные по разделам. При необходимости нажмите «✏️ Изменить».
+          Сверьте данные по документам. При необходимости нажмите «✏️ Изменить».
         </div>
         <div id="review_cards_container"></div>
-      </div>
-
-      <div class="card" style="background:#eef7ff; border:1px solid #b8daff;">
-        <h3>Итоговый связный отчет командировки:</h3>
-        <div id="review_narrative" style="font-size:12px; line-height:1.5;"></div>
       </div>
 
       <div class="nav-bar">
@@ -371,7 +379,6 @@
       </div>
     </div>
 
-    <!-- ШАГ 4: ГОТОВЫЙ ОТЧЕТ И СКАЧИВАНИЕ -->
     <div id="step-4" class="step-content">
       <div class="nav-bar" style="margin-bottom:10px; display:flex; flex-direction:column; gap:8px;">
         <div style="display:flex; gap:6px; width:100%;">
@@ -379,7 +386,15 @@
           <button type="button" id="btn_excel" class="btn btn-green" style="flex:2;" onclick="downloadExcelAndNotify()">📥 Скачать Excel (.xlsx)</button>
         </div>
         <button type="button" id="btn_pdf" class="btn btn-primary" onclick="generatePdfAndNotify()">📄 Сохранить в PDF</button>
-        <div style="text-align:center; font-size:11px; color:#8e8e93;">Отчёт автоматически сохраняется в реестр.</div>
+      </div>
+
+      <div class="card" style="border-top: 3px solid var(--primary);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <h3 style="margin:0;">💬 Финальная связная сводка-нарратив</h3>
+          <button type="button" class="btn btn-secondary" style="height:26px; font-size:11px; width:auto; padding:0 8px;" onclick="copyNarrativeText()">📋 Копировать</button>
+        </div>
+        <div id="narrative_text" class="narrative-box">
+          </div>
       </div>
 
       <div id="printable_report">
@@ -401,7 +416,6 @@
     </div>
   </div>
 
-  <!-- ВКЛАДКА 2: УПРАВЛЕНИЕ СОТРУДНИКАМИ (ТОЛЬКО ДЛЯ АДМИНА) -->
   <div id="tab-employees" class="main-tab-content" style="display:none;">
     <div class="card">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
@@ -412,7 +426,6 @@
     </div>
   </div>
 
-  <!-- ВКЛАДКА 3: РЕЕСТР ОТЧЕТОВ -->
   <div id="tab-reports" class="main-tab-content" style="display:none;">
     <div class="card">
       <h2 id="reports_title">📊 Отправленные отчёты</h2>
@@ -422,7 +435,6 @@
 
 </div>
 
-<!-- МОДАЛКА ДОБАВЛЕНИЯ/РЕДАКТИРОВАНИЯ СОТРУДНИКА -->
 <div id="emp_modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:10000; align-items:center; justify-content:center;">
   <div style="background:white; padding:16px; border-radius:12px; width:90%; max-width:400px;">
     <h3 id="modal_title" style="margin-top:0;">Редактировать сотрудника</h3>
@@ -430,7 +442,7 @@
     <div class="field"><label>ФИО</label><input type="text" id="modal_fio"></div>
     <div class="field"><label>Должность</label><input type="text" id="modal_role"></div>
     <div class="field"><label>Табельный номер</label><input type="text" id="modal_tab"></div>
-    <div class="field"><label>Telegram ID (привязка)</label><input type="text" id="modal_tgid" placeholder="Например: 446642559 (пусто = не привязан)"></div>
+    <div class="field"><label>Telegram ID</label><input type="text" id="modal_tgid" placeholder="Например: 446642559"></div>
     <div style="display:flex; gap:6px; margin-top:12px;">
       <button type="button" class="btn btn-primary" onclick="saveModalEmployee()">Сохранить</button>
       <button type="button" class="btn btn-secondary" onclick="closeEmpModal()">Отмена</button>
@@ -513,7 +525,7 @@
     if (!userId && tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
       userId = tg.initDataUnsafe.user.id;
     }
-    if (!userId) userId = "446642559"; // Дефолт админа для браузера
+    if (!userId) userId = "446642559";
 
     fetch(`${GOOGLE_SHEET_API}?user_id=${userId}`)
       .then(r => r.json())
@@ -625,9 +637,7 @@
     document.getElementById("emp_modal").style.display = "flex";
   }
 
-  function closeEmpModal() {
-    document.getElementById("emp_modal").style.display = "none";
-  }
+  function closeEmpModal() { document.getElementById("emp_modal").style.display = "none"; }
 
   function saveModalEmployee() {
     const fio = document.getElementById("modal_fio").value.trim();
@@ -636,13 +646,8 @@
     const tgid = document.getElementById("modal_tgid").value.trim();
     const oldTab = document.getElementById("modal_old_tab").value.trim();
 
-    if (!fio || !role || !tab) {
-      showToast("Заполните обязательные поля");
-      return;
-    }
-
+    if (!fio || !role || !tab) { showToast("Заполните обязательные поля"); return; }
     const action = oldTab ? "update" : "add";
-    showToast("Сохранение в Google...");
 
     fetch(GOOGLE_SHEET_API, {
       method: "POST", mode: "no-cors",
@@ -657,7 +662,6 @@
 
   function deleteEmployee(tab) {
     if (!confirm("Удалить сотрудника из базы?")) return;
-    showToast("Удаление...");
     fetch(GOOGLE_SHEET_API, {
       method: "POST", mode: "no-cors",
       headers: { "Content-Type": "application/json" },
@@ -690,7 +694,6 @@
 
   function deleteReport(reportId) {
     if (!confirm(`Удалить отчет #${reportId} полностью?`)) return;
-    showToast("Удаление отчета...");
     fetch(GOOGLE_SHEET_API, {
       method: "POST", mode: "no-cors",
       headers: { "Content-Type": "application/json" },
@@ -762,24 +765,22 @@
   }
 
   function goToStep(s) {
-    try {
-      if (s === 2) {
-        const reqFields = ['p_fio', 'p_role', 'p_city', 'p_date_range'];
-        if (!validateFields(reqFields)) { showToast('Заполните обязательные поля'); return; }
-        if (!document.getElementById('p_date_end').value) {
-          document.getElementById('p_date_range').classList.add('input-error');
-          showToast('Выберите дату окончания в календаре');
-          return;
-        }
-        savePassport(); renderExpenseList();
+    if (s === 2) {
+      const reqFields = ['p_fio', 'p_role', 'p_city', 'p_date_range'];
+      if (!validateFields(reqFields)) { showToast('Заполните обязательные поля'); return; }
+      if (!document.getElementById('p_date_end').value) {
+        document.getElementById('p_date_range').classList.add('input-error');
+        showToast('Выберите дату окончания в календаре');
+        return;
       }
-      if (s === 3) { savePassport(); renderDetailedReview(); }
-      if (s === 4) { savePassport(); renderFinal(); }
+      savePassport(); renderExpenseList();
+    }
+    if (s === 3) { savePassport(); renderDetailedReview(); }
+    if (s === 4) { savePassport(); renderFinal(); }
 
-      document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
-      const target = document.getElementById('step-' + s);
-      if (target) { target.classList.add('active'); window.scrollTo(0,0); }
-    } catch(err) { showToast("Ошибка: " + err.message); }
+    document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
+    const target = document.getElementById('step-' + s);
+    if (target) { target.classList.add('active'); window.scrollTo(0,0); }
   }
 
   function calcDaily() {
@@ -848,6 +849,23 @@
       let name = curCategory==='plane' ? 'Авиабилет' : (curCategory==='bus' ? 'Билет Автобус' : 'ЖД Билет');
       if (route) name += ` (${route})`;
       store.expenses.push({ id: Date.now()+'1', date, no, name, sum, dir, cat: curCategory, route });
+
+      // Дополнительные сборы
+      if (document.getElementById('chk_fee').checked) {
+        const feeNo = document.getElementById('e_fee_no').value.trim() || no;
+        const feeSum = parseFloat(document.getElementById('e_fee_sum').value) || 0;
+        if (feeSum > 0) store.expenses.push({ id: Date.now()+'fee', date, no: feeNo, name: 'Сервисный сбор', sum: feeSum, dir, cat: curCategory });
+      }
+      if (document.getElementById('chk_bag').checked) {
+        const bagNo = document.getElementById('e_bag_no').value.trim() || no;
+        const bagSum = parseFloat(document.getElementById('e_bag_sum').value) || 0;
+        if (bagSum > 0) store.expenses.push({ id: Date.now()+'bag', date, no: bagNo, name: 'Квитанция, багаж', sum: bagSum, dir, cat: curCategory });
+      }
+      if (document.getElementById('chk_ins').checked) {
+        const insNo = document.getElementById('e_ins_no').value.trim() || no;
+        const insSum = parseFloat(document.getElementById('e_ins_sum').value) || 0;
+        if (insSum > 0) store.expenses.push({ id: Date.now()+'ins', date, no: insNo, name: 'Страховой полис', sum: insSum, dir, cat: curCategory });
+      }
     } else if (curCategory === 'taxi') {
       const no = document.getElementById('e_taxi_no').value.trim();
       const sum = parseFloat(document.getElementById('e_taxi_sum').value) || 0;
@@ -910,6 +928,10 @@
     const backSum = backExp.reduce((s,e) => s + Number(e.sum || 0), 0);
     let backDetails = backExp.map(e => `&nbsp;&nbsp;— ${e.name}: <strong>${Number(e.sum).toLocaleString('ru-RU')} ₽</strong> (${formatRuDateString(e.date)}, док. № ${e.no})`).join('<br>');
 
+    const miscExp = store.expenses.filter(e => e.cat === 'misc');
+    const miscSum = miscExp.reduce((s,e) => s + Number(e.sum || 0), 0);
+    let miscDetails = miscExp.map(e => `&nbsp;&nbsp;— ${e.name}: <strong>${Number(e.sum).toLocaleString('ru-RU')} ₽</strong> (${formatRuDateString(e.date)}, док. № ${e.no})`).join('<br>');
+
     box.innerHTML = `
       <div class="review-item">
         <div class="review-header"><h3>1. Данные сотрудника и аванс</h3><button type="button" class="review-btn-edit" onclick="goToStep(1)">✏️ Изменить</button></div>
@@ -932,19 +954,92 @@
         <div style="font-size:12px; line-height:1.4;">${backExp.length > 0 ? `ИТОГО: <strong>${backSum.toLocaleString('ru-RU')} ₽</strong><br>${backDetails}` : 'Нет расходов'}</div>
       </div>
       <div class="review-item">
-        <div class="review-header"><h3>6. Суточные</h3><button type="button" class="review-btn-edit" onclick="goToStep(1)">✏️ Изменить</button></div>
+        <div class="review-header"><h3>6. Прочие расходы</h3><button type="button" class="review-btn-edit" onclick="goToStep(2)">✏️ Изменить</button></div>
+        <div style="font-size:12px; line-height:1.4;">${miscExp.length > 0 ? `ИТОГО: <strong>${miscSum.toLocaleString('ru-RU')} ₽</strong><br>${miscDetails}` : 'Нет расходов'}</div>
+      </div>
+      <div class="review-item">
+        <div class="review-header"><h3>7. Суточные</h3><button type="button" class="review-btn-edit" onclick="goToStep(1)">✏️ Изменить</button></div>
         <div style="font-size:12px; line-height:1.4;">• ${p.days} сут. × ${p.rate} ₽ = <strong>${p.dailyTotal.toLocaleString('ru-RU')} ₽</strong></div>
       </div>
     `;
+  }
 
-    const total = store.expenses.reduce((s,e)=>s + Number(e.sum || 0), 0) + p.dailyTotal;
-    const diff = p.advance - total;
-    let narrative = `<b>Итоги:</b><br>• Всего расходов: <b>${total.toLocaleString('ru-RU')} ₽</b><br>• Получено авансом: <b>${p.advance.toLocaleString('ru-RU')} ₽</b><br>`;
-    if (diff < 0) narrative += `<b style="color:var(--danger);">Перерасход к выплате: ${Math.abs(diff).toLocaleString('ru-RU')} ₽</b>`;
-    else if (diff > 0) narrative += `<b style="color:var(--warning);">Остаток к возврату: ${diff.toLocaleString('ru-RU')} ₽</b>`;
-    else narrative += `<b>Аванс израсходован точно под ноль</b>`;
+  function buildNarrativeSummary() {
+    const p = store.passport;
+    const total = store.expenses.reduce((s,e)=>s + Number(e.sum || 0), 0) + (p.dailyTotal || 0);
+    const diff = (p.advance || 0) - total;
 
-    document.getElementById('review_narrative').innerHTML = narrative;
+    const thereItems = store.expenses.filter(e => e.dir === 'there');
+    const backItems = store.expenses.filter(e => e.dir === 'back');
+    const hotelItems = store.expenses.filter(e => e.cat === 'hotel');
+    const hotelSum = hotelItems.reduce((s,e) => s + Number(e.sum || 0), 0);
+    const miscItems = store.expenses.filter(e => e.cat === 'misc');
+    const miscSum = miscItems.reduce((s,e) => s + Number(e.sum || 0), 0);
+
+    let html = `<p>💬 <i>Мы проверили и утвердили следующие расходы:</i></p>`;
+
+    // 1. Выезд
+    if (thereItems.length > 0) {
+      const parts = thereItems.map(i => `${i.cat === 'plane' ? 'на самолёте' : (i.cat === 'bus' ? 'на автобусе' : (i.cat === 'train' ? 'на поезде' : i.name))} (${Number(i.sum).toLocaleString('ru-RU')} ₽)`);
+      html += `<p><b>${formatRuDateString(p.dStart)}</b> Вы поехали в командировку в г. ${p.city} ${parts.join(', затем ')}.</p>`;
+    } else {
+      html += `<p><b>${formatRuDateString(p.dStart)}</b> Вы выехали в командировку в г. ${p.city}.</p>`;
+    }
+
+    // 2. Отель
+    if (hotelItems.length > 0) {
+      html += `<p>Прожили в гостинице / арендованном жилье на сумму <b>${hotelSum.toLocaleString('ru-RU')} ₽</b>.</p>`;
+    }
+
+    // 3. Такси
+    if (store.taxis.length > 0) {
+      html += `<p>Использовали <b>${store.taxis.length}</b> ${store.taxis.length === 1 ? 'раз' : (store.taxis.length < 5 ? 'раза' : 'раз')} такси:<ul>`;
+      store.taxis.forEach(t => {
+        html += `<li>${t.route} (<b>${Number(t.sum).toLocaleString('ru-RU')} ₽</b>);</li>`;
+      });
+      html += `</ul></p>`;
+    }
+
+    // 4. Прочее
+    if (miscItems.length > 0) {
+      const names = miscItems.map(m => m.name.replace(/^Чек,\s*/i, '')).join(', ');
+      html += `<p>Закупили сопутствующие товары (${names}) на сумму <b>${miscSum.toLocaleString('ru-RU')} ₽</b>.</p>`;
+    }
+
+    // 5. Возвращение
+    if (backItems.length > 0) {
+      const parts = backItems.map(i => `${i.cat === 'plane' ? 'на самолёте' : (i.cat === 'bus' ? 'на автобусе' : (i.cat === 'train' ? 'на поезде' : i.name))} (${Number(i.sum).toLocaleString('ru-RU')} ₽)`);
+      html += `<p><b>${formatRuDateString(p.dEnd)}</b> Вы вернулись из командировки домой ${parts.join(', затем ')}.</p>`;
+    } else {
+      html += `<p><b>${formatRuDateString(p.dEnd)}</b> Вы вернулись из командировки домой.</p>`;
+    }
+
+    // 6. Суточные
+    html += `<p>Начислены суточные за <b>${p.days}</b> дн. на сумму <b>${Number(p.dailyTotal).toLocaleString('ru-RU')} ₽</b>.</p>`;
+
+    // 7. Итоги
+    html += `<hr style="border:none; border-top:1px dashed #c7c7cc; margin:8px 0;">`;
+    html += `<div>• Всего расходов: <b>${total.toLocaleString('ru-RU')} ₽</b></div>`;
+    html += `<div>• Получено авансом: <b>${Number(p.advance).toLocaleString('ru-RU')} ₽</b></div>`;
+
+    if (diff < 0) {
+      html += `<div style="color:var(--danger); font-size:14px; font-weight:700; margin-top:4px;">🔴 Перерасход к выплате: ${Math.abs(diff).toLocaleString('ru-RU')} ₽</div>`;
+    } else if (diff > 0) {
+      html += `<div style="color:var(--warning); font-size:14px; font-weight:700; margin-top:4px;">🟡 Остаток к возврату в кассу: ${diff.toLocaleString('ru-RU')} ₽</div>`;
+    } else {
+      html += `<div style="font-size:14px; font-weight:700; margin-top:4px;">🟢 Аванс израсходован полностью под ноль</div>`;
+    }
+
+    return html;
+  }
+
+  function copyNarrativeText() {
+    const text = document.getElementById('narrative_text').innerText;
+    navigator.clipboard.writeText(text).then(() => {
+      showToast("Текст сводки скопирован!");
+    }).catch(() => {
+      showToast("Не удалось скопировать");
+    });
   }
 
   function renderFinal() {
@@ -954,6 +1049,10 @@
 
     let resText = diff < 0 ? `Перерасход к выплате: ${Math.abs(diff).toLocaleString('ru-RU')} ₽` : `Остаток к возврату: ${diff.toLocaleString('ru-RU')} ₽`;
 
+    // Выводим нарратив
+    document.getElementById('narrative_text').innerHTML = buildNarrativeSummary();
+
+    // 1. Таблица паспорта
     document.querySelector('#tbl_pass tbody').innerHTML = `
       <tr><th style="width:30%;">Сотрудник</th><td><strong>${p.fio}</strong></td></tr>
       <tr><th>Должность / Таб</th><td>${p.role} / ${p.tab}</td></tr>
@@ -965,12 +1064,14 @@
       <tr style="background:#f9f9fb;"><th>Итоговый расчет</th><td><strong>${resText}</strong></td></tr>
     `;
 
+    // 2. Таблица АО-1
     const sorted = [...store.expenses];
     const tb = document.querySelector('#tbl_ao1 tbody');
     let rowsHtml = sorted.map((e, i) => `<tr><td class="text-center">${i+1}</td><td>${formatRuDateString(e.date)}</td><td>${e.no}</td><td>${e.name}</td><td class="text-right">${Number(e.sum).toLocaleString('ru-RU', {minimumFractionDigits:2})}</td></tr>`).join('');
     rowsHtml += `<tr><td class="text-center">${sorted.length+1}</td><td></td><td></td><td><strong>Суточные за ${p.days} дн.</strong></td><td class="text-right"><strong>${Number(p.dailyTotal).toLocaleString('ru-RU', {minimumFractionDigits:2})}</strong></td></tr>`;
     tb.innerHTML = rowsHtml;
 
+    // 3. Детализация такси
     const cardTaxi = document.getElementById('card_taxi');
     const tbTaxi = document.querySelector('#tbl_taxi tbody');
     if (store.taxis.length > 0 && tbTaxi && cardTaxi) {
@@ -997,11 +1098,11 @@
 
     store.expenses = [
       { id: 'd1', date: '01.10.2026', no: '4212136762', name: 'Авиабилет (Омск - Красноярск)', sum: 11500, dir: 'there', cat: 'plane', route: 'Омск - Красноярск' },
-      { id: 'd2', date: '01.10.2026', no: '5841', name: 'Чек (сервисный сбор)', sum: 1290, dir: 'there', cat: 'plane', route: 'Омск - Красноярск' },
+      { id: 'd2', date: '01.10.2026', no: '5841', name: 'Сервисный сбор', sum: 1290, dir: 'there', cat: 'plane', route: 'Омск - Красноярск' },
       { id: 'd3', date: '02.10.2026', no: 'ДОГ-205e', name: 'Аренда квартиры', sum: 54000, cat: 'hotel' },
       { id: 'd4', date: '18.10.2026', no: 'КД010247', name: 'Билет Автобус (Красноярск - Омск)', sum: 4200, dir: 'back', cat: 'bus', route: 'Красноярск - Омск' },
-      { id: 'd5', date: '18.10.2026', no: 'БАГ-3107', name: 'Чек, багаж', sum: 800, dir: 'back', cat: 'bus', route: 'Красноярск - Омск' },
-      { id: 'd6', date: '18.10.2026', no: 'ПОЛ-192', name: 'Чек, страхование', sum: 500, dir: 'back', cat: 'bus', route: 'Красноярск - Омск' },
+      { id: 'd5', date: '18.10.2026', no: 'БАГ-3107', name: 'Квитанция, багаж', sum: 800, dir: 'back', cat: 'bus', route: 'Красноярск - Омск' },
+      { id: 'd6', date: '18.10.2026', no: 'ПОЛ-192', name: 'Страховой полис', sum: 500, dir: 'back', cat: 'bus', route: 'Красноярск - Омск' },
       { id: 'd7', date: '01.10.2026', no: '303', name: 'Чек, такси', sum: 780, cat: 'taxi' },
       { id: 'd8', date: '01.10.2026', no: '206', name: 'Чек, такси', sum: 920, cat: 'taxi' },
       { id: 'd9', date: '18.10.2026', no: '412', name: 'Чек, такси', sum: 450, cat: 'taxi' },
@@ -1127,7 +1228,7 @@
           navigator.share({ files: [new File([blob], fileName, { type: 'application/pdf' })], title: 'Авансовый отчет PDF', text: `Авансовый отчет: ${p.fio}` }).catch(() => {});
         } else {
           const url = URL.createObjectURL(blob);
-          const a = document.getElementById("a");
+          const a = document.createElement("a");
           a.href = url; a.download = fileName;
           document.body.appendChild(a); a.click(); document.body.removeChild(a);
         }
