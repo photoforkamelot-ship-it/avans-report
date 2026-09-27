@@ -26,7 +26,7 @@
     }
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
-    /* Оранжевое выделение текста и курсор */
+    /* Оранжевое контрастное выделение текста и курсор */
     ::selection {
       background: rgba(255, 149, 0, 0.35);
     }
@@ -128,7 +128,8 @@
     .review-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
     .review-header h3 { margin: 0; font-size: 13px; font-weight: 700; }
     .review-btn-edit { background: #e5e5ea; border: none; border-radius: 5px; padding: 3px 6px; font-size: 11px; cursor: pointer; }
-    .item-edit-btn { background: none; border: none; cursor: pointer; font-size: 13px; padding: 0 4px; vertical-align: middle; }
+    .item-edit-btn { background: #f2f2f7; border: 1px solid #d1d1d6; border-radius: 4px; cursor: pointer; font-size: 12px; padding: 2px 5px; margin-left: 6px; vertical-align: middle; }
+    .item-edit-btn:hover { background: #e5e5ea; }
 
     .narrative-box {
       background: #ffffff;
@@ -982,7 +983,6 @@
     ['sub_fee','sub_bag','sub_ins'].forEach(id => document.getElementById(id).style.display = 'none');
     document.querySelectorAll('#add-box .input-error').forEach(el => el.classList.remove('input-error'));
 
-    // Очистка полей ввода
     if (datePickerExpense) datePickerExpense.clear();
     document.getElementById('e_route').value = '';
     document.getElementById('e_ticket_no').value = '';
@@ -1031,10 +1031,8 @@
 
   function toggleBox(id) { const el = document.getElementById(id); el.style.display = el.style.display==='block'?'none':'block'; }
 
-  /* УМНЫЙ ПЕРЕХОД И ПРЯМОЕ РЕДАКТИРОВАНИЕ ПО КЛИКУ НА КАРАНДАШИК */
+  /* ПРЯМОЕ РЕДАКТИРОВАНИЕ ПО КЛИКУ НА КАРАНДАШИК ИЗ ШАГА 3 */
   function handleDirectEditOrAdd(category, dir) {
-    goToStep(2);
-    // Проверяем, есть ли уже записи этой категории
     let existing = null;
     if (['plane','bus','train'].includes(category)) {
       existing = store.expenses.find(e => e.dir === dir && ['plane','bus','train'].includes(e.cat));
@@ -1043,22 +1041,30 @@
     }
 
     if (existing) {
-      // Данные есть — открываем редактирование найденной записи
       editExpenseItem(existing.id);
     } else {
-      // Данных нет — открываем форму создания с нужными параметрами
+      // Переключаем на шаг 2 и сразу раскрываем форму ввода нужного типа
+      document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
+      document.getElementById('step-2').classList.add('active');
       openExpense(category);
       if (dir && document.getElementById('e_dir')) {
         document.getElementById('e_dir').value = dir;
       }
+      setTimeout(() => {
+        const box = document.getElementById('add-box');
+        if (box) box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 50);
     }
   }
 
   /* РЕДАКТИРОВАНИЕ КОНКРЕТНОЙ ПОЗИЦИИ */
   function editExpenseItem(id) {
-    goToStep(2);
     let item = store.expenses.find(x => x.id === id);
     if (!item) return;
+
+    // Переходим на шаг 2 и открываем форму
+    document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
+    document.getElementById('step-2').classList.add('active');
 
     openExpense(item.cat);
     document.getElementById('add-title').innerText = `✏️ Редактирование: ${item.name.split('(')[0].trim()}`;
@@ -1072,7 +1078,6 @@
       document.getElementById('e_ticket_no').value = item.no || '';
       document.getElementById('e_ticket_sum').value = item.sum || '';
 
-      // Если есть привязанные сборы/багаж/страховка из одной группы
       if (item.groupKey) {
         const related = store.expenses.filter(x => x.groupKey === item.groupKey && x.id !== item.id);
         related.forEach(rel => {
@@ -1114,6 +1119,11 @@
       document.getElementById('e_misc_name').value = item.customName || item.name.replace(/^Чек,\s*/i, '');
       document.getElementById('e_misc_sum').value = item.sum || '';
     }
+
+    setTimeout(() => {
+      const box = document.getElementById('add-box');
+      if (box) box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
   }
 
   function saveExpense() {
@@ -1129,7 +1139,7 @@
     const editId = document.getElementById('edit_item_id').value;
     const oldGroupKey = document.getElementById('edit_group_key').value;
 
-    // Если редактировали позицию — удаляем старую запись (и её группу), чтобы перезаписать свежей
+    // Перезаписываем обновляемый элемент
     if (editId) {
       if (oldGroupKey) {
         store.expenses = store.expenses.filter(x => x.groupKey !== oldGroupKey);
@@ -1571,12 +1581,14 @@
       <tr style="background:#f9f9fb;"><th>Итоговый расчет</th><td><strong>${resText}</strong></td></tr>
     `;
 
+    // Хронологическая сортировка по возрастанию даты для АО-1
     const sorted = [...store.expenses].sort((a, b) => parseDateToTimestamp(a.date) - parseDateToTimestamp(b.date));
     const tb = document.querySelector('#tbl_ao1 tbody');
     let rowsHtml = sorted.map((e, i) => `<tr><td class="text-center">${i+1}</td><td>${formatRuDateString(e.date)}</td><td>${e.no}</td><td>${e.name}</td><td class="text-right">${Number(e.sum).toLocaleString('ru-RU', {minimumFractionDigits:2})}</td></tr>`).join('');
     rowsHtml += `<tr><td class="text-center">${sorted.length+1}</td><td></td><td></td><td><strong>Суточные за ${p.days} дн.</strong></td><td class="text-right"><strong>${Number(p.dailyTotal).toLocaleString('ru-RU', {minimumFractionDigits:2})}</strong></td></tr>`;
     tb.innerHTML = rowsHtml;
 
+    // Хронологическая сортировка по такси
     const sortedTaxis = [...store.taxis].sort((a, b) => parseDateToTimestamp(a.date) - parseDateToTimestamp(b.date));
     const cardTaxi = document.getElementById('card_taxi');
     const tbTaxi = document.querySelector('#tbl_taxi tbody');
