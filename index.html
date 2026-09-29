@@ -470,7 +470,7 @@
       <h3 style="margin:12px 0 6px 0; font-size:13px;">Расчёт сметы по сотрудникам</h3>
       <div id="req_team_estimates"></div>
 
-      <div style="background:#e0f2fe; border:1px solid #bae6fd; border-radius:8px; padding:10px; margin:10px 0; font-size:13px; font-weight:700; color:#0369a1;">
+      <div style="background:#e0f2fe; border:1px solid #bae6fd; border-radius:8px; padding:10px; margin-online:10px 0; font-size:13px; font-weight:700; color:#0369a1;">
         Общая сумма по заявке: <span id="req_total_sum_display">0</span> ₽
       </div>
 
@@ -1035,7 +1035,6 @@
     });
   }
 
-  // --- МОДАЛЬНОЕ ОКНО РЕДАКТИРОВАНИЯ ЗАЯВКИ С ПОЛНОЙ СМЕТОЙ И ЖИВЫМ ПИСЬМОМ ---
   function openReqDetailsModal(reqId, label) {
     const rq = (globalAppData.requestsArchive || []).find(r => r.reqId === reqId);
     const tr = (globalAppData.trips || []).find(t => t.tripId === reqId);
@@ -1051,7 +1050,6 @@
     const isProlong = (label || '').includes('Продление');
     document.getElementById('rvm_is_prolong').value = isProlong ? "1" : "0";
 
-    // Считываем сырую смету, если она есть в архиве
     let est = {};
     if (rq && rq.rawEstimate) {
       try {
@@ -1300,10 +1298,18 @@
   function confirmRecalcAndApply() {
     if (!activeRecalcTripId) return;
     showToast("Пересчёт данных...");
-    loadTripIntoReport(activeRecalcTripId);
+    const targetTrip = activeRecalcTripId;
+    loadTripIntoReport(targetTrip);
     closeRecalcModal();
-    goToStep(4);
-    downloadFullTemplateExcelAndNotify();
+
+    // Сбрасываем Warning и перезаписываем чистовой отчёт
+    fetch(GOOGLE_SHEET_API, {
+      method: "POST", mode: "no-cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "cancel_unsaved_changes", tripId: targetTrip })
+    }).then(() => {
+      goToStep(3);
+    });
   }
 
   function cancelUnsavedChangesFromModal() {
@@ -1963,6 +1969,7 @@
     setTimeout(() => t.style.display = 'none', 2500);
   }
 
+  // --- БЕЗОШИБОЧНАЯ НАВИГАЦИЯ ПО ШАГАМ ---
   function goToStep(s) {
     if (s === 2) {
       if (!validateFields(['p_fio', 'p_role', 'p_city', 'p_date_range'])) { showToast('Заполните обязательные поля'); return; }
@@ -1970,14 +1977,26 @@
       triggerCloudAutoSave();
       renderExpenseList();
     }
-    if (s === 3) { savePassport(); triggerCloudAutoSave(); renderDetailedReview(); }
-    if (s === 4) {
-      if (!isViewingRemoteReport) { savePassport(); triggerCloudAutoSave(); }
-      renderFinal();
+    if (s === 3) {
+      savePassport();
+      triggerCloudAutoSave();
+      renderDetailedReview();
     }
+    if (s === 4) {
+      try {
+        if (!isViewingRemoteReport) { savePassport(); triggerCloudAutoSave(); }
+        renderFinal();
+      } catch(err) {
+        console.error("renderFinal error: ", err);
+      }
+    }
+
     document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
-    document.getElementById('step-' + s).classList.add('active');
-    window.scrollTo(0,0);
+    const target = document.getElementById('step-' + s);
+    if (target) {
+      target.classList.add('active');
+      window.scrollTo(0, 0);
+    }
   }
 
   function calcDaily() {
@@ -2249,22 +2268,27 @@
     `;
   }
 
+  // --- БЕЗОШИБОЧНАЯ ХРОНОЛОГИЧЕСКАЯ СВОДКА-НАРРАТИВ ---
   function buildNarrativeSummary() {
     const p = store.passport;
     const total = store.expenses.reduce((s,e)=>s + Number(e.sum || 0), 0) + (Number(p.dailyTotal) || 0);
     const diff = (Number(p.advance) || 0) - total;
 
-    let html = `<p><b>${formatRuDateString(p.dStart)}</b> Вы поехали в командировку в ${p.city}.</p>`;
+    let html = `<p><b>${formatRuDateString(p.dStart)}</b> Вы поехали в командировку в ${p.city || ''}.</p>`;
 
-    const relatedReqs = (globalAppData.requestsArchive || []).filter(rq => rq.tripId === (p.tripId || ''));
-    if (relatedReqs.length > 0) {
-      relatedReqs.forEach((rq, idx) => {
-        const title = idx === 0 ? "Заявка на ДС" : `Заявка на ДС (продление ${idx > 1 ? idx : ''})`.trim();
-        const datesClean = rq.dates.replace(/\s+/g, '');
-        html += `<p style="margin-top:6px;"><b>${cleanDateStr(rq.dates.split('—')[0] || p.dStart)}</b> ${title}<br>Командировка в ${rq.city} (${rq.days} дн) (с ${datesClean}) (${Number(rq.sum).toLocaleString('ru-RU')} ₽)</p>`;
-      });
-    } else {
-      html += `<p style="margin-top:6px;"><b>${formatRuDateString(p.dStart)}</b> Заявка на ДС<br>Командировка в ${p.city} (${p.days} дн) (${Number(p.advance).toLocaleString('ru-RU')} ₽)</p>`;
+    try {
+      const relatedReqs = (globalAppData.requestsArchive || []).filter(rq => rq.tripId && rq.tripId === (p.tripId || ''));
+      if (relatedReqs.length > 0) {
+        relatedReqs.forEach((rq, idx) => {
+          const title = idx === 0 ? "Заявка на ДС" : `Заявка на ДС (продление ${idx > 1 ? idx : ''})`.trim();
+          const datesClean = String(rq.dates || '').replace(/\s+/g, '');
+          html += `<p style="margin-top:6px;"><b>${cleanDateStr((rq.dates || '').split('—')[0] || p.dStart)}</b> ${title}<br>Командировка в ${rq.city || p.city} (${rq.days || p.days} дн) (с ${datesClean}) (${Number(rq.sum || 0).toLocaleString('ru-RU')} ₽)</p>`;
+        });
+      } else {
+        html += `<p style="margin-top:6px;"><b>${formatRuDateString(p.dStart)}</b> Заявка на ДС<br>Командировка в ${p.city || ''} (${p.days} дн) (${Number(p.advance || 0).toLocaleString('ru-RU')} ₽)</p>`;
+      }
+    } catch(e) {
+      html += `<p style="margin-top:6px;"><b>${formatRuDateString(p.dStart)}</b> Заявка на ДС (${Number(p.advance || 0).toLocaleString('ru-RU')} ₽)</p>`;
     }
 
     const thereItems = store.expenses.filter(e => e.dir === 'there');
@@ -2283,7 +2307,7 @@
       });
     }
 
-    if (store.taxis.length > 0) {
+    if (store.taxis && store.taxis.length > 0) {
       html += `<p style="margin-top:8px;">в командировке <b>${store.taxis.length}</b> ${store.taxis.length === 1 ? 'раз' : 'раза'} использовали такси:<ol>`;
       store.taxis.forEach(t => {
         html += `<li><b>${formatRuDateString(t.date)}</b> Такси (${t.route}) (${Number(t.sum).toLocaleString('ru-RU')} ₽)</li>`;
