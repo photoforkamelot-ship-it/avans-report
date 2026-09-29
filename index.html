@@ -210,7 +210,6 @@
     <button type="button" id="tab_btn_emp" class="tab-btn" style="display:none;" onclick="switchMainTab('employees')">👥 База сотрудников</button>
   </div>
 
-  <!-- Плашка режима просмотра чужого/готового отчета -->
   <div id="review_banner" class="review-banner">
     <div>
       <div style="font-weight:700; color:#004085; font-size:13px;">👁️ Просмотр отчёта:</div>
@@ -533,7 +532,7 @@
           <input type="text" id="req_city" placeholder="Например: Красноярск">
         </div>
 
-        <!-- ЦЕЛЬ КОМАНДИРОВКИ С ВЫБОРОМ И СВОИМ ВАРИАНТОМ -->
+        <!-- ЦЕЛЬ КОМАНДИРОВКИ С ТОЧНЫМИ ФОРМУЛИРОВКАМИ -->
         <div class="field">
           <label>Цель командировки (K14 заявки / E15 служебной записки) <span class="req-star">*</span></label>
           <select id="req_purpose_select" onchange="onPurposeSelectChange()">
@@ -551,7 +550,7 @@
           <input type="hidden" id="req_date_end">
         </div>
 
-        <!-- ПОДБОР УЧАСТНИКОВ ПОЕЗДКИ (ДЛЯ АДМИНА ЖИВОЙ ПОИСК И СПИСОК) -->
+        <!-- ПОДБОР УЧАСТНИКОВ ПОЕЗДКИ ДЛЯ АДМИНИСТРАТОРА -->
         <div class="field">
           <label>Состав участников поездки <span class="req-star">*</span></label>
           <div id="admin_team_picker" style="position:relative; margin-bottom:6px;">
@@ -561,7 +560,6 @@
             </div>
             <div id="team_suggest_box" class="suggest-box" style="display:none; position:absolute; top:100%; left:0; right:0; z-index:1000; background:#fff;"></div>
           </div>
-          <!-- ВЫБРАННЫЕ СОТРУДНИКИ В ВИДЕ ПЛАШЕК -->
           <div id="selected_team_chips" style="min-height:32px; background:#fff; border:1px solid #d1d1d6; border-radius:8px; padding:4px; display:flex; flex-wrap:wrap; align-items:center;">
             <span id="no_team_placeholder" style="color:#94a3b8; font-size:12px; padding-left:4px;">Сотрудники не выбраны</span>
           </div>
@@ -871,7 +869,6 @@
       });
   }
 
-  // --- ЛОГИКА ЦЕЛЕЙ КОМАНДИРОВКИ ---
   function onPurposeSelectChange() {
     const sel = document.getElementById('req_purpose_select').value;
     const customArea = document.getElementById('req_purpose_custom');
@@ -891,11 +888,9 @@
     return sel;
   }
 
-  // --- МОДУЛЬ ЗАЯВОК НА ДС И УМНЫЙ ПОДБОР УЧАСТНИКОВ ---
   function openNewRequestForm() {
     document.getElementById('advance_request_builder').style.display = 'block';
     
-    // Если зашел линейный сотрудник, добавляем сразу его
     if (!globalAppData.isAdmin && globalAppData.currentUser) {
       addTeamMemberToEstimate(globalAppData.currentUser);
       document.getElementById('admin_team_picker').style.display = 'none';
@@ -1137,7 +1132,7 @@
         document.getElementById('email_preview_box').innerText = res.emailText;
         document.getElementById('btn_mailto_link').href = res.mailtoUrl;
       }
-      showToast("✅ Заявка на ДС сохранена!");
+      showToast("✅ Заявки на ДС сформированы!");
       closeNewRequestForm();
       loadAppData();
     })
@@ -1160,21 +1155,87 @@
       return;
     }
 
-    box.innerHTML = trips.map(tr => `
-      <div class="report-card-item" style="border-left: 4px solid var(--primary); flex-direction:column; align-items:flex-start;">
-        <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
-          <strong>г. ${tr.cities} (${tr.dates})</strong>
-          <span class="badge-done">${tr.status}</span>
+    const urlParams = new URLSearchParams(window.location.search);
+    let userId = urlParams.get('user_id');
+    if (!userId && tg && tg.initDataUnsafe && tg.initDataUnsafe.user) userId = tg.initDataUnsafe.user.id;
+    if (!userId) userId = "446642559";
+
+    let visibleTrips = trips;
+    if (!globalAppData.isAdmin) {
+      visibleTrips = trips.filter(t => {
+        let d = t.rawJson;
+        if (typeof d === 'string') { try { d = JSON.parse(d); } catch(e){} }
+        return String(d.tgId || '').trim() === String(userId).trim() || String(d.authorTgId || '').trim() === String(userId).trim();
+      });
+    }
+
+    if (visibleTrips.length === 0) {
+      box.innerHTML = '<small style="color:#64748b;">У вас нет активных командировок.</small>';
+      return;
+    }
+
+    box.innerHTML = visibleTrips.map((tr, idx) => {
+      let d = tr.rawJson;
+      if (typeof d === 'string') { try { d = JSON.parse(d); } catch(e){} }
+      const est = d.estimate || {};
+      const personFio = tr.team || d.fio || "Сотрудник";
+
+      return `
+        <div class="report-card-item" style="border-left: 4px solid var(--primary); flex-direction:column; align-items:flex-start; margin-bottom:10px;">
+          <div style="display:flex; justify-content:space-between; width:100%; align-items:center; cursor:pointer;" onclick="toggleTripDetails('trip_details_${idx}')">
+            <div>
+              <strong style="font-size:14px; color:#0f172a;">${personFio}</strong><br>
+              <span style="font-size:12px; color:#475569;">${tr.cities} (${tr.dates})</span>
+            </div>
+            <div style="text-align:right;">
+              <span class="badge-done">${tr.status}</span><br>
+              <span style="font-size:11px; color:#007aff; font-weight:600;">Детали ▾</span>
+            </div>
+          </div>
+
+          <!-- СВОРАЧИВАЕМЫЙ БЛОК -->
+          <div id="trip_details_${idx}" style="display:none; width:100%; margin-top:8px; padding-top:8px; border-top:1px dashed #cbd5e1; font-size:12px;">
+            <div style="background:#f8fafc; border-radius:8px; padding:8px; margin-bottom:8px;">
+              <div>• Проезд: <b>${Number(est.sumTravel || 0).toLocaleString('ru-RU')} ₽</b></div>
+              <div>• Проживание: <b>${Number(est.sumHotel || 0).toLocaleString('ru-RU')} ₽</b> (${est.hotelDaily || 0} ₽/сутки)</div>
+              <div>• Суточные: <b>${Number(est.sumDaily || 0).toLocaleString('ru-RU')} ₽</b> (${est.days || 0} дн.)</div>
+              <div style="margin-top:4px; font-weight:700; color:#0369a1;">• Личный аванс: ${Number(tr.totalAdvance || 0).toLocaleString('ru-RU')} ₽</div>
+              <div style="margin-top:2px; color:#64748b; font-size:11px;">Цель: ${tr.lastPurpose || 'Служебная поездка'}</div>
+            </div>
+
+            <div style="display:flex; gap:6px; width:100%;">
+              <button type="button" class="btn btn-primary" style="height:32px; font-size:12px; flex:1;" onclick="loadTripIntoReport('${tr.tripId}')">📝 Заполнять АО-1 (${Number(tr.totalAdvance || 0).toLocaleString('ru-RU')} ₽)</button>
+              <button type="button" class="btn btn-secondary" style="height:32px; font-size:12px; flex:1;" onclick="prolongPersonTrip('${tr.tripId}')">➕ Продление</button>
+            </div>
+          </div>
         </div>
-        <div style="font-size:12px; color:#475569; margin:4px 0;">
-          Команда: <b>${tr.team}</b><br>
-          Сумма аванса: <b>${Number(tr.totalAdvance || 0).toLocaleString('ru-RU')} ₽</b> (Заявок: ${tr.reqCount})
-        </div>
-        <div style="display:flex; gap:6px; margin-top:6px; width:100%;">
-          <button type="button" class="btn btn-secondary" style="height:30px; font-size:11px;" onclick="loadTripIntoReport('${tr.tripId}')">📝 Перейти к АО-1</button>
-        </div>
-      </div>
-    `).join('');
+      `;
+    }).join('');
+  }
+
+  function toggleTripDetails(boxId) {
+    const el = document.getElementById(boxId);
+    if (!el) return;
+    el.style.display = el.style.display === 'block' ? 'none' : 'block';
+  }
+
+  function prolongPersonTrip(tripId) {
+    const tr = globalAppData.trips.find(x => x.tripId === tripId);
+    if (!tr) return;
+    let d = tr.rawJson;
+    if (typeof d === 'string') { try { d = JSON.parse(d); } catch(e){} }
+
+    openNewRequestForm();
+    document.getElementById('req_type').value = 'prolong';
+    onRequestTypeChange();
+    document.getElementById('req_city').value = tr.cities || '';
+    
+    currentReqTeamData = {};
+    const emp = (globalAppData.employees || []).find(e => e.fio === (tr.team || d.fio));
+    if (emp) {
+      addTeamMemberToEstimate(emp);
+    }
+    showToast("Оформление продления для: " + (tr.team || d.fio));
   }
 
   function loadTripIntoReport(tripId) {
@@ -1206,7 +1267,7 @@
     if (userDrafts.length === 0) return;
 
     detectedDraftReport = userDrafts[0];
-    let desc = `Командировка: <b>г. ${detectedDraftReport.city || '—'}</b><br>`;
+    let desc = `Командировка: <b>${detectedDraftReport.city || '—'}</b><br>`;
     if (detectedDraftReport.date) desc += `Период: ${detectedDraftReport.date}<br>`;
     desc += `Накоплено расходов: <b>${Number(detectedDraftReport.sum || 0).toLocaleString('ru-RU')} ₽</b>`;
 
@@ -1339,7 +1400,7 @@
         <div class="report-card-item" style="border-left: 4px solid var(--warning);">
           <div class="report-card-info">
             <span class="badge-draft">ЧЕРНОВИК</span> <strong>${rep.fio || 'Без ФИО'}</strong><br>
-            <small style="color:#666;">г. ${rep.city || '—'} | ${rep.date || ''}<br>Накоплено: <b>${Number(rep.sum || 0).toLocaleString('ru-RU')} ₽</b></small>
+            <small style="color:#666;">${rep.city || '—'} | ${rep.date || ''}<br>Накоплено: <b>${Number(rep.sum || 0).toLocaleString('ru-RU')} ₽</b></small>
           </div>
           <div class="action-btn-group">
             <button type="button" class="btn btn-primary btn-action-view" onclick="openReportInReviewMode('${rep.id}')">👁️ Открыть</button>
@@ -1356,7 +1417,7 @@
         <div class="report-card-item" style="border-left: 4px solid var(--success);">
           <div class="report-card-info">
             <span class="badge-done">ГОТОВ</span> <strong>${rep.fio}</strong><br>
-            <small style="color:#666;">г. ${rep.city} | ${rep.date}<br>Итого: <b>${Number(rep.sum || 0).toLocaleString('ru-RU')} ₽</b></small>
+            <small style="color:#666;">${rep.city} | ${rep.date}<br>Итого: <b>${Number(rep.sum || 0).toLocaleString('ru-RU')} ₽</b></small>
           </div>
           <div class="action-btn-group">
             <button type="button" class="btn btn-primary btn-action-view" onclick="openReportInReviewMode('${rep.id}')">👁️ Просмотр</button>
@@ -1413,7 +1474,7 @@
         };
 
         store.expenses = [
-          { id: 'gen1', date: dStart, no: rep.id, name: `Расходы по отчёту (г. ${rep.city || ''})`, sum: mainSum, cat: 'misc' }
+          { id: 'gen1', date: dStart, no: rep.id, name: `Расходы по отчёту (${rep.city || ''})`, sum: mainSum, cat: 'misc' }
         ];
         store.taxis = [];
       }
@@ -1440,7 +1501,7 @@
       document.getElementById('step-4').classList.add('active');
       renderFinal();
 
-      document.getElementById('banner_report_title').innerText = `${store.passport.fio} (г. ${store.passport.city})`;
+      document.getElementById('banner_report_title').innerText = `${store.passport.fio} (${store.passport.city})`;
       document.getElementById('review_banner').style.display = 'flex';
       window.scrollTo(0, 0);
     } catch(e) {
@@ -2061,7 +2122,7 @@
         <div class="clickable-passport-box" onclick="promptEditExpense('passport', 'Данные командировки и аванс')">
           <div style="font-size:12px; line-height:1.45;">
             • Сотрудник: <b>${p.fio}</b> (${p.role}, таб. ${p.tab})<br>
-            • Командировка: г. ${p.city} с ${formatRuDateString(p.dStart)} по ${formatRuDateString(p.dEnd)} (${p.days} дн.)<br>
+            • Командировка: ${p.city} с ${formatRuDateString(p.dStart)} по ${formatRuDateString(p.dEnd)} (${p.days} дн.)<br>
             • Аванс: <b>${Number(p.advance || 0).toLocaleString('ru-RU')} ₽</b>
           </div>
         </div>
@@ -2151,9 +2212,9 @@
     let html = `<p>💬 <i>Мы проверили и утвердили следующие расходы:</i></p>`;
 
     if (thereData) {
-      html += `<p><b>${thereData.date}</b> Вы поехали в командировку в г. ${p.city} ${thereData.text}.</p>`;
+      html += `<p><b>${thereData.date}</b> Вы поехали в командировку в ${p.city} ${thereData.text}.</p>`;
     } else {
-      html += `<p><b>${formatRuDateString(p.dStart)}</b> Вы поехали в командировку в г. ${p.city}.</p>`;
+      html += `<p><b>${formatRuDateString(p.dStart)}</b> Вы поехали в командировку в ${p.city}.</p>`;
     }
 
     if (hotelItems.length > 0) {
@@ -2244,7 +2305,7 @@
     document.querySelector('#tbl_pass tbody').innerHTML = `
       <tr><th style="width:30%;">Сотрудник</th><td><strong>${p.fio}</strong></td></tr>
       <tr><th>Должность / Таб</th><td>${p.role} / ${p.tab}</td></tr>
-      <tr><th>Город</th><td>г. ${p.city}</td></tr>
+      <tr><th>Город</th><td>${p.city}</td></tr>
       <tr><th>Срок командировки</th><td>${formatRuDateString(p.dStart)} — ${formatRuDateString(p.dEnd)} (${p.days} дн.)</td></tr>
       <tr><th>Аванс</th><td>${Number(p.advance || 0).toLocaleString('ru-RU')} ₽</td></tr>
       <tr><th>Суточные</th><td>${Number(p.dailyTotal || 0).toLocaleString('ru-RU')} ₽</td></tr>
@@ -2270,7 +2331,7 @@
   }
 
   function loadDemoScenario() {
-    document.getElementById('p_city').value = "Красноярск";
+    document.getElementById('p_city').value = "г. Красноярск";
     document.getElementById('p_date_start').value = "01.10.2026";
     document.getElementById('p_date_end').value = "18.10.2026";
     if (datePickerRange) datePickerRange.setDate(["01.10.2026", "18.10.2026"]);
