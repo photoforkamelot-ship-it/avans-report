@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Мастер авансового отчета</title>
+  <title>Мастер авансового отчета и заявок</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -64,11 +64,12 @@
     .field label { font-size: 12px; font-weight: 600; color: #48484a; margin-bottom: 3px; display: flex; align-items: center; gap: 3px; }
     .req-star { color: var(--danger); font-weight: 700; font-size: 14px; }
 
-    .field input, .field select {
+    .field input, .field select, .field textarea {
       height: 40px; padding: 0 10px; font-size: 14px;
       border: 1px solid var(--border); border-radius: 8px; outline: none; background: #fff; width: 100%;
       color: var(--text);
     }
+    .field textarea { height: 60px; padding: 8px 10px; font-family: inherit; resize: vertical; }
 
     .range-input {
       cursor: pointer;
@@ -177,6 +178,10 @@
       padding: 12px; font-size: 12px; line-height: 1.5; color: #2c2c2e; max-height: 60vh; overflow-y: auto; text-align: left;
     }
 
+    .emp-estimate-card {
+      background: #fdfdfd; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px; margin-bottom: 8px;
+    }
+
     #toast {
       position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
       background: rgba(0,0,0,0.85); color: white; padding: 8px 16px; border-radius: 18px;
@@ -194,6 +199,7 @@
   
   <div id="top_tabs" class="top-tabs">
     <button type="button" class="tab-btn active" onclick="switchMainTab('form')">📝 Заполнение</button>
+    <button type="button" class="tab-btn" onclick="switchMainTab('requests')">💰 Заявки на ДС</button>
     <button type="button" class="tab-btn" onclick="switchMainTab('reports')">📊 Все отчёты</button>
     <button type="button" id="tab_btn_emp" class="tab-btn" style="display:none;" onclick="switchMainTab('employees')">👥 База сотрудников</button>
   </div>
@@ -210,6 +216,7 @@
     </div>
   </div>
 
+  <!-- ВКЛАДКА 1: ВВОД АВАНСОВОГО ОТЧЕТА (АО-1) -->
   <div id="tab-form" class="main-tab-content">
     <div class="demo-bar">
       <div>
@@ -491,7 +498,85 @@
     </div>
   </div>
 
-  <!-- ВКЛАДКА 2: РЕЕСТР ОТЧЕТОВ И ЧЕРНОВИКОВ -->
+  <!-- ВКЛАДКА 2: ЗАЯВКИ НА ДС (НОВЫЙ МОДУЛЬ) -->
+  <div id="tab-requests" class="main-tab-content" style="display:none;">
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <h2 style="margin:0;">💰 Управление заявками на аванс</h2>
+        <button type="button" class="btn btn-primary" style="height:32px; width:auto; padding:0 12px; font-size:12px;" onclick="openNewRequestForm()">➕ Новая заявка</button>
+      </div>
+
+      <!-- ФОРМА СОЗДАНИЯ ЗАЯВКИ -->
+      <div id="advance_request_builder" style="display:none; background:#f8fafc; border:1px solid #cbd5e1; border-radius:12px; padding:12px; margin-bottom:14px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <h3 id="req_form_title" style="margin:0; font-size:15px; color:#0f172a;">Новая заявка на ДС</h3>
+          <button type="button" class="btn btn-secondary" style="height:26px; width:auto; padding:0 8px; font-size:11px;" onclick="closeNewRequestForm()">✕</button>
+        </div>
+
+        <div class="field">
+          <label>Тип заявки</label>
+          <select id="req_type" onchange="onRequestTypeChange()">
+            <option value="primary">Первичная заявка на командировку</option>
+            <option value="prolong">Продление сроков командировки</option>
+            <option value="new_city">Новый город (переезд в рамках поездки)</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Город назначения <span class="req-star">*</span></label>
+          <input type="text" id="req_city" placeholder="Например: Красноярск">
+        </div>
+
+        <div class="field">
+          <label>Цель командировки (K14 заявки / E15 служебной записки) <span class="req-star">*</span></label>
+          <textarea id="req_purpose" placeholder="Открытие нового магазина, контроль и внедрение рабочих процессов"></textarea>
+        </div>
+
+        <div class="field">
+          <label>Сроки поездки <span class="req-star">*</span></label>
+          <input type="text" id="req_date_range" class="range-input" placeholder="Нажмите для выбора дат..." readonly>
+          <input type="hidden" id="req_date_start">
+          <input type="hidden" id="req_date_end">
+        </div>
+
+        <!-- ВЫБОР СОТРУДНИКОВ (ДЛЯ АДМИНА МУЛЬТИВЫБОР, ДЛЯ СОТРУДНИКА ОН САМ) -->
+        <div class="field">
+          <label>Состав участников поездки <span class="req-star">*</span></label>
+          <div id="req_team_selectors" style="max-height:160px; overflow-y:auto; border:1px solid #d1d1d6; border-radius:8px; padding:8px; background:#fff;"></div>
+        </div>
+
+        <!-- КАРТОЧКИ СМЕТЫ ПО КАЖДОМУ ВЫБРАННОМУ СОТРУДНИКУ -->
+        <h3 style="margin:12px 0 6px 0; font-size:13px;">Расчёт сметы по сотрудникам</h3>
+        <div id="req_team_estimates"></div>
+
+        <div style="background:#e0f2fe; border:1px solid #bae6fd; border-radius:8px; padding:10px; margin:10px 0; font-size:13px; font-weight:700; color:#0369a1;">
+          Общая сумма аванса по заявке: <span id="req_total_sum_display">0</span> ₽
+        </div>
+
+        <div style="display:flex; gap:8px;">
+          <button type="button" class="btn btn-primary" onclick="submitAdvanceRequest()">💾 Сформировать заявку и письмо</button>
+          <button type="button" class="btn btn-secondary" onclick="closeNewRequestForm()">Отмена</button>
+        </div>
+      </div>
+
+      <!-- РЕЗУЛЬТАТ: СГЕНЕРИРОВАННОЕ ПИСЬМО И ССЫЛКИ -->
+      <div id="email_result_card" class="card" style="display:none; border-left:4px solid var(--primary); background:#f0fdf4;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+          <h3 style="margin:0; color:#166534;">✉️ Готовое письмо для согласования</h3>
+          <div style="display:flex; gap:6px;">
+            <button type="button" class="btn btn-secondary" style="height:28px; width:auto; font-size:11px; padding:0 8px;" onclick="copyAdvanceEmailText()">📋 Скопировать</button>
+            <a id="btn_mailto_link" href="#" class="btn btn-primary" style="height:28px; width:auto; font-size:11px; padding:0 10px; text-decoration:none;">✉️ В Почту</a>
+          </div>
+        </div>
+        <div id="email_preview_box" style="white-space:pre-wrap; font-size:12px; line-height:1.5; color:#1e293b; background:#fff; border:1px solid #bbf7d0; border-radius:8px; padding:10px;"></div>
+      </div>
+
+      <h3 style="color:#0f172a; margin-top:16px;">📋 История и таймлайн командировок</h3>
+      <div id="trips_timeline_container">Загрузка данных...</div>
+    </div>
+  </div>
+
+  <!-- ВКЛАДКА 3: РЕЕСТР ОТЧЕТОВ И ЧЕРНОВИКОВ -->
   <div id="tab-reports" class="main-tab-content" style="display:none;">
     <div class="card">
       <h2 id="reports_title">📊 Все отчёты и черновики</h2>
@@ -504,7 +589,7 @@
     </div>
   </div>
 
-  <!-- ВКЛАДКА 3: УПРАВЛЕНИЕ СОТРУДНИКАМИ -->
+  <!-- ВКЛАДКА 4: УПРАВЛЕНИЕ СОТРУДНИКАМИ (С РЕКВИЗИТАМИ T:X) -->
   <div id="tab-employees" class="main-tab-content" style="display:none;">
     <div class="card">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
@@ -515,6 +600,25 @@
     </div>
   </div>
 
+</div>
+
+<!-- МОДАЛКА ВВОДА НЕДОСТАЮЩИХ РЕКВИЗИТОВ (SMART PROMPT T:X) -->
+<div id="bank_details_modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:10005; align-items:center; justify-content:center; padding:16px;">
+  <div style="background:white; padding:18px; border-radius:14px; width:100%; max-width:420px; box-shadow:0 12px 30px rgba(0,0,0,0.25);">
+    <h3 style="margin-top:0; font-size:16px; color:#0f172a;">🏦 Реквизиты для перечисления ДС</h3>
+    <p id="bank_modal_desc" style="font-size:12px; color:#64748b; margin-bottom:12px;">Укажите банковские реквизиты сотрудника:</p>
+    <input type="hidden" id="bank_modal_fio">
+    
+    <div class="field"><label>ИНН банка <span class="req-star">*</span></label><input type="text" id="bm_inn" placeholder="7707083893"></div>
+    <div class="field"><label>БИК банка <span class="req-star">*</span></label><input type="text" id="bm_bik" placeholder="046902606"></div>
+    <div class="field"><label>Лицевой счёт (20 знаков) <span class="req-star">*</span></label><input type="text" id="bm_acc" placeholder="40817810364004802956" maxlength="20"></div>
+    <div class="field"><label>Домашний город (выезд) <span class="req-star">*</span></label><input type="text" id="bm_city" placeholder="г. Томск"></div>
+    
+    <div style="display:flex; gap:6px; margin-top:12px;">
+      <button type="button" class="btn btn-primary" onclick="saveBankDetailsModal()">Сохранить реквизиты</button>
+      <button type="button" class="btn btn-secondary" onclick="closeBankDetailsModal()">Отмена</button>
+    </div>
+  </div>
 </div>
 
 <!-- МОДАЛКА ПРЕДЛОЖЕНИЯ ОТКРЫТЬ ЧЕРНОВИК ИЗ ОБЛАКА -->
@@ -559,15 +663,20 @@
   </div>
 </div>
 
-<!-- МОДАЛКА СОТРУДНИКА -->
+<!-- МОДАЛКА СОТРУДНИКА (С РЕКВИЗИТАМИ T:X) -->
 <div id="emp_modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:10000; align-items:center; justify-content:center;">
-  <div style="background:white; padding:16px; border-radius:12px; width:90%; max-width:400px;">
+  <div style="background:white; padding:16px; border-radius:12px; width:90%; max-width:440px; max-height:90vh; overflow-y:auto;">
     <h3 id="modal_title" style="margin-top:0;">Редактировать сотрудника</h3>
     <input type="hidden" id="modal_old_tab">
     <div class="field"><label>ФИО</label><input type="text" id="modal_fio"></div>
     <div class="field"><label>Должность</label><input type="text" id="modal_role"></div>
     <div class="field"><label>Табельный номер</label><input type="text" id="modal_tab"></div>
     <div class="field"><label>Telegram ID</label><input type="text" id="modal_tgid" placeholder="Например: 446642559"></div>
+    <hr style="border:none; border-top:1px dashed #cbd5e1; margin:10px 0;">
+    <div class="field"><label>ИНН банка</label><input type="text" id="modal_inn" placeholder="7707083893"></div>
+    <div class="field"><label>БИК банка</label><input type="text" id="modal_bik" placeholder="046902606"></div>
+    <div class="field"><label>Лицевой счёт (20 знаков)</label><input type="text" id="modal_acc" placeholder="40817810364004802956" maxlength="20"></div>
+    <div class="field"><label>Домашний город</label><input type="text" id="modal_home_city" placeholder="г. Томск"></div>
     <div style="display:flex; gap:6px; margin-top:12px;">
       <button type="button" class="btn btn-primary" style="height:38px;" onclick="saveModalEmployee()">Сохранить</button>
       <button type="button" class="btn btn-secondary" style="height:38px;" onclick="closeEmpModal()">Отмена</button>
@@ -576,6 +685,7 @@
 </div>
 
 <div id="toast"></div>
+
 <script>
   const DADATA_API_KEY = "74443bebf6f911f3792509fa4ad680d6977c3e14";
   const GOOGLE_SHEET_API = "https://script.google.com/macros/s/AKfycbwqfeeX8q61tkVz0Rhubm2hu14O7vOPhu40r9qx6IOR78adJUq_U3CNwGtx6CfF-3oItQ/exec";
@@ -585,17 +695,20 @@
   let isViewingRemoteReport = false;
   let autoSaveTimeout = null;
   let pendingEditExpenseId = null;
-  let detectedDraftReport = null; // Найденный в облаке черновик
+  let detectedDraftReport = null;
 
-  let globalAppData = { employees: [], currentUser: null, reports: [], isAdmin: false };
+  let globalAppData = { employees: [], currentUser: null, reports: [], trips: [], isAdmin: false };
   let store = {
-    passport: { fio:'', role:'', tab:'', city:'', dStart:'', dEnd:'', advance:0, days:0, rate:1500, dailyTotal:0 },
+    passport: { fio:'', role:'', tab:'', city:'', dStart:'', dEnd:'', advance:0, days:0, rate:1500, dailyTotal:0, purpose:'' },
     expenses: [], taxis: []
   };
   let curCategory = '';
   let fiasTimer = null;
   let datePickerRange = null;
   let datePickerExpense = null;
+  let datePickerReqRange = null;
+
+  let currentReqTeamData = {}; // Данные сметы выбранных сотрудников
 
   const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
   if (tg) { try { tg.ready(); tg.expand(); } catch(e){} }
@@ -629,7 +742,6 @@
     return { id: urlParams.get('user_id') || "446642559", first_name: store.passport.fio };
   }
 
-  // --- СОХРАНЕНИЕ ЧЕРНОВИКА В ОБЛАКО (GOOGLE ТАБЛИЦУ) ---
   function triggerCloudAutoSave() {
     if (isViewingRemoteReport) return;
     clearTimeout(autoSaveTimeout);
@@ -652,7 +764,6 @@
   }
 
   window.addEventListener('DOMContentLoaded', () => {
-    // Очищаем старые остатки из памяти браузера телефона
     try { localStorage.clear(); } catch(e){}
 
     datePickerRange = flatpickr("#p_date_range", {
@@ -676,6 +787,18 @@
       }
     });
 
+    datePickerReqRange = flatpickr("#req_date_range", {
+      mode: "range", locale: "ru", dateFormat: "d.m.Y", showMonths: 1,
+      onChange: function(selectedDates) {
+        if (selectedDates.length === 2) {
+          document.getElementById('req_date_start').value = formatFlatpickrToRu(selectedDates[0]);
+          document.getElementById('req_date_end').value = formatFlatpickrToRu(selectedDates[1]);
+          const diff = Math.ceil((selectedDates[1] - selectedDates[0]) / (1000 * 60 * 60 * 24)) + 1;
+          applyDatesToAllSelectedTeam(diff);
+        }
+      }
+    });
+
     datePickerExpense = flatpickr("#e_date", { locale: "ru", dateFormat: "d.m.Y" });
     loadAppData();
   });
@@ -691,7 +814,6 @@
       .then(res => {
         globalAppData = res;
 
-        // Панель руководителя доступна только админу
         if (res.isAdmin) {
           document.getElementById('tab_btn_emp').style.display = 'block';
           document.getElementById('admin_emp_card').style.display = 'block';
@@ -705,8 +827,8 @@
         }
 
         renderSeparatedReports(res.reports);
+        renderTripsTimeline(res.trips);
 
-        // Подстановка профиля сотрудника
         if (!document.getElementById('p_fio').value && !isViewingRemoteReport) {
           if (res.currentUser) {
             document.getElementById('p_fio').value = res.currentUser.fio;
@@ -719,7 +841,6 @@
           }
         }
 
-        // Проверяем наличие облачного черновика
         checkCloudDraftPopup(res.reports, userId, res.isAdmin);
       })
       .catch((err) => {
@@ -728,11 +849,262 @@
       });
   }
 
-  // --- МОДАЛЬНОЕ ОКНО ПРЕДЛОЖЕНИЯ ОТКРЫТЬ ЧЕРНОВИК ---
+  // --- МОДУЛЬ ЗАЯВОК НА ДС ---
+  function openNewRequestForm() {
+    document.getElementById('advance_request_builder').style.display = 'block';
+    renderTeamCheckboxes();
+  }
+
+  function closeNewRequestForm() {
+    document.getElementById('advance_request_builder').style.display = 'none';
+  }
+
+  function onRequestTypeChange() {
+    const t = document.getElementById('req_type').value;
+    if (t === 'prolong') {
+      document.getElementById('req_form_title').innerText = "Продление командировки";
+    } else if (t === 'new_city') {
+      document.getElementById('req_form_title').innerText = "Заявка: Новый город командировки";
+    } else {
+      document.getElementById('req_form_title').innerText = "Первичная заявка на ДС";
+    }
+  }
+
+  function renderTeamCheckboxes() {
+    const box = document.getElementById('req_team_selectors');
+    if (!globalAppData.employees || globalAppData.employees.length === 0) {
+      box.innerHTML = 'Сотрудники не найдены.';
+      return;
+    }
+
+    box.innerHTML = globalAppData.employees.map((emp, i) => `
+      <label class="checkbox-row" style="padding:4px 0;">
+        <input type="checkbox" value="${i}" onchange="onTeamMemberToggled(${i}, this.checked)">
+        <span><b>${emp.fio}</b> (${emp.role})</span>
+      </label>
+    `).join('');
+  }
+
+  function onTeamMemberToggled(idx, isChecked) {
+    const emp = globalAppData.employees[idx];
+    if (!emp) return;
+
+    if (isChecked) {
+      // Проверка банковских реквизитов (T:X)
+      if (!emp.bankInn || !emp.bankBik || !emp.bankAcc) {
+        promptBankDetailsModal(emp);
+      }
+
+      currentReqTeamData[emp.fio] = {
+        fio: emp.fio, role: emp.role, tab: emp.tab, tgId: emp.tgId,
+        bankInn: emp.bankInn || '', bankBik: emp.bankBik || '', bankAcc: emp.bankAcc || '',
+        days: 18, sumTravel: 20000, hotelDaily: 3100, sumHotel: 55800, sumDaily: 27000, sumTotal: 102800
+      };
+    } else {
+      delete currentReqTeamData[emp.fio];
+    }
+    renderTeamEstimateCards();
+  }
+
+  function applyDatesToAllSelectedTeam(diffDays) {
+    Object.keys(currentReqTeamData).forEach(fio => {
+      const it = currentReqTeamData[fio];
+      it.days = diffDays;
+      it.sumDaily = diffDays * 1500;
+      it.sumHotel = (diffDays > 1 ? (diffDays - 1) : 1) * (it.hotelDaily || 3000);
+      it.sumTotal = Number(it.sumTravel || 0) + Number(it.sumHotel || 0) + Number(it.sumDaily || 0);
+    });
+    renderTeamEstimateCards();
+  }
+
+  function renderTeamEstimateCards() {
+    const box = document.getElementById('req_team_estimates');
+    const fnames = Object.keys(currentReqTeamData);
+    if (fnames.length === 0) {
+      box.innerHTML = '<small style="color:#64748b;">Выберите сотрудников из списка выше.</small>';
+      document.getElementById('req_total_sum_display').innerText = '0';
+      return;
+    }
+
+    let overall = 0;
+    box.innerHTML = fnames.map(fio => {
+      const d = currentReqTeamData[fio];
+      overall += Number(d.sumTotal || 0);
+      return `
+        <div class="emp-estimate-card">
+          <div style="font-weight:700; font-size:13px; margin-bottom:6px; color:#0f172a;">${d.fio}</div>
+          <div class="grid-2">
+            <div class="field"><label>Проезд (₽)</label><input type="number" value="${d.sumTravel}" oninput="updateTeamMemberVal('${fio}', 'sumTravel', this.value)"></div>
+            <div class="field"><label>Цена жилья/сутки (₽)</label><input type="number" value="${d.hotelDaily}" oninput="updateTeamMemberVal('${fio}', 'hotelDaily', this.value)"></div>
+          </div>
+          <div class="grid-2">
+            <div class="field"><label>Дней проживания</label><input type="number" value="${d.days}" oninput="updateTeamMemberVal('${fio}', 'days', this.value)"></div>
+            <div class="field"><label>Итого проживание (₽)</label><input type="number" value="${d.sumHotel}" readonly style="background:#f1f5f9;"></div>
+          </div>
+          <div class="grid-2">
+            <div class="field"><label>Суточные (₽)</label><input type="number" value="${d.sumDaily}" oninput="updateTeamMemberVal('${fio}', 'sumDaily', this.value)"></div>
+            <div class="field"><label><b>Итого на сотрудника (₽)</b></label><input type="number" value="${d.sumTotal}" readonly style="background:#e0f2fe; font-weight:700;"></div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    document.getElementById('req_total_sum_display').innerText = overall.toLocaleString('ru-RU');
+  }
+
+  function updateTeamMemberVal(fio, key, val) {
+    const it = currentReqTeamData[fio];
+    if (!it) return;
+    it[key] = parseFloat(val) || 0;
+
+    if (key === 'hotelDaily' || key === 'days') {
+      const stayDays = it.days > 1 ? (it.days - 1) : 1;
+      it.sumHotel = stayDays * (it.hotelDaily || 0);
+      it.sumDaily = it.days * 1500;
+    }
+    it.sumTotal = Number(it.sumTravel || 0) + Number(it.sumHotel || 0) + Number(it.sumDaily || 0);
+    renderTeamEstimateCards();
+  }
+
+  function promptBankDetailsModal(emp) {
+    document.getElementById('bank_modal_fio').value = emp.fio;
+    document.getElementById('bank_modal_desc').innerText = `Для формирования заявки укажите банковские реквизиты: ${emp.fio}`;
+    document.getElementById('bm_inn').value = emp.bankInn || '';
+    document.getElementById('bm_bik').value = emp.bankBik || '';
+    document.getElementById('bm_acc').value = emp.bankAcc || '';
+    document.getElementById('bm_city').value = emp.homeCity || 'г. Томск';
+    document.getElementById('bank_details_modal').style.display = 'flex';
+  }
+
+  function closeBankDetailsModal() { document.getElementById('bank_details_modal').style.display = 'none'; }
+
+  function saveBankDetailsModal() {
+    const fio = document.getElementById('bank_modal_fio').value;
+    const inn = document.getElementById('bm_inn').value.trim();
+    const bik = document.getElementById('bm_bik').value.trim();
+    const acc = document.getElementById('bm_acc').value.trim();
+    const city = document.getElementById('bm_city').value.trim();
+
+    if (!inn || !bik || !acc) { showToast("Заполните ИНН, БИК и Расчетный счет"); return; }
+
+    const emp = globalAppData.employees.find(e => e.fio === fio);
+    if (emp) {
+      emp.bankInn = inn; emp.bankBik = bik; emp.bankAcc = acc; emp.homeCity = city;
+    }
+    if (currentReqTeamData[fio]) {
+      currentReqTeamData[fio].bankInn = inn; currentReqTeamData[fio].bankBik = bik; currentReqTeamData[fio].bankAcc = acc;
+    }
+
+    fetch(GOOGLE_SHEET_API, {
+      method: "POST", mode: "no-cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "update_bank_details", employee: { fio, bankInn: inn, bankBik: bik, bankAcc: acc, homeCity: city } })
+    });
+
+    closeBankDetailsModal();
+    showToast("Реквизиты сохранены!");
+  }
+
+  function submitAdvanceRequest() {
+    const city = document.getElementById('req_city').value.trim();
+    const purpose = document.getElementById('req_purpose').value.trim();
+    const dStart = document.getElementById('req_date_start').value;
+    const dEnd = document.getElementById('req_date_end').value;
+    const teamArr = Object.values(currentReqTeamData);
+
+    if (!city || !dStart || !dEnd) { showToast("Укажите город и период"); return; }
+    if (teamArr.length === 0) { showToast("Выберите хотя бы одного сотрудника"); return; }
+
+    const payload = {
+      action: "save_advance_request",
+      trip: {
+        city: city,
+        purpose: purpose || "Служебная поездка",
+        dStart: dStart,
+        dEnd: dEnd,
+        team: teamArr
+      },
+      telegram_user: getTelegramUser()
+    };
+
+    showToast("Формирование заявки...");
+
+    fetch(GOOGLE_SHEET_API, {
+      method: "POST",
+      body: JSON.stringify(payload)
+    })
+    .then(r => r.json())
+    .then(res => {
+      if (res.emailText) {
+        document.getElementById('email_result_card').style.display = 'block';
+        document.getElementById('email_preview_box').innerText = res.emailText;
+        document.getElementById('btn_mailto_link').href = res.mailtoUrl;
+      }
+      showToast("✅ Заявка на ДС сохранена!");
+      closeNewRequestForm();
+      loadAppData();
+    })
+    .catch(() => {
+      showToast("Заявка передана на сервер");
+      closeNewRequestForm();
+      setTimeout(loadAppData, 1500);
+    });
+  }
+
+  function copyAdvanceEmailText() {
+    const txt = document.getElementById('email_preview_box').innerText;
+    navigator.clipboard.writeText(txt).then(() => showToast("Текст письма скопирован!"));
+  }
+
+  function renderTripsTimeline(trips) {
+    const box = document.getElementById('trips_timeline_container');
+    if (!trips || trips.length === 0) {
+      box.innerHTML = '<small style="color:#64748b;">Командировок пока нет.</small>';
+      return;
+    }
+
+    box.innerHTML = trips.map(tr => `
+      <div class="report-card-item" style="border-left: 4px solid var(--primary); flex-direction:column; align-items:flex-start;">
+        <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
+          <strong>г. ${tr.cities} (${tr.dates})</strong>
+          <span class="badge-done">${tr.status}</span>
+        </div>
+        <div style="font-size:12px; color:#475569; margin:4px 0;">
+          Команда: <b>${tr.team}</b><br>
+          Сумма аванса: <b>${Number(tr.totalAdvance || 0).toLocaleString('ru-RU')} ₽</b> (Заявок: ${tr.reqCount})
+        </div>
+        <div style="display:flex; gap:6px; margin-top:6px; width:100%;">
+          <button type="button" class="btn btn-secondary" style="height:30px; font-size:11px;" onclick="loadTripIntoReport('${tr.tripId}')">📝 Перейти к АО-1</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function loadTripIntoReport(tripId) {
+    const tr = globalAppData.trips.find(x => x.tripId === tripId);
+    if (!tr) return;
+
+    let d = tr.rawJson;
+    if (typeof d === 'string') { try { d = JSON.parse(d); } catch(e){} }
+
+    document.getElementById('p_city').value = tr.cities || '';
+    if (d.dStart && d.dEnd && datePickerRange) {
+      datePickerRange.setDate([d.dStart, d.dEnd]);
+      document.getElementById('p_date_start').value = d.dStart;
+      document.getElementById('p_date_end').value = d.dEnd;
+    }
+    document.getElementById('p_advance').value = tr.totalAdvance || '';
+    store.passport.purpose = tr.lastPurpose || '';
+
+    calcDaily();
+    switchMainTab('form');
+    goToStep(1);
+    showToast("Данные командировки перенесены в АО-1!");
+  }
+
+  // --- УПРАВЛЕНИЕ ЧЕРНОВИКАМИ И ВКЛАДКАМИ ---
   function checkCloudDraftPopup(reports, userId, isAdmin) {
     if (!reports || reports.length === 0 || isViewingRemoteReport) return;
-    
-    // Ищем незавершённый черновик текущего пользователя
     const userDrafts = reports.filter(r => r.isDraft && (!userId || String(r.tgId).trim() === String(userId).trim()));
     if (userDrafts.length === 0) return;
 
@@ -812,16 +1184,22 @@
 
     if (tab === 'form') {
       document.getElementById('tab-form').style.display = 'block';
-      event.target.classList.add('active');
+    } else if (tab === 'requests') {
+      document.getElementById('tab-requests').style.display = 'block';
     } else if (tab === 'employees') {
       document.getElementById('tab-employees').style.display = 'block';
-      event.target.classList.add('active');
       renderAdminEmployees();
     } else if (tab === 'reports') {
       document.getElementById('tab-reports').style.display = 'block';
-      event.target.classList.add('active');
       loadAppData();
     }
+
+    // Подсветка активной кнопки
+    const btns = document.querySelectorAll('.top-tabs .tab-btn');
+    if (tab === 'form') btns[0].classList.add('active');
+    if (tab === 'requests') btns[1].classList.add('active');
+    if (tab === 'reports') btns[2].classList.add('active');
+    if (tab === 'employees') btns[3].classList.add('active');
   }
 
   function renderEmployeeDropdown(list) {
@@ -899,7 +1277,7 @@
     if (!rep) { showToast("Отчёт не найден"); return; }
 
     try {
-      isViewingRemoteReport = true; // Блокируем перезапись при просмотре
+      isViewingRemoteReport = true;
 
       if (rep.rawJson) {
         let data = rep.rawJson;
@@ -1031,7 +1409,7 @@
       <div class="report-card-item">
         <div class="report-card-info">
           <strong>${emp.fio}</strong><br>
-          <small style="color:#8e8e93;">${emp.role} | Таб: ${emp.tab} | TG: ${emp.tgId || '—'}</small>
+          <small style="color:#8e8e93;">${emp.role} | Таб: ${emp.tab} | TG: ${emp.tgId || '—'}<br>Банк: ${emp.bankAcc ? emp.bankAcc.substring(0,8)+'...' : 'нет реквизитов'} (${emp.homeCity || 'город не указан'})</small>
         </div>
         <div class="action-btn-group">
           <button type="button" class="btn btn-secondary btn-action-view" onclick="openEditEmployeeModal(${idx})">✏️ Изм.</button>
@@ -1048,6 +1426,10 @@
     document.getElementById("modal_role").value = "";
     document.getElementById("modal_tab").value = "";
     document.getElementById("modal_tgid").value = "";
+    document.getElementById("modal_inn").value = "";
+    document.getElementById("modal_bik").value = "";
+    document.getElementById("modal_acc").value = "";
+    document.getElementById("modal_home_city").value = "";
     document.getElementById("emp_modal").style.display = "flex";
   }
 
@@ -1059,6 +1441,10 @@
     document.getElementById("modal_role").value = emp.role;
     document.getElementById("modal_tab").value = emp.tab;
     document.getElementById("modal_tgid").value = emp.tgId || "";
+    document.getElementById("modal_inn").value = emp.bankInn || "";
+    document.getElementById("modal_bik").value = emp.bankBik || "";
+    document.getElementById("modal_acc").value = emp.bankAcc || "";
+    document.getElementById("modal_home_city").value = emp.homeCity || "";
     document.getElementById("emp_modal").style.display = "flex";
   }
 
@@ -1070,6 +1456,10 @@
     const tab = document.getElementById("modal_tab").value.trim();
     const tgid = document.getElementById("modal_tgid").value.trim();
     const oldTab = document.getElementById("modal_old_tab").value.trim();
+    const bankInn = document.getElementById("modal_inn").value.trim();
+    const bankBik = document.getElementById("modal_bik").value.trim();
+    const bankAcc = document.getElementById("modal_acc").value.trim();
+    const homeCity = document.getElementById("modal_home_city").value.trim();
 
     if (!fio || !role || !tab) { showToast("Заполните обязательные поля"); return; }
     const action = oldTab ? "update" : "add";
@@ -1077,7 +1467,7 @@
     fetch(GOOGLE_SHEET_API, {
       method: "POST", mode: "no-cors",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action, fio, role, tab, tgid, oldTab })
+      body: JSON.stringify({ action, fio, role, tab, tgid, oldTab, bankInn, bankBik, bankAcc, homeCity })
     }).then(() => {
       showToast("Успешно сохранено!");
       closeEmpModal();
@@ -1203,7 +1593,8 @@
       dStart: formatRuDateString(document.getElementById('p_date_start').value),
       dEnd: formatRuDateString(document.getElementById('p_date_end').value),
       advance: parseFloat(document.getElementById('p_advance').value) || 0,
-      days: days, rate: rate, dailyTotal: days * rate
+      days: days, rate: rate, dailyTotal: days * rate,
+      purpose: store.passport.purpose || ''
     };
   }
 
@@ -1284,30 +1675,6 @@
   function closeEditConfirmModal() {
     document.getElementById('edit_confirm_modal').style.display = 'none';
     pendingEditExpenseId = null;
-  }
-
-  function handleDirectEditOrAdd(category, dir) {
-    let existing = null;
-    if (['plane','bus','train'].includes(category)) {
-      existing = store.expenses.find(e => e.dir === dir && ['plane','bus','train'].includes(e.cat));
-    } else {
-      existing = store.expenses.find(e => e.cat === category);
-    }
-
-    if (existing) {
-      promptEditExpense(existing.id, existing.name);
-    } else {
-      document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
-      document.getElementById('step-2').classList.add('active');
-      openExpense(category);
-      if (dir && document.getElementById('e_dir')) {
-        document.getElementById('e_dir').value = dir;
-      }
-      setTimeout(() => {
-        const box = document.getElementById('add-box');
-        if (box) box.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 50);
-    }
   }
 
   function parseTaxiPoint(str) {
