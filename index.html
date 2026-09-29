@@ -36,8 +36,8 @@
     }
     .wrapper { max-width: 680px; margin: 0 auto; }
     
-    .top-tabs { display: flex; gap: 6px; margin-bottom: 10px; }
-    .tab-btn { flex: 1; padding: 10px 4px; background: #e5e5ea; border: none; border-radius: 10px; font-weight: 600; font-size: 13px; cursor: pointer; color: var(--text); text-align: center; }
+    .top-tabs { display: flex; gap: 4px; margin-bottom: 10px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .tab-btn { flex: 1; min-width: 78px; padding: 9px 4px; background: #e5e5ea; border: none; border-radius: 10px; font-weight: 600; font-size: 12px; cursor: pointer; color: var(--text); text-align: center; white-space: nowrap; }
     .tab-btn.active { background: var(--primary); color: white; }
 
     .demo-bar {
@@ -205,7 +205,8 @@
   
   <div id="top_tabs" class="top-tabs">
     <button type="button" class="tab-btn active" onclick="switchMainTab('form')">📝 Заполнение</button>
-    <button type="button" class="tab-btn" onclick="switchMainTab('requests')">💰 Заявки на ДС</button>
+    <button type="button" class="tab-btn" onclick="switchMainTab('requests')">💰 Командировки</button>
+    <button type="button" class="tab-btn" onclick="switchMainTab('req_archive')">📑 Архив заявок</button>
     <button type="button" class="tab-btn" onclick="switchMainTab('reports')">📊 Все отчёты</button>
     <button type="button" id="tab_btn_emp" class="tab-btn" style="display:none;" onclick="switchMainTab('employees')">👥 База сотрудников</button>
   </div>
@@ -244,6 +245,7 @@
     <div id="step-1" class="step-content active">
       <div class="card">
         <h2>1. Сведения о командировке</h2>
+        <input type="hidden" id="p_trip_id" value="">
         <div class="field">
           <label>ФИО сотрудника <span class="req-star">*</span></label>
           <input type="text" id="p_fio" placeholder="Фамилия Имя Отчество" oninput="triggerCloudAutoSave()">
@@ -298,7 +300,7 @@
       <div class="card">
         <h2>2. Добавление расходов</h2>
         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 10px;">
-          <button type="button" class="btn btn-secondary" onclick="openExpense('plane')">✈️ Самолёт</button>
+          <button type="button" class="btn btn-secondary" onclick="openExpense('plane')">✈️️ Самолёт</button>
           <button type="button" class="btn btn-secondary" onclick="openExpense('bus')">🚌 Автобус</button>
           <button type="button" class="btn btn-secondary" onclick="openExpense('train')">🚆 Поезд</button>
           <button type="button" class="btn btn-secondary" onclick="openExpense('taxi')">🚕 Такси</button>
@@ -503,30 +505,30 @@
     </div>
   </div>
 
-  <!-- ВКЛАДКА 2: ЗАЯВКИ НА ДС -->
+  <!-- ВКЛАДКА 2: КОМАНДИРОВКИ (ТАЙМЛАЙН) -->
   <div id="tab-requests" class="main-tab-content" style="display:none;">
     <div class="card">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-        <h2 style="margin:0;">💰 Управление заявками на аванс</h2>
+        <h2 style="margin:0;">💰 Командировки и авансы</h2>
         <div style="display:flex; gap:6px;">
-          <button type="button" class="btn btn-danger" style="height:32px; width:auto; padding:0 10px; font-size:11px;" onclick="confirmClearAllTrips()">🗑️ Очистить все</button>
-          <button type="button" class="btn btn-primary" style="height:32px; width:auto; padding:0 12px; font-size:12px;" onclick="openNewRequestForm()">➕ Новая заявка</button>
+          <button type="button" id="btn_clear_all_trips" class="btn btn-danger" style="height:32px; width:auto; padding:0 10px; font-size:11px; display:none;" onclick="confirmClearAllTrips()">🗑️ Очистить все</button>
+          <button type="button" class="btn btn-primary" style="height:32px; width:auto; padding:0 12px; font-size:12px;" onclick="openNewRequestForm()">➕ Новая командировка</button>
         </div>
       </div>
 
-      <!-- ФОРМА СОЗДАНИЯ ЗАЯВКИ -->
+      <!-- ФОРМА СОЗДАНИЯ ЗАЯВКИ / ПРОДЛЕНИЯ -->
       <div id="advance_request_builder" style="display:none; background:#f8fafc; border:1px solid #cbd5e1; border-radius:12px; padding:12px; margin-bottom:14px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
           <h3 id="req_form_title" style="margin:0; font-size:15px; color:#0f172a;">Новая заявка на ДС</h3>
           <button type="button" class="btn btn-secondary" style="height:26px; width:auto; padding:0 8px; font-size:11px;" onclick="closeNewRequestForm()">✕</button>
         </div>
 
+        <input type="hidden" id="req_target_trip_id" value="">
         <div class="field">
           <label>Тип заявки</label>
           <select id="req_type" onchange="onRequestTypeChange()">
             <option value="primary">Первичная заявка на командировку</option>
             <option value="prolong">Продление сроков командировки</option>
-            <option value="new_city">Новый город (переезд в рамках поездки)</option>
           </select>
         </div>
 
@@ -535,7 +537,6 @@
           <input type="text" id="req_city" placeholder="Например: Красноярск">
         </div>
 
-        <!-- ЦЕЛЬ КОМАНДИРОВКИ С ТОЧНЫМИ ФОРМУЛИРОВКАМИ -->
         <div class="field">
           <label>Цель командировки (K14 заявки / E15 служебной записки) <span class="req-star">*</span></label>
           <select id="req_purpose_select" onchange="onPurposeSelectChange()">
@@ -547,13 +548,12 @@
         </div>
 
         <div class="field">
-          <label>Сроки поездки <span class="req-star">*</span></label>
+          <label id="req_date_label">Сроки поездки <span class="req-star">*</span></label>
           <input type="text" id="req_date_range" class="range-input" placeholder="Нажмите для выбора дат..." readonly>
           <input type="hidden" id="req_date_start">
           <input type="hidden" id="req_date_end">
         </div>
 
-        <!-- ПОДБОР УЧАСТНИКОВ ПОЕЗДКИ ДЛЯ АДМИНИСТРАТОРА -->
         <div class="field">
           <label>Состав участников поездки <span class="req-star">*</span></label>
           <div id="admin_team_picker" style="position:relative; margin-bottom:6px;">
@@ -568,7 +568,6 @@
           </div>
         </div>
 
-        <!-- КАРТОЧКИ СМЕТЫ ПО КАЖДОМУ ВЫБРАННОМУ СОТРУДНИКУ -->
         <h3 style="margin:12px 0 6px 0; font-size:13px;">Расчёт сметы по сотрудникам</h3>
         <div id="req_team_estimates"></div>
 
@@ -582,10 +581,10 @@
         </div>
       </div>
 
-      <!-- РЕЗУЛЬТАТ: СГЕНЕРИРОВАННОЕ ПИСЬМО И ССЫЛКИ НА ФАЙЛЫ ДЛЯ ПЕЧАТИ -->
+      <!-- РЕЗУЛЬТАТ ПИСЬМА -->
       <div id="email_result_card" class="card" style="display:none; border-left:4px solid var(--primary); background:#f0fdf4;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-          <h3 style="margin:0; color:#166534;">✉️ Готовое письмо для согласования</h3>
+          <h3 style="margin:0; color:#166534;">✉️️ Готовое письмо для согласования</h3>
           <div style="display:flex; gap:6px;">
             <button type="button" class="btn btn-secondary" style="height:28px; width:auto; font-size:11px; padding:0 8px;" onclick="copyAdvanceEmailText()">📋 Скопировать</button>
             <a id="btn_mailto_link" href="#" class="btn btn-primary" style="height:28px; width:auto; font-size:11px; padding:0 10px; text-decoration:none;">✉️ В Почту</a>
@@ -593,17 +592,27 @@
         </div>
         <div id="email_preview_box" style="white-space:pre-wrap; font-size:12px; line-height:1.5; color:#1e293b; background:#fff; border:1px solid #bbf7d0; border-radius:8px; padding:10px; margin-bottom:10px;"></div>
         
-        <!-- БЛОК ССЫЛОК НА ЗАПОЛНЕННЫЕ БЛАНКИ ЭКСЕЛЬ/ГУГЛ ТАБЛИЦ -->
         <h4 style="margin:0 0 6px 0; font-size:13px; color:#166534;">📄 Заполненные бланки заявок на Диске:</h4>
         <div id="generated_files_links" style="display:flex; flex-direction:column; gap:4px;"></div>
       </div>
 
-      <h3 style="color:#0f172a; margin-top:16px;">📋 История и таймлайн командировок</h3>
+      <h3 style="color:#0f172a; margin-top:16px;">📋 Хронология и таймлайн командировок</h3>
       <div id="trips_timeline_container">Загрузка данных...</div>
     </div>
   </div>
 
-  <!-- ВКЛАДКА 3: РЕЕСТР ОТЧЕТОВ И ЧЕРНОВИКОВ -->
+  <!-- ВКЛАДКА 3: АРХИВ ВСЕХ ЗАЯВОК НА ДС -->
+  <div id="tab-req-archive" class="main-tab-content" style="display:none;">
+    <div class="card">
+      <h2>📑 Архив всех заявок на ДС</h2>
+      <div style="font-size:12px; color:#64748b; margin-bottom:10px;">
+        Каждая сформированная заявка хранится как отдельный файл в формате шаблона на Google Диске.
+      </div>
+      <div id="requests_archive_container">Загрузка архива...</div>
+    </div>
+  </div>
+
+  <!-- ВКЛАДКА 4: РЕЕСТР ОТЧЕТОВ И ЧЕРНОВИКОВ -->
   <div id="tab-reports" class="main-tab-content" style="display:none;">
     <div class="card">
       <h2 id="reports_title">📊 Все отчёты и черновики</h2>
@@ -616,20 +625,35 @@
     </div>
   </div>
 
-  <!-- ВКЛАДКА 4: УПРАВЛЕНИЕ СОТРУДНИКАМИ (С РЕКВИЗИТАМИ T:X) -->
+  <!-- ВКЛАДКА 5: УПРАВЛЕНИЕ СОТРУДНИКАМИ И ДОСТУПАМИ -->
   <div id="tab-employees" class="main-tab-content" style="display:none;">
     <div class="card">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
         <h2 style="margin:0;">👥 База сотрудников</h2>
         <button type="button" class="btn btn-primary" style="height:32px; width:auto; padding:0 12px; font-size:12px;" onclick="openAddEmployeeModal()">➕ Добавить сотрудника</button>
       </div>
+
+      <!-- БЛОК НАЗНАЧЕНИЯ РУКОВОДИТЕЛЕЙ (ТОЛЬКО ДЛЯ СУПЕРАДМИНА) -->
+      <div id="super_admin_roles_box" style="display:none; background:#f0f9ff; border:1px solid #bae6fd; border-radius:10px; padding:10px; margin-bottom:12px;">
+        <h3 style="margin-top:0; color:#0369a1; font-size:14px;">👑 Настройка доступа руководителей</h3>
+        <p style="font-size:11px; color:#075985; margin:0 0 8px 0;">Укажите Telegram ID руководителя и список табельных номеров через запятую, либо 'ALL' для полного доступа.</p>
+        <div class="grid-2">
+          <input type="text" id="role_lead_tg" placeholder="Telegram ID руководителя">
+          <input type="text" id="role_lead_name" placeholder="ФИО руководителя">
+        </div>
+        <div class="field" style="margin-top:6px;">
+          <input type="text" id="role_lead_tabs" placeholder="Табельные номера через запятую (напр.: 0000013789, 0000013790) или ALL">
+        </div>
+        <button type="button" class="btn btn-primary" style="height:34px; font-size:12px;" onclick="saveLeadPermissions()">Сохранить права руководителя</button>
+      </div>
+
       <div id="admin_employees_container">Загрузка...</div>
     </div>
   </div>
 
 </div>
 
-<!-- МОДАЛКА ВВОДА НЕДОСТАЮЩИХ РЕКВИЗИТОВ (SMART PROMPT T:X) -->
+<!-- МОДАЛКИ -->
 <div id="bank_details_modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:10005; align-items:center; justify-content:center; padding:16px;">
   <div style="background:white; padding:18px; border-radius:14px; width:100%; max-width:420px; box-shadow:0 12px 30px rgba(0,0,0,0.25);">
     <h3 style="margin-top:0; font-size:16px; color:#0f172a;">🏦 Реквизиты для перечисления ДС</h3>
@@ -648,7 +672,6 @@
   </div>
 </div>
 
-<!-- МОДАЛКА ПРЕДЛОЖЕНИЯ ОТКРЫТЬ ЧЕРНОВИК ИЗ ОБЛАКА С КНОПКОЙ «НАПОМНИТЬ ПОЗЖЕ» -->
 <div id="cloud_draft_modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.55); z-index:10001; align-items:center; justify-content:center; padding:16px;">
   <div style="background:white; padding:20px; border-radius:16px; width:100%; max-width:380px; box-shadow:0 12px 36px rgba(0,0,0,0.3); text-align:center; position:relative;">
     <button type="button" onclick="dismissCloudDraftTemporarily()" style="position:absolute; top:12px; right:12px; background:none; border:none; font-size:18px; color:#8e8e93; cursor:pointer; padding:4px 8px;">✕</button>
@@ -659,13 +682,12 @@
     </div>
     <div style="display:flex; flex-direction:column; gap:8px;">
       <button type="button" class="btn btn-primary" onclick="confirmOpenCloudDraft()" style="height:42px; font-size:14px;">✏️ Продолжить заполнение</button>
-      <button type="button" class="btn btn-secondary" onclick="dismissCloudDraftTemporarily()" style="height:38px; font-size:13px; color:#475569;">🕒 Напомнить позже (закрыть сейчас)</button>
-      <button type="button" class="btn btn-secondary" onclick="confirmDiscardCloudDraft()" style="height:32px; font-size:12px; color:#ff3b30; background:transparent;">🗑️ Начать с нуля (удалить черновик)</button>
+      <button type="button" class="btn btn-secondary" onclick="dismissCloudDraftTemporarily()" style="height:38px; font-size:13px; color:#475569;">🕒 Напомнить позже (закрыть)</button>
+      <button type="button" class="btn btn-secondary" onclick="confirmDiscardCloudDraft()" style="height:32px; font-size:12px; color:#ff3b30; background:transparent;">🗑️ Начать с нуля</button>
     </div>
   </div>
 </div>
 
-<!-- МОДАЛКА ПОДТВЕРЖДЕНИЯ РЕДАКТИРОВАНИЯ РАСХОДА -->
 <div id="edit_confirm_modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:10000; align-items:center; justify-content:center;">
   <div style="background:white; padding:18px; border-radius:14px; width:90%; max-width:380px; box-shadow:0 10px 30px rgba(0,0,0,0.25); text-align:center;">
     <div style="font-size: 30px; margin-bottom: 6px;">✏️</div>
@@ -680,7 +702,6 @@
   </div>
 </div>
 
-<!-- МОДАЛКА ПЕРЕЧНЯ ДОКУМЕНТОВ -->
 <div id="checklist_modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:10000; align-items:center; justify-content:center;">
   <div style="background:white; padding:16px; border-radius:14px; width:92%; max-width:540px; box-shadow:0 10px 30px rgba(0,0,0,0.25);">
     <h3 style="margin-top:0; font-size:16px; color:#1c1c1e;">📋 Документы для бухгалтерии</h3>
@@ -692,7 +713,6 @@
   </div>
 </div>
 
-<!-- МОДАЛКА СОТРУДНИКА -->
 <div id="emp_modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:10000; align-items:center; justify-content:center;">
   <div style="background:white; padding:16px; border-radius:12px; width:90%; max-width:440px; max-height:90vh; overflow-y:auto;">
     <h3 id="modal_title" style="margin-top:0;">Редактировать сотрудника</h3>
@@ -727,9 +747,9 @@
   let detectedDraftReport = null;
   let isDraftPromptDismissedForSession = false;
 
-  let globalAppData = { employees: [], currentUser: null, reports: [], trips: [], isAdmin: false };
+  let globalAppData = { employees: [], currentUser: null, reports: [], trips: [], requestsArchive: [], isAdmin: false, isSuperAdmin: false };
   let store = {
-    passport: { fio:'', role:'', tab:'', city:'', dStart:'', dEnd:'', advance:0, days:0, rate:1500, dailyTotal:0, purpose:'' },
+    passport: { fio:'', role:'', tab:'', city:'', dStart:'', dEnd:'', advance:0, days:0, rate:1500, dailyTotal:0, purpose:'', tripId:'' },
     expenses: [], taxis: []
   };
   let curCategory = '';
@@ -737,7 +757,6 @@
   let datePickerRange = null;
   let datePickerExpense = null;
   let datePickerReqRange = null;
-
   let currentReqTeamData = {};
 
   const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
@@ -856,8 +875,17 @@
           document.getElementById('reports_title').innerText = "📁 Мои отчёты и черновики";
         }
 
+        if (res.isSuperAdmin) {
+          document.getElementById('super_admin_roles_box').style.display = 'block';
+          document.getElementById('btn_clear_all_trips').style.display = 'inline-flex';
+        } else {
+          document.getElementById('super_admin_roles_box').style.display = 'none';
+          document.getElementById('btn_clear_all_trips').style.display = 'none';
+        }
+
         renderSeparatedReports(res.reports);
         renderTripsTimeline(res.trips);
+        renderRequestsArchive(res.requestsArchive);
 
         if (!document.getElementById('p_fio').value && !isViewingRemoteReport) {
           if (res.currentUser) {
@@ -875,7 +903,6 @@
       })
       .catch((err) => {
         document.getElementById('drafts_container').innerHTML = '<div style="color:var(--danger); font-size:12px;">Ошибка соединения.</div>';
-        document.getElementById('done_reports_container').innerHTML = '';
       });
   }
 
@@ -900,7 +927,10 @@
 
   function openNewRequestForm() {
     document.getElementById('advance_request_builder').style.display = 'block';
-    
+    document.getElementById('req_target_trip_id').value = '';
+    document.getElementById('req_type').value = 'primary';
+    onRequestTypeChange();
+
     if (!globalAppData.isAdmin && globalAppData.currentUser) {
       addTeamMemberToEstimate(globalAppData.currentUser);
       document.getElementById('admin_team_picker').style.display = 'none';
@@ -912,16 +942,17 @@
 
   function closeNewRequestForm() {
     document.getElementById('advance_request_builder').style.display = 'none';
+    document.getElementById('req_target_trip_id').value = '';
   }
 
   function onRequestTypeChange() {
     const t = document.getElementById('req_type').value;
     if (t === 'prolong') {
-      document.getElementById('req_form_title').innerText = "Продление командировки";
-    } else if (t === 'new_city') {
-      document.getElementById('req_form_title').innerText = "Заявка: Новый город командировки";
+      document.getElementById('req_form_title').innerText = "➕ Продление сроков командировки";
+      document.getElementById('req_date_label').innerHTML = "Период продления (новые даты) <span class='req-star'>*</span>";
     } else {
-      document.getElementById('req_form_title').innerText = "Первичная заявка на ДС";
+      document.getElementById('req_form_title').innerText = "💰 Новая заявка на ДС";
+      document.getElementById('req_date_label').innerHTML = "Сроки поездки <span class='req-star'>*</span>";
     }
   }
 
@@ -958,9 +989,7 @@
     document.getElementById('team_suggest_box').style.display = 'none';
     document.getElementById('team_search_input').value = '';
     const emp = (globalAppData.employees || []).find(e => e.fio === fio);
-    if (emp) {
-      addTeamMemberToEstimate(emp);
-    }
+    if (emp) addTeamMemberToEstimate(emp);
   }
 
   function addTeamMemberToEstimate(emp) {
@@ -1112,13 +1141,20 @@
     const purpose = getSelectedPurpose();
     const dStart = document.getElementById('req_date_start').value;
     const dEnd = document.getElementById('req_date_end').value;
+    const reqType = document.getElementById('req_type').value;
+    const targetTripId = document.getElementById('req_target_trip_id').value;
     const teamArr = Object.values(currentReqTeamData);
 
     if (!city || !dStart || !dEnd) { showToast("Укажите город и период"); return; }
     if (teamArr.length === 0) { showToast("Выберите хотя бы одного сотрудника"); return; }
 
+    if (targetTripId) {
+      teamArr.forEach(m => m.tripId = targetTripId);
+    }
+
     const payload = {
       action: "save_advance_request",
+      request_type: reqType,
       trip: {
         city: city,
         purpose: purpose,
@@ -1146,12 +1182,12 @@
         if (res.files && res.files.length > 0) {
           filesBox.innerHTML = res.files.map(f => `
             <a href="${f.url}" target="_blank" class="btn btn-secondary" style="height:32px; font-size:12px; justify-content:flex-start; text-decoration:none; padding:0 10px; background:#fff; border:1px solid #cbd5e1;">
-              📄 <b>${f.fio}</b> (${Number(f.sum).toLocaleString('ru-RU')} ₽) — Открыть бланк для печати ➔
+              📄 <b>${f.fio}</b> (${Number(f.sum).toLocaleString('ru-RU')} ₽) — Открыть бланк [${f.reqId}] ➔
             </a>
           `).join('');
         }
       }
-      showToast("✅ Заявки на ДС сформированы!");
+      showToast("✅ Заявка на ДС сохранена на Диске и внесена в реестры!");
       closeNewRequestForm();
       loadAppData();
     })
@@ -1174,26 +1210,7 @@
       return;
     }
 
-    const urlParams = new URLSearchParams(window.location.search);
-    let userId = urlParams.get('user_id');
-    if (!userId && tg && tg.initDataUnsafe && tg.initDataUnsafe.user) userId = tg.initDataUnsafe.user.id;
-    if (!userId) userId = "446642559";
-
-    let visibleTrips = trips;
-    if (!globalAppData.isAdmin) {
-      visibleTrips = trips.filter(t => {
-        let d = t.rawJson;
-        if (typeof d === 'string') { try { d = JSON.parse(d); } catch(e){} }
-        return String(d.tgId || '').trim() === String(userId).trim() || String(d.authorTgId || '').trim() === String(userId).trim();
-      });
-    }
-
-    if (visibleTrips.length === 0) {
-      box.innerHTML = '<small style="color:#64748b;">У вас нет активных командировок.</small>';
-      return;
-    }
-
-    box.innerHTML = visibleTrips.map((tr, idx) => {
+    box.innerHTML = trips.map((tr, idx) => {
       let d = tr.rawJson;
       if (typeof d === 'string') { try { d = JSON.parse(d); } catch(e){} }
       const est = d.estimate || {};
@@ -1204,11 +1221,12 @@
         <div class="report-card-item" style="border-left: 4px solid var(--primary); flex-direction:column; align-items:flex-start; margin-bottom:10px;">
           <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
             <div style="cursor:pointer; flex:1;" onclick="toggleTripDetails('trip_details_${idx}')">
-              <strong style="font-size:14px; color:#0f172a;">${personFio}</strong><br>
+              <strong style="font-size:14px; color:#0f172a;">${personFio}</strong> 
+              <span style="font-size:11px; color:#64748b;">(Заявок: ${tr.reqCount || 1})</span><br>
               <span style="font-size:12px; color:#475569;">${tr.cities} (${tr.dates})</span>
             </div>
             <div style="display:flex; align-items:center; gap:6px;">
-              <span class="badge-done">${tr.status}</span>
+              <span class="${tr.status === 'Завершена' ? 'badge-done' : 'badge-draft'}">${tr.status}</span>
               ${globalAppData.isAdmin ? `<button type="button" class="btn btn-danger" style="height:26px; width:26px; min-width:26px; font-size:11px;" onclick="deleteSingleTrip('${tr.tripId}', '${personFio.replace(/'/g, "\\'")}')">🗑️</button>` : ''}
               <span style="font-size:11px; color:#007aff; font-weight:600; cursor:pointer;" onclick="toggleTripDetails('trip_details_${idx}')">Детали ▾</span>
             </div>
@@ -1216,17 +1234,18 @@
 
           <div id="trip_details_${idx}" style="display:none; width:100%; margin-top:8px; padding-top:8px; border-top:1px dashed #cbd5e1; font-size:12px;">
             <div style="background:#f8fafc; border-radius:8px; padding:8px; margin-bottom:8px;">
+              <div>• Trip ID: <code>${tr.tripId}</code></div>
               <div>• Проезд: <b>${Number(est.sumTravel || 0).toLocaleString('ru-RU')} ₽</b></div>
-              <div>• Проживание: <b>${Number(est.sumHotel || 0).toLocaleString('ru-RU')} ₽</b> (${est.hotelDaily || 0} ₽/сутки)</div>
-              <div>• Суточные: <b>${Number(est.sumDaily || 0).toLocaleString('ru-RU')} ₽</b> (${est.days || 0} дн.)</div>
-              <div style="margin-top:4px; font-weight:700; color:#0369a1;">• Личный аванс: ${Number(tr.totalAdvance || 0).toLocaleString('ru-RU')} ₽</div>
+              <div>• Проживание: <b>${Number(est.sumHotel || 0).toLocaleString('ru-RU')} ₽</b></div>
+              <div>• Суточные: <b>${Number(est.sumDaily || 0).toLocaleString('ru-RU')} ₽</b></div>
+              <div style="margin-top:4px; font-weight:700; color:#0369a1;">• Общий аванс по всем заявкам: ${Number(tr.totalAdvance || 0).toLocaleString('ru-RU')} ₽</div>
               <div style="margin-top:2px; color:#64748b; font-size:11px;">Цель: ${tr.lastPurpose || 'Служебная поездка'}</div>
             </div>
 
             ${fileLink ? `
               <div style="margin-bottom:6px;">
                 <a href="${fileLink}" target="_blank" class="btn btn-secondary" style="height:32px; font-size:12px; text-decoration:none; background:#ecfdf5; border:1px solid #a7f3d0; color:#065f46;">
-                  🖨️ Распечатать / Скачать заявку на ДС
+                  🖨️ Открыть последнюю заявку на Диске ➔
                 </a>
               </div>
             ` : ''}
@@ -1241,6 +1260,34 @@
     }).join('');
   }
 
+  function renderRequestsArchive(reqs) {
+    const box = document.getElementById('requests_archive_container');
+    if (!reqs || reqs.length === 0) {
+      box.innerHTML = '<div style="color:#64748b; font-size:12px;">Заявок пока нет.</div>';
+      return;
+    }
+
+    box.innerHTML = reqs.map(r => `
+      <div class="report-card-item" style="border-left: 4px solid #0284c7; flex-direction:column; align-items:flex-start;">
+        <div style="display:flex; justify-content:space-between; width:100%;">
+          <div>
+            <span style="font-weight:700; color:#0f172a;">${r.fio}</span> <span style="font-size:11px; color:#0369a1; background:#e0f2fe; padding:2px 6px; border-radius:4px;">ID: ${r.reqId}</span><br>
+            <small style="color:#64748b;">${r.city} | ${r.dates} (${r.days} сут.)</small>
+          </div>
+          <div style="font-weight:700; color:#0f172a; font-size:13px;">
+            ${Number(r.sum).toLocaleString('ru-RU')} ₽
+          </div>
+        </div>
+        <div style="margin-top:6px; font-size:11px; color:#475569; width:100%;">
+          <div>Цель: ${r.purpose}</div>
+          <div style="margin-top:4px;">
+            ${r.fileUrl ? `<a href="${r.fileUrl}" target="_blank" style="color:var(--primary); font-weight:600; text-decoration:none;">📄 Открыть отдельную таблицу заявки на Диске ➔</a>` : '<span style="color:#94a3b8;">Ссылка на файл недоступна</span>'}
+          </div>
+        </div>
+      </div>
+    `).join('');
+  }
+
   function toggleTripDetails(boxId) {
     const el = document.getElementById(boxId);
     if (!el) return;
@@ -1248,21 +1295,21 @@
   }
 
   function deleteSingleTrip(tripId, fio) {
-    if (!confirm(`Удалить командировку и заявку сотрудника ${fio}?`)) return;
+    if (!confirm(`Удалить командировку и все связанные заявки сотрудника ${fio}?`)) return;
     showToast("Удаление...");
     fetch(GOOGLE_SHEET_API, {
       method: "POST", mode: "no-cors",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "delete_trip", tripId: tripId })
     }).then(() => {
-      showToast("Заявка удалена!");
+      showToast("Удалено!");
       setTimeout(loadAppData, 1200);
     });
   }
 
   function confirmClearAllTrips() {
-    if (!confirm("⚠️ Вы уверены, что хотите удалить ВСЕ командировки, заявки и связанные черновики?")) return;
-    showToast("Очистка всех заявок...");
+    if (!confirm("⚠️ Вы уверены, что хотите удалить ВСЕ командировки, заявки и черновики?")) return;
+    showToast("Очистка...");
     fetch(GOOGLE_SHEET_API, {
       method: "POST", mode: "no-cors",
       headers: { "Content-Type": "application/json" },
@@ -1281,14 +1328,13 @@
 
     openNewRequestForm();
     document.getElementById('req_type').value = 'prolong';
+    document.getElementById('req_target_trip_id').value = tripId;
     onRequestTypeChange();
     document.getElementById('req_city').value = tr.cities || '';
     
     currentReqTeamData = {};
     const emp = (globalAppData.employees || []).find(e => e.fio === (tr.team || d.fio));
-    if (emp) {
-      addTeamMemberToEstimate(emp);
-    }
+    if (emp) addTeamMemberToEstimate(emp);
     showToast("Оформление продления для: " + (tr.team || d.fio));
   }
 
@@ -1299,22 +1345,53 @@
     let d = tr.rawJson;
     if (typeof d === 'string') { try { d = JSON.parse(d); } catch(e){} }
 
+    document.getElementById('p_trip_id').value = tripId;
     document.getElementById('p_city').value = tr.cities || '';
-    if (d.dStart && d.dEnd && datePickerRange) {
-      datePickerRange.setDate([d.dStart, d.dEnd]);
-      document.getElementById('p_date_start').value = d.dStart;
-      document.getElementById('p_date_end').value = d.dEnd;
+    
+    const dates = (tr.dates || '').split('—').map(s => s.trim());
+    if (dates.length === 2 && datePickerRange) {
+      datePickerRange.setDate([dates[0], dates[1]]);
+      document.getElementById('p_date_start').value = dates[0];
+      document.getElementById('p_date_end').value = dates[1];
     }
     document.getElementById('p_advance').value = tr.totalAdvance || '';
     store.passport.purpose = tr.lastPurpose || '';
+    store.passport.tripId = tripId;
 
     calcDaily();
     switchMainTab('form');
     goToStep(1);
-    showToast("Данные командировки перенесены в АО-1!");
+    showToast("Данные командировки загружены в АО-1!");
   }
 
-  // --- УПРАВЛЕНИЕ ЧЕРНОВИКАМИ И ВКЛАДКАМИ ---
+  function saveLeadPermissions() {
+    const tgId = document.getElementById('role_lead_tg').value.trim();
+    const name = document.getElementById('role_lead_name').value.trim();
+    const tabs = document.getElementById('role_lead_tabs').value.trim();
+
+    if (!tgId || !name) { showToast("Укажите TG ID и ФИО"); return; }
+    showToast("Сохранение прав руководителя...");
+
+    fetch(GOOGLE_SHEET_API, {
+      method: "POST",
+      body: JSON.stringify({
+        action: "update_lead_permissions",
+        sender_id: getTelegramUser().id,
+        lead_tgid: tgId,
+        lead_name: name,
+        allowed_tabs: tabs || "ALL"
+      })
+    })
+    .then(r => r.json())
+    .then(() => {
+      showToast("Права руководителя успешно обновлены!");
+      document.getElementById('role_lead_tg').value = '';
+      document.getElementById('role_lead_name').value = '';
+      document.getElementById('role_lead_tabs').value = '';
+    })
+    .catch(() => showToast("Права отправлены на сервер"));
+  }
+
   function checkCloudDraftPopup(reports, userId, isAdmin) {
     if (isDraftPromptDismissedForSession) return;
     if (!reports || reports.length === 0 || isViewingRemoteReport) return;
@@ -1322,7 +1399,6 @@
     if (userDrafts.length === 0) return;
 
     detectedDraftReport = userDrafts[0];
-
     let cityClean = (detectedDraftReport.city || '—').replace(/^г\.?\s*г\.?\s*/i, 'г. ');
     if (!cityClean.startsWith('г.') && cityClean !== '—') cityClean = 'г. ' + cityClean;
 
@@ -1337,7 +1413,7 @@
   function dismissCloudDraftTemporarily() {
     isDraftPromptDismissedForSession = true;
     document.getElementById('cloud_draft_modal').style.display = 'none';
-    showToast("Черновик сохранён. Вы можете вернуться к нему в любой момент.");
+    showToast("Черновик сохранён.");
   }
 
   function confirmOpenCloudDraft() {
@@ -1356,6 +1432,7 @@
     }
 
     const p = store.passport;
+    document.getElementById('p_trip_id').value = p.tripId || '';
     document.getElementById('p_fio').value = p.fio || '';
     document.getElementById('p_role').value = p.role || '';
     document.getElementById('p_tab').value = p.tab || '';
@@ -1374,7 +1451,7 @@
     renderExpenseList();
     switchMainTab('form');
     goToStep(1);
-    showToast("Черновик открыт для продолжения!");
+    showToast("Черновик открыт!");
   }
 
   function confirmDiscardCloudDraft() {
@@ -1392,13 +1469,14 @@
     CURRENT_REPORT_UID = "rep_" + Date.now();
     store.expenses = [];
     store.taxis = [];
+    document.getElementById('p_trip_id').value = '';
     document.getElementById('p_city').value = '';
     document.getElementById('p_advance').value = '';
     document.getElementById('p_days').value = '0';
     if (datePickerRange) datePickerRange.clear();
     calcDaily();
     renderExpenseList();
-    showToast("Черновик удален. Начат чистый отчёт.");
+    showToast("Черновик удален.");
   }
 
   function switchMainTab(tab) {
@@ -1409,6 +1487,9 @@
       document.getElementById('tab-form').style.display = 'block';
     } else if (tab === 'requests') {
       document.getElementById('tab-requests').style.display = 'block';
+    } else if (tab === 'req_archive') {
+      document.getElementById('tab-req-archive').style.display = 'block';
+      renderRequestsArchive(globalAppData.requestsArchive);
     } else if (tab === 'employees') {
       document.getElementById('tab-employees').style.display = 'block';
       renderAdminEmployees();
@@ -1420,8 +1501,9 @@
     const btns = document.querySelectorAll('.top-tabs .tab-btn');
     if (tab === 'form') btns[0].classList.add('active');
     if (tab === 'requests') btns[1].classList.add('active');
-    if (tab === 'reports') btns[2].classList.add('active');
-    if (tab === 'employees') btns[3].classList.add('active');
+    if (tab === 'req_archive') btns[2].classList.add('active');
+    if (tab === 'reports') btns[3].classList.add('active');
+    if (tab === 'employees') btns[4].classList.add('active');
   }
 
   function renderEmployeeDropdown(list) {
@@ -1458,40 +1540,32 @@
     const drafts = reports.filter(r => r.isDraft);
     const done = reports.filter(r => !r.isDraft);
 
-    if (drafts.length === 0) {
-      dBox.innerHTML = '<div style="color:#8e8e93; font-size:12px;">Черновиков нет.</div>';
-    } else {
-      dBox.innerHTML = drafts.map((rep) => `
-        <div class="report-card-item" style="border-left: 4px solid var(--warning);">
-          <div class="report-card-info">
-            <span class="badge-draft">ЧЕРНОВИК</span> <strong>${rep.fio || 'Без ФИО'}</strong><br>
-            <small style="color:#666;">${rep.city || '—'} | ${rep.date || ''}<br>Накоплено: <b>${Number(rep.sum || 0).toLocaleString('ru-RU')} ₽</b></small>
-          </div>
-          <div class="action-btn-group">
-            <button type="button" class="btn btn-primary btn-action-view" onclick="openReportInReviewMode('${rep.id}')">👁️ Открыть</button>
-            <button type="button" class="btn btn-danger btn-icon-del" onclick="deleteReport('${rep.id}')">🗑️</button>
-          </div>
+    dBox.innerHTML = drafts.length === 0 ? '<div style="color:#8e8e93; font-size:12px;">Черновиков нет.</div>' : drafts.map((rep) => `
+      <div class="report-card-item" style="border-left: 4px solid var(--warning);">
+        <div class="report-card-info">
+          <span class="badge-draft">ЧЕРНОВИК</span> <strong>${rep.fio || 'Без ФИО'}</strong><br>
+          <small style="color:#666;">${rep.city || '—'} | ${rep.date || ''}<br>Накоплено: <b>${Number(rep.sum || 0).toLocaleString('ru-RU')} ₽</b></small>
         </div>
-      `).join('');
-    }
+        <div class="action-btn-group">
+          <button type="button" class="btn btn-primary btn-action-view" onclick="openReportInReviewMode('${rep.id}')">👁️ Открыть</button>
+          <button type="button" class="btn btn-danger btn-icon-del" onclick="deleteReport('${rep.id}')">🗑️</button>
+        </div>
+      </div>
+    `).join('');
 
-    if (done.length === 0) {
-      rBox.innerHTML = '<div style="color:#8e8e93; font-size:12px;">Отчетов пока нет.</div>';
-    } else {
-      rBox.innerHTML = done.map((rep) => `
-        <div class="report-card-item" style="border-left: 4px solid var(--success);">
-          <div class="report-card-info">
-            <span class="badge-done">ГОТОВ</span> <strong>${rep.fio}</strong><br>
-            <small style="color:#666;">${rep.city} | ${rep.date}<br>Итого: <b>${Number(rep.sum || 0).toLocaleString('ru-RU')} ₽</b></small>
-          </div>
-          <div class="action-btn-group">
-            <button type="button" class="btn btn-primary btn-action-view" onclick="openReportInReviewMode('${rep.id}')">👁️ Просмотр</button>
-            ${rep.url ? `<a href="${rep.url}" target="_blank" class="btn btn-secondary btn-action-view" style="display:inline-flex; align-items:center;">📄</a>` : ''}
-            ${globalAppData.isAdmin ? `<button type="button" class="btn btn-danger btn-icon-del" onclick="deleteReport('${rep.id}')">🗑️</button>` : ''}
-          </div>
+    rBox.innerHTML = done.length === 0 ? '<div style="color:#8e8e93; font-size:12px;">Отчетов пока нет.</div>' : done.map((rep) => `
+      <div class="report-card-item" style="border-left: 4px solid var(--success);">
+        <div class="report-card-info">
+          <span class="badge-done">ГОТОВ</span> <strong>${rep.fio}</strong><br>
+          <small style="color:#666;">${rep.city} | ${rep.date}<br>Итого: <b>${Number(rep.sum || 0).toLocaleString('ru-RU')} ₽</b></small>
         </div>
-      `).join('');
-    }
+        <div class="action-btn-group">
+          <button type="button" class="btn btn-primary btn-action-view" onclick="openReportInReviewMode('${rep.id}')">👁️ Просмотр</button>
+          ${rep.url ? `<a href="${rep.url}" target="_blank" class="btn btn-secondary btn-action-view" style="display:inline-flex; align-items:center;">📄</a>` : ''}
+          ${globalAppData.isAdmin ? `<button type="button" class="btn btn-danger btn-icon-del" onclick="deleteReport('${rep.id}')">🗑️</button>` : ''}
+        </div>
+      </div>
+    `).join('');
   }
 
   function openReportInReviewMode(reportId) {
@@ -1500,7 +1574,6 @@
 
     try {
       isViewingRemoteReport = true;
-
       if (rep.rawJson) {
         let data = rep.rawJson;
         if (typeof data === 'string') {
@@ -1509,44 +1582,11 @@
         store.passport = data.passport || {};
         store.expenses = data.expenses || [];
         store.taxis = data.taxis || [];
-      } else {
-        const dateParts = (rep.date || '').split('—').map(s => s.trim());
-        const dStart = dateParts[0] || '';
-        const dEnd = dateParts[1] || dateParts[0] || '';
-
-        let calcDays = 1;
-        if (dStart && dEnd) {
-          const t1 = parseDateToTimestamp(dStart);
-          const t2 = parseDateToTimestamp(dEnd);
-          if (t2 >= t1 && t1 > 0) calcDays = Math.ceil((t2 - t1) / (1000 * 60 * 60 * 24)) + 1;
-        }
-
-        const repSum = parseFloat(rep.sum) || 0;
-        const dailySum = calcDays * 1500;
-        const mainSum = repSum >= dailySum ? (repSum - dailySum) : repSum;
-
-        store.passport = {
-          fio: rep.fio || 'Сотрудник',
-          role: rep.role || 'Сотрудник',
-          tab: rep.tab || '—',
-          city: rep.city || 'Пермь',
-          dStart: dStart,
-          dEnd: dEnd,
-          advance: repSum,
-          days: calcDays,
-          rate: 1500,
-          dailyTotal: dailySum
-        };
-
-        store.expenses = [
-          { id: 'gen1', date: dStart, no: rep.id, name: `Расходы по отчёту (${rep.city || ''})`, sum: mainSum, cat: 'misc' }
-        ];
-        store.taxis = [];
       }
-
       CURRENT_REPORT_UID = rep.id;
 
       const p = store.passport;
+      document.getElementById('p_trip_id').value = p.tripId || rep.tripId || '';
       document.getElementById('p_fio').value = p.fio || '';
       document.getElementById('p_role').value = p.role || '';
       document.getElementById('p_tab').value = p.tab || '';
@@ -1588,10 +1628,6 @@
     document.getElementById('p_advance').value = p.advance || '';
     document.getElementById('p_days').value = p.days || 0;
     document.getElementById('p_rate').value = p.rate || 1500;
-
-    document.getElementById('p_fio').disabled = false;
-    document.getElementById('p_role').disabled = false;
-    document.getElementById('p_tab').disabled = false;
 
     if (datePickerRange && p.dStart && p.dEnd) {
       datePickerRange.setDate([p.dStart, p.dEnd]);
@@ -1820,7 +1856,8 @@
       dEnd: formatRuDateString(document.getElementById('p_date_end').value),
       advance: parseFloat(document.getElementById('p_advance').value) || 0,
       days: days, rate: rate, dailyTotal: days * rate,
-      purpose: store.passport.purpose || ''
+      purpose: store.passport.purpose || '',
+      tripId: document.getElementById('p_trip_id').value || store.passport.tripId || ''
     };
   }
 
@@ -1907,21 +1944,14 @@
     if (!str) return { addr: '', obj: '' };
     str = String(str).trim();
     const match = str.match(/^(.*?)\s*\((.*?)\)$/);
-    if (match) {
-      return { addr: match[1].trim(), obj: match[2].trim() };
-    }
+    if (match) return { addr: match[1].trim(), obj: match[2].trim() };
     return { addr: str, obj: '' };
   }
 
   function editExpenseItem(id) {
     let item = store.expenses.find(x => x.id === id);
-    if (!item) {
-      item = store.expenses.find(x => x.groupKey === id) || store.expenses[0];
-    }
-    if (!item) {
-      showToast("Запись не найдена");
-      return;
-    }
+    if (!item) item = store.expenses.find(x => x.groupKey === id) || store.expenses[0];
+    if (!item) { showToast("Запись не найдена"); return; }
 
     goToStep(2);
     openExpense(item.cat);
