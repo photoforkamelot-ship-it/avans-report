@@ -1429,25 +1429,38 @@
     if (emp) addTeamMemberToEstimate(emp);
   }
 
-  function addTeamMemberToEstimate(emp) {
+function addTeamMemberToEstimate(emp) {
     if (currentReqTeamData[emp.fio]) { showToast("Сотрудник уже добавлен"); return; }
     if (!emp.bankInn || !emp.bankBik || !emp.bankAcc) promptBankDetailsModal(emp);
 
     const isProlong = (document.getElementById('req_type').value === 'prolong');
     const travelSum = isProlong ? 0 : 20000;
 
+    // Вычисляем фактическое количество дней по уже выбранным в форме датам
+    let actualDays = 18;
+    const dStartStr = document.getElementById('req_date_start').value;
+    const dEndStr = document.getElementById('req_date_end').value;
+    if (dStartStr && dEndStr) {
+      const t1 = parseDateToTimestamp(dStartStr);
+      const t2 = parseDateToTimestamp(dEndStr);
+      if (t2 >= t1 && t1 > 0) {
+        actualDays = Math.ceil((t2 - t1) / (1000 * 60 * 60 * 24)) + 1;
+      }
+    }
+
+    const hotelDaily = 3100;
+    const stayDays = actualDays > 1 ? (actualDays - 1) : 1;
+    const sumHotel = stayDays * hotelDaily;
+    const sumDaily = actualDays * 1500;
+    const sumTotal = travelSum + sumHotel + sumDaily;
+
     currentReqTeamData[emp.fio] = {
       fio: emp.fio, role: emp.role, tab: emp.tab, tgId: emp.tgId,
       bankInn: emp.bankInn || '', bankBik: emp.bankBik || '', bankAcc: emp.bankAcc || '',
-      days: 18, sumTravel: travelSum, hotelDaily: 3100, sumHotel: 55800, sumDaily: 27000, sumTotal: travelSum + 55800 + 27000
+      days: actualDays, sumTravel: travelSum, hotelDaily: hotelDaily,
+      sumHotel: sumHotel, sumDaily: sumDaily, sumTotal: sumTotal
     };
 
-    renderSelectedTeamChips();
-    renderTeamEstimateCards();
-  }
-
-  function removeTeamMemberFromEstimate(fio) {
-    delete currentReqTeamData[fio];
     renderSelectedTeamChips();
     renderTeamEstimateCards();
   }
