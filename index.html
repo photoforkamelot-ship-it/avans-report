@@ -508,7 +508,10 @@
     <div class="card">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
         <h2 style="margin:0;">💰 Управление заявками на аванс</h2>
-        <button type="button" class="btn btn-primary" style="height:32px; width:auto; padding:0 12px; font-size:12px;" onclick="openNewRequestForm()">➕ Новая заявка</button>
+        <div style="display:flex; gap:6px;">
+          <button type="button" class="btn btn-danger" style="height:32px; width:auto; padding:0 10px; font-size:11px;" onclick="confirmClearAllTrips()">🗑️ Очистить все</button>
+          <button type="button" class="btn btn-primary" style="height:32px; width:auto; padding:0 12px; font-size:12px;" onclick="openNewRequestForm()">➕ Новая заявка</button>
+        </div>
       </div>
 
       <!-- ФОРМА СОЗДАНИЯ ЗАЯВКИ -->
@@ -1139,7 +1142,6 @@
         document.getElementById('email_preview_box').innerText = res.emailText;
         document.getElementById('btn_mailto_link').href = res.mailtoUrl;
 
-        // Отрисовываем ссылки на сгенерированные файлы бланков на Google Диске
         const filesBox = document.getElementById('generated_files_links');
         if (res.files && res.files.length > 0) {
           filesBox.innerHTML = res.files.map(f => `
@@ -1200,14 +1202,15 @@
 
       return `
         <div class="report-card-item" style="border-left: 4px solid var(--primary); flex-direction:column; align-items:flex-start; margin-bottom:10px;">
-          <div style="display:flex; justify-content:space-between; width:100%; align-items:center; cursor:pointer;" onclick="toggleTripDetails('trip_details_${idx}')">
-            <div>
+          <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
+            <div style="cursor:pointer; flex:1;" onclick="toggleTripDetails('trip_details_${idx}')">
               <strong style="font-size:14px; color:#0f172a;">${personFio}</strong><br>
               <span style="font-size:12px; color:#475569;">${tr.cities} (${tr.dates})</span>
             </div>
-            <div style="text-align:right;">
-              <span class="badge-done">${tr.status}</span><br>
-              <span style="font-size:11px; color:#007aff; font-weight:600;">Детали ▾</span>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <span class="badge-done">${tr.status}</span>
+              ${globalAppData.isAdmin ? `<button type="button" class="btn btn-danger" style="height:26px; width:26px; min-width:26px; font-size:11px;" onclick="deleteSingleTrip('${tr.tripId}', '${personFio.replace(/'/g, "\\'")}')">🗑️</button>` : ''}
+              <span style="font-size:11px; color:#007aff; font-weight:600; cursor:pointer;" onclick="toggleTripDetails('trip_details_${idx}')">Детали ▾</span>
             </div>
           </div>
 
@@ -1220,7 +1223,6 @@
               <div style="margin-top:2px; color:#64748b; font-size:11px;">Цель: ${tr.lastPurpose || 'Служебная поездка'}</div>
             </div>
 
-            <!-- КНОПКА ПЕЧАТИ/СКАЧИВАНИЯ ЗАЯВКИ НА ДС -->
             ${fileLink ? `
               <div style="margin-bottom:6px;">
                 <a href="${fileLink}" target="_blank" class="btn btn-secondary" style="height:32px; font-size:12px; text-decoration:none; background:#ecfdf5; border:1px solid #a7f3d0; color:#065f46;">
@@ -1243,6 +1245,32 @@
     const el = document.getElementById(boxId);
     if (!el) return;
     el.style.display = el.style.display === 'block' ? 'none' : 'block';
+  }
+
+  function deleteSingleTrip(tripId, fio) {
+    if (!confirm(`Удалить командировку и заявку сотрудника ${fio}?`)) return;
+    showToast("Удаление...");
+    fetch(GOOGLE_SHEET_API, {
+      method: "POST", mode: "no-cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "delete_trip", tripId: tripId })
+    }).then(() => {
+      showToast("Заявка удалена!");
+      setTimeout(loadAppData, 1200);
+    });
+  }
+
+  function confirmClearAllTrips() {
+    if (!confirm("⚠️ Вы уверены, что хотите удалить ВСЕ командировки, заявки и связанные черновики?")) return;
+    showToast("Очистка всех заявок...");
+    fetch(GOOGLE_SHEET_API, {
+      method: "POST", mode: "no-cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "clear_all_trips" })
+    }).then(() => {
+      showToast("Все командировки очищены!");
+      setTimeout(loadAppData, 1200);
+    });
   }
 
   function prolongPersonTrip(tripId) {
