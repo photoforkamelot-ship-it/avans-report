@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Мастер авансового отчета и заявок</title>
+  <title>Управление командировками и авансовыми отчетами</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -23,6 +23,7 @@
       --success: #34c759;
       --danger: #ff3b30;
       --warning: #ff9500;
+      --warning-bg: #fff9e6;
     }
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
@@ -36,19 +37,9 @@
     }
     .wrapper { max-width: 680px; margin: 0 auto; }
     
-    .top-tabs { display: flex; gap: 4px; margin-bottom: 10px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-    .tab-btn { flex: 1; min-width: 78px; padding: 9px 4px; background: #e5e5ea; border: none; border-radius: 10px; font-weight: 600; font-size: 12px; cursor: pointer; color: var(--text); text-align: center; white-space: nowrap; }
+    .top-tabs { display: flex; gap: 5px; margin-bottom: 10px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .tab-btn { flex: 1; min-width: 75px; padding: 9px 4px; background: #e5e5ea; border: none; border-radius: 10px; font-weight: 600; font-size: 12px; cursor: pointer; color: var(--text); text-align: center; white-space: nowrap; }
     .tab-btn.active { background: var(--primary); color: white; }
-
-    .demo-bar {
-      background: linear-gradient(135deg, #ff9500, #ff5e3a);
-      color: white; padding: 10px 12px; border-radius: 12px;
-      margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;
-    }
-    .demo-bar button {
-      background: #fff; color: #d84315; font-weight: 700; border: none;
-      padding: 7px 12px; border-radius: 8px; font-size: 12px; cursor: pointer;
-    }
 
     .review-banner {
       background: #e8f3ff; border: 1px solid #b8daff; border-radius: 12px;
@@ -79,13 +70,14 @@
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     
     .btn {
-      height: 42px; display: inline-flex; align-items: center; justify-content: center;
-      border-radius: 10px; font-size: 14px; font-weight: 600; border: none; cursor: pointer; width: 100%;
+      height: 40px; display: inline-flex; align-items: center; justify-content: center;
+      border-radius: 10px; font-size: 13px; font-weight: 600; border: none; cursor: pointer; width: 100%;
       text-decoration: none; box-sizing: border-box;
     }
     .btn-primary { background: var(--primary); color: #fff; }
     .btn-secondary { background: #e5e5ea; color: #1c1c1e; }
     .btn-green { background: var(--success); color: white; }
+    .btn-warning { background: var(--warning); color: white; }
     .btn-danger { background: #ffe5e5; color: var(--danger); height: 32px; font-size: 12px; border-radius: 8px; width: 32px; min-width: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
 
     .nav-bar { display: flex; gap: 8px; margin-top: 10px; width: 100%; }
@@ -116,86 +108,78 @@
     .text-right { text-align: right; white-space: nowrap; }
     .text-center { text-align: center; }
 
-    .review-item { background: #ffffff; border: 1px solid #e5e5ea; border-radius: 8px; padding: 10px; margin-bottom: 8px; }
-    .review-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
-    .review-header h3 { margin: 0; font-size: 13px; font-weight: 700; }
-
     .tip-dashed-box {
-      background: #fff9db;
-      border: 1.5px dashed #f59f00;
-      border-radius: 9px;
-      padding: 9px 12px;
-      font-size: 12px;
-      line-height: 1.45;
-      color: #795548;
-      font-weight: 600;
-      margin-bottom: 10px;
-      display: flex;
-      align-items: center;
-      gap: 7px;
+      background: #fff9db; border: 1.5px dashed #f59f00; border-radius: 9px;
+      padding: 9px 12px; font-size: 12px; line-height: 1.45; color: #795548; font-weight: 600;
+      margin-bottom: 10px; display: flex; align-items: center; gap: 7px;
     }
 
     .clickable-expense-row, .clickable-passport-box {
-      background: #ffffff;
-      border: 1.5px dashed #007aff;
-      border-radius: 8px;
-      padding: 8px 10px;
-      margin: 6px 0;
-      cursor: pointer;
+      background: #ffffff; border: 1.5px dashed #007aff; border-radius: 8px;
+      padding: 8px 10px; margin: 6px 0; cursor: pointer; transition: all 0.2s ease;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .clickable-expense-row:hover, .clickable-passport-box:hover {
+      background: #e7f3ff !important; border-style: solid !important; border-color: #007aff !important;
+    }
+
+    /* СТИЛИЗАЦИЯ ИЕРАРХИЧЕСКОГО ТАЙМЛАЙНА */
+    .month-header {
+      font-size: 14px; font-weight: 700; color: #0f172a; margin: 14px 0 6px 0;
+      display: flex; align-items: center; gap: 6px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;
+    }
+    
+    .trip-accordion-btn {
+      width: 100%; background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 10px;
+      padding: 10px 12px; margin-bottom: 6px; text-align: left; font-size: 13px; font-weight: 700;
+      cursor: pointer; display: flex; justify-content: space-between; align-items: center;
       transition: all 0.2s ease;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
     }
-    .clickable-expense-row:hover, .clickable-passport-box:hover,
-    .clickable-expense-row:active, .clickable-passport-box:active {
-      background: #e7f3ff !important;
-      border-style: solid !important;
-      border-color: #007aff !important;
+    .trip-accordion-btn:hover { border-color: var(--primary); background: #f8fafc; }
+    .trip-accordion-btn.warning-active {
+      background: var(--warning-bg) !important; border-color: var(--warning) !important; color: #92400e;
     }
 
-    .badge-draft { background: #ff9500; color: white; padding: 3px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; }
-    .badge-done { background: #34c759; color: white; padding: 3px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; }
-
-    .report-card-item {
-      background: #ffffff; border: 1px solid #e5e5ea; border-radius: 8px;
-      padding: 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; gap: 8px;
+    .trip-emp-btn {
+      width: 100%; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px;
+      padding: 8px 10px; margin: 4px 0; text-align: left; font-size: 12px; font-weight: 600;
+      cursor: pointer; display: flex; justify-content: space-between; align-items: center;
     }
-    .report-card-info { flex: 1; min-width: 0; }
-    .action-btn-group { display: flex; gap: 6px; align-items: center; flex-shrink: 0; }
-    .btn-action-view { height: 32px; font-size: 12px; padding: 0 10px; border-radius: 8px; width: auto; }
+    .trip-emp-btn:hover { background: #e2e8f0; }
 
-    .narrative-box {
-      background: #ffffff; border: 1px solid #007aff33; border-left: 4px solid var(--primary);
-      border-radius: 10px; padding: 12px 14px; font-size: 13px; line-height: 1.6; color: #1c1c1e; margin-bottom: 10px;
-    }
-    .narrative-box p { margin: 0 0 8px 0; }
-    .narrative-box ul { margin: 4px 0 8px 18px; padding: 0; }
-    .narrative-box li { margin-bottom: 3px; }
-
-    .checklist-box {
-      background: #f9f9fb; border: 1px solid #e5e5ea; border-radius: 10px;
-      padding: 12px; font-size: 12px; line-height: 1.5; color: #2c2c2e; max-height: 60vh; overflow-y: auto; text-align: left;
+    .timeline-chain-box {
+      margin-left: 10px; padding-left: 12px; border-left: 2px dashed #94a3b8;
+      display: flex; flex-direction: column; gap: 8px; margin-top: 6px; margin-bottom: 10px;
     }
 
-    .emp-estimate-card {
-      background: #fdfdfd; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px; margin-bottom: 8px;
+    .timeline-node-field {
+      background: #ffffff; border: 1.5px dashed #64748b; border-radius: 8px;
+      padding: 8px 10px; font-size: 12px; cursor: pointer; transition: all 0.2s;
+    }
+    .timeline-node-field:hover { border-color: var(--primary); background: #f8fafc; }
+    .timeline-node-field.warning-node {
+      border-color: var(--warning) !important; background: var(--warning-bg) !important;
     }
 
-    .team-chip {
-      display: inline-flex; align-items: center; gap: 6px; background: #e0f2fe; color: #0369a1;
-      border: 1px solid #bae6fd; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; margin: 3px;
+    .status-field-box {
+      border-radius: 8px; padding: 10px; font-size: 12px; line-height: 1.45;
+      border: 1.5px solid #cbd5e1; background: #f8fafc;
     }
+    .status-field-box.status-ready {
+      border-color: #86efac; background: #f0fdf4; color: #166534; font-weight: 600;
+    }
+    .status-field-box.status-warning {
+      border-color: #fde047; background: #fefce8; color: #854d0e;
+    }
+
+    .emp-estimate-card { background: #fdfdfd; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px; margin-bottom: 8px; }
+    .team-chip { display: inline-flex; align-items: center; gap: 6px; background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; margin: 3px; }
     .team-chip-del { cursor: pointer; color: #ef4444; font-weight: 700; margin-left: 2px; }
 
     #toast {
       position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
       background: rgba(0,0,0,0.85); color: white; padding: 8px 16px; border-radius: 18px;
       font-size: 12px; display: none; z-index: 9999; text-align: center; max-width: 90%;
-    }
-
-    @media (max-width: 480px) {
-      .grid-2 { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -205,9 +189,9 @@
   
   <div id="top_tabs" class="top-tabs">
     <button type="button" class="tab-btn active" onclick="switchMainTab('form')">📝 Заполнение</button>
-    <button type="button" class="tab-btn" onclick="switchMainTab('requests')">💰 Командировки</button>
-    <button type="button" class="tab-btn" onclick="switchMainTab('req_archive')">📑 Архив заявок</button>
-    <button type="button" class="tab-btn" onclick="switchMainTab('reports')">📊 Все отчёты</button>
+    <button type="button" class="tab-btn" onclick="switchMainTab('trips')">✈️ Командировки</button>
+    <button type="button" class="tab-btn" onclick="switchMainTab('new_req')">💰 Заявка на ДС</button>
+    <button type="button" id="tab_btn_drafts" class="tab-btn" style="display:none;" onclick="switchMainTab('drafts')">💾 Черновики (<span id="draft_count_badge">0</span>)</button>
     <button type="button" id="tab_btn_emp" class="tab-btn" style="display:none;" onclick="switchMainTab('employees')">👥 База сотрудников</button>
   </div>
 
@@ -222,16 +206,8 @@
     </div>
   </div>
 
-  <!-- ВКЛАДКА 1: ВВОД АВАНСОВОГО ОТЧЕТА (АО-1) -->
+  <!-- ВКЛАДКА 1: ЗАПОЛНЕНИЕ АО-1 -->
   <div id="tab-form" class="main-tab-content">
-    <div class="demo-bar">
-      <div>
-        <div style="font-weight: 700; font-size: 12px;">⚡ Демо: Омск ↔ Красноярск</div>
-        <div style="font-size: 11px; opacity: 0.9;">18 дней, перелёт, проживание, такси, автобус</div>
-      </div>
-      <button type="button" onclick="loadDemoScenario()">Заполнить ДЕМО</button>
-    </div>
-
     <div id="admin_emp_card" class="card" style="background:#eef7ff; border:1px solid #cce5ff; display:none;">
       <h3 style="margin:0 0 6px 0;">👑 Панель руководителя: выбор сотрудника</h3>
       <div class="field">
@@ -295,12 +271,16 @@
       </div>
     </div>
 
-    <!-- ШАГ 2: ВВОД РАСХОДОВ -->
+    <!-- ШАГ 2: ВВОД РАСХОДОВ С КНОПКОЙ ДЕМО -->
     <div id="step-2" class="step-content">
       <div class="card">
-        <h2>2. Добавление расходов</h2>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <h2 style="margin:0;">2. Добавление расходов</h2>
+          <button type="button" class="btn btn-warning" style="height:30px; width:auto; font-size:11px; padding:0 8px;" onclick="loadStep2DemoExpenses()">⚡ ДЕМО-расходы</button>
+        </div>
+
         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 10px;">
-          <button type="button" class="btn btn-secondary" onclick="openExpense('plane')">✈️️ Самолёт</button>
+          <button type="button" class="btn btn-secondary" onclick="openExpense('plane')">✈️ Самолёт</button>
           <button type="button" class="btn btn-secondary" onclick="openExpense('bus')">🚌 Автобус</button>
           <button type="button" class="btn btn-secondary" onclick="openExpense('train')">🚆 Поезд</button>
           <button type="button" class="btn btn-secondary" onclick="openExpense('taxi')">🚕 Такси</button>
@@ -319,116 +299,34 @@
           </div>
 
           <div id="box-transport" style="display:none;">
-            <div class="field">
-              <label>Маршрут (Город — Город) <span class="req-star">*</span></label>
-              <input type="text" id="e_route" placeholder="Город - Город">
-            </div>
-            <div class="field">
-              <label>Направление</label>
-              <select id="e_dir">
-                <option value="there">Туда (в командировку)</option>
-                <option value="back">Обратно (домой)</option>
-              </select>
-            </div>
+            <div class="field"><label>Маршрут (Город — Город) <span class="req-star">*</span></label><input type="text" id="e_route" placeholder="Город - Город"></div>
+            <div class="field"><label>Направление</label><select id="e_dir"><option value="there">Туда (в командировку)</option><option value="back">Обратно (домой)</option></select></div>
             <div class="grid-2">
-              <div class="field">
-                <label>Номер билета <span class="req-star">*</span></label>
-                <input type="text" id="e_ticket_no">
-              </div>
-              <div class="field">
-                <label>Сумма тарифа (₽) <span class="req-star">*</span></label>
-                <input type="number" id="e_ticket_sum">
-              </div>
+              <div class="field"><label>Номер билета <span class="req-star">*</span></label><input type="text" id="e_ticket_no"></div>
+              <div class="field"><label>Сумма тарифа (₽) <span class="req-star">*</span></label><input type="number" id="e_ticket_sum"></div>
             </div>
-
-            <label class="checkbox-row">
-              <input type="checkbox" id="chk_fee" onchange="toggleBox('sub_fee')"> В чеке есть сервисный сбор / комиссия
-            </label>
-            <div id="sub_fee" class="sub-box">
-              <div class="grid-2">
-                <div class="field"><label>Чек сбора</label><input type="text" id="e_fee_no"></div>
-                <div class="field"><label>Сумма сбора (₽)</label><input type="number" id="e_fee_sum"></div>
-              </div>
-            </div>
-
-            <label class="checkbox-row">
-              <input type="checkbox" id="chk_bag" onchange="toggleBox('sub_bag')"> Оплачивался багаж
-            </label>
-            <div id="sub_bag" class="sub-box">
-              <div class="grid-2">
-                <div class="field"><label>Квитанция багажа</label><input type="text" id="e_bag_no"></div>
-                <div class="field"><label>Сумма багажа (₽)</label><input type="number" id="e_bag_sum"></div>
-              </div>
-            </div>
-
-            <label class="checkbox-row">
-              <input type="checkbox" id="chk_ins" onchange="toggleBox('sub_ins')"> Включена страховка
-            </label>
-            <div id="sub_ins" class="sub-box">
-              <div class="grid-2">
-                <div class="field"><label>Полис/чек страховки</label><input type="text" id="e_ins_no"></div>
-                <div class="field"><label>Сумма страховки (₽)</label><input type="number" id="e_ins_sum"></div>
-              </div>
-            </div>
+            <label class="checkbox-row"><input type="checkbox" id="chk_fee" onchange="toggleBox('sub_fee')"> В чеке есть сервисный сбор / комиссия</label>
+            <div id="sub_fee" class="sub-box"><div class="grid-2"><div class="field"><label>Чек сбора</label><input type="text" id="e_fee_no"></div><div class="field"><label>Сумма сбора (₽)</label><input type="number" id="e_fee_sum"></div></div></div>
+            <label class="checkbox-row"><input type="checkbox" id="chk_bag" onchange="toggleBox('sub_bag')"> Оплачивался багаж</label>
+            <div id="sub_bag" class="sub-box"><div class="grid-2"><div class="field"><label>Квитанция багажа</label><input type="text" id="e_bag_no"></div><div class="field"><label>Сумма багажа (₽)</label><input type="number" id="e_bag_sum"></div></div></div>
+            <label class="checkbox-row"><input type="checkbox" id="chk_ins" onchange="toggleBox('sub_ins')"> Включена страховка</label>
+            <div id="sub_ins" class="sub-box"><div class="grid-2"><div class="field"><label>Полис/чек страховки</label><input type="text" id="e_ins_no"></div><div class="field"><label>Сумма страховки (₽)</label><input type="number" id="e_ins_sum"></div></div></div>
           </div>
 
           <div id="box-taxi" style="display:none;">
-            <div class="grid-2">
-              <div class="field"><label>Номер чека <span class="req-star">*</span></label><input type="text" id="e_taxi_no" placeholder="303"></div>
-              <div class="field"><label>Сумма (₽) <span class="req-star">*</span></label><input type="number" id="e_taxi_sum" placeholder="0"></div>
-            </div>
-            
-            <div class="field">
-              <label>Точка А (Откуда) <span class="req-star">*</span></label>
-              <div class="addr-row">
-                <div class="main-addr">
-                  <input type="text" id="e_taxi_from" placeholder="Любой город, улица, дом..." autocomplete="off" oninput="fetchFiasSuggestions(this, 'sug_a')">
-                  <div id="sug_a" class="suggest-box"></div>
-                </div>
-                <div class="sub-obj">
-                  <input type="text" id="e_taxi_obj_a" placeholder="Дом/Вокзал">
-                </div>
-              </div>
-            </div>
-
-            <div class="field">
-              <label>Точка Б (Куда) <span class="req-star">*</span></label>
-              <div class="addr-row">
-                <div class="main-addr">
-                  <input type="text" id="e_taxi_to" placeholder="Любой город, улица, дом..." autocomplete="off" oninput="fetchFiasSuggestions(this, 'sug_b')">
-                  <div id="sug_b" class="suggest-box"></div>
-                </div>
-                <div class="sub-obj">
-                  <input type="text" id="e_taxi_obj_b" placeholder="Аэропорт/Отель">
-                </div>
-              </div>
-            </div>
-
-            <div class="field">
-              <label>Цель поездки <span class="req-star">*</span></label>
-              <input type="text" id="e_taxi_purpose" placeholder="Поездка в аэропорт / на объект">
-            </div>
+            <div class="grid-2"><div class="field"><label>Номер чека <span class="req-star">*</span></label><input type="text" id="e_taxi_no" placeholder="303"></div><div class="field"><label>Сумма (₽) <span class="req-star">*</span></label><input type="number" id="e_taxi_sum" placeholder="0"></div></div>
+            <div class="field"><label>Точка А (Откуда) <span class="req-star">*</span></label><div class="addr-row"><div class="main-addr"><input type="text" id="e_taxi_from" placeholder="Адрес..." autocomplete="off" oninput="fetchFiasSuggestions(this, 'sug_a')"><div id="sug_a" class="suggest-box"></div></div><div class="sub-obj"><input type="text" id="e_taxi_obj_a" placeholder="Дом/Вокзал"></div></div></div>
+            <div class="field"><label>Точка Б (Куда) <span class="req-star">*</span></label><div class="addr-row"><div class="main-addr"><input type="text" id="e_taxi_to" placeholder="Адрес..." autocomplete="off" oninput="fetchFiasSuggestions(this, 'sug_b')"><div id="sug_b" class="suggest-box"></div></div><div class="sub-obj"><input type="text" id="e_taxi_obj_b" placeholder="Аэропорт/Отель"></div></div></div>
+            <div class="field"><label>Цель поездки <span class="req-star">*</span></label><input type="text" id="e_taxi_purpose" placeholder="Служебная цель"></div>
           </div>
 
           <div id="box-hotel" style="display:none;">
-            <div class="field">
-              <label>Форма бизнеса</label>
-              <select id="e_hotel_biz">
-                <option value="self">Самозанятый (Аренда квартиры)</option>
-                <option value="corp">ИП / ООО (Гостиница)</option>
-              </select>
-            </div>
-            <div class="grid-2">
-              <div class="field"><label>Номер договора/чека <span class="req-star">*</span></label><input type="text" id="e_hotel_no"></div>
-              <div class="field"><label>Сумма (₽) <span class="req-star">*</span></label><input type="number" id="e_hotel_sum"></div>
-            </div>
+            <div class="field"><label>Форма бизнеса</label><select id="e_hotel_biz"><option value="self">Самозанятый (Аренда квартиры)</option><option value="corp">ИП / ООО (Гостиница)</option></select></div>
+            <div class="grid-2"><div class="field"><label>Номер договора/чека <span class="req-star">*</span></label><input type="text" id="e_hotel_no"></div><div class="field"><label>Сумма (₽) <span class="req-star">*</span></label><input type="number" id="e_hotel_sum"></div></div>
           </div>
 
           <div id="box-misc" style="display:none;">
-            <div class="grid-2">
-              <div class="field"><label>Номер чека <span class="req-star">*</span></label><input type="text" id="e_misc_no"></div>
-              <div class="field"><label>Сумма (₽) <span class="req-star">*</span></label><input type="number" id="e_misc_sum"></div>
-            </div>
+            <div class="grid-2"><div class="field"><label>Номер чека <span class="req-star">*</span></label><input type="text" id="e_misc_no"></div><div class="field"><label>Сумма (₽) <span class="req-star">*</span></label><input type="number" id="e_misc_sum"></div></div>
             <div class="field"><label>Наименование расхода <span class="req-star">*</span></label><input type="text" id="e_misc_name" placeholder="Хозтовары"></div>
           </div>
 
@@ -452,22 +350,16 @@
     <div id="step-3" class="step-content">
       <div class="card">
         <h2>3. Проверка расходов по категориям</h2>
-        
-        <div class="tip-dashed-box">
-          <span style="font-size: 16px;">💡</span>
-          <div>Сверьте данные по документам. Нажмите на любой расход для редактирования и точечного изменения.</div>
-        </div>
-
+        <div class="tip-dashed-box"><span>💡</span><div>Сверьте данные по документам. Нажмите на любой расход для редактирования.</div></div>
         <div id="review_cards_container"></div>
       </div>
-
       <div class="nav-bar">
         <button type="button" class="btn btn-secondary" onclick="goToStep(2)">← Назад</button>
         <button type="button" class="btn btn-primary" onclick="goToStep(4)">Сформировать отчет 🚀</button>
       </div>
     </div>
 
-    <!-- ШАГ 4: ГОТОВЫЙ ОТЧЕТ И СВЯЗНАЯ СВОДКА -->
+    <!-- ШАГ 4: ГОТОВЫЙ ПАКЕТ АО-1 -->
     <div id="step-4" class="step-content">
       <div class="nav-bar" style="margin-bottom:10px; display:flex; flex-direction:column; gap:8px;">
         <div style="display:flex; gap:6px; width:100%;">
@@ -480,7 +372,7 @@
 
       <div class="card" style="border-top: 3px solid var(--primary);">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-          <h3 style="margin:0;">💬 Финальная связная сводка-нарратив</h3>
+          <h3 style="margin:0;">💬 Финальная сводка-нарратив</h3>
           <button type="button" class="btn btn-secondary" style="height:28px; font-size:11px; width:auto; padding:0 8px;" onclick="copyNarrativeText()">📋 Копировать</button>
         </div>
         <div id="narrative_text" class="narrative-box"></div>
@@ -491,141 +383,120 @@
           <h3 style="margin:0 0 6px 0;">1. Сведения о командировке</h3>
           <div class="table-scroll"><table id="tbl_pass"><tbody></tbody></table></div>
         </div>
-
         <div class="card" style="padding:10px;">
           <h3 style="margin:0 0 6px 0;">2. Оборотная сторона формы № АО-1</h3>
           <div class="table-scroll"><table id="tbl_ao1"><thead><tr><th style="width:24px;" class="text-center">№</th><th style="width:75px;">Дата</th><th style="width:90px;">№ док.</th><th>Наименование расхода</th><th style="width:80px;" class="text-right">Сумма (₽)</th></tr></thead><tbody></tbody></table></div>
         </div>
-
         <div class="card" id="card_taxi" style="padding:10px; display:none;">
           <h3 style="margin:0 0 6px 0;">3. Детализация такси</h3>
-          <div class="table-scroll"><table id="tbl_taxi"><thead><tr><th style="width:75px;">Дата</th><th>Маршрут (Точка А — Точка Б)</th><th>Цель поездки</th><th style="width:75px;" class="text-right">Сумма (₽)</th></tr></thead><tbody></tbody></table></div>
+          <div class="table-scroll"><table id="tbl_taxi"><thead><tr><th style="width:75px;">Дата</th><th>Маршрут</th><th>Цель</th><th style="width:75px;" class="text-right">Сумма (₽)</th></tr></thead><tbody></tbody></table></div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- ВКЛАДКА 2: КОМАНДИРОВКИ (ТАЙМЛАЙН) -->
-  <div id="tab-requests" class="main-tab-content" style="display:none;">
+  <!-- ВКЛАДКА 2: ИЕРАРХИЧЕСКИЕ КОМАНДИРОВКИ (ТАЙМЛАЙН) -->
+  <div id="tab-trips" class="main-tab-content" style="display:none;">
     <div class="card">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-        <h2 style="margin:0;">💰 Командировки и авансы</h2>
-        <div style="display:flex; gap:6px;">
-          <button type="button" id="btn_clear_all_trips" class="btn btn-danger" style="height:32px; width:auto; padding:0 10px; font-size:11px; display:none;" onclick="confirmClearAllTrips()">🗑️ Очистить все</button>
-          <button type="button" class="btn btn-primary" style="height:32px; width:auto; padding:0 12px; font-size:12px;" onclick="openNewRequestForm()">➕ Новая командировка</button>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <h2 style="margin:0;">✈️ Командировки</h2>
+        <button type="button" class="btn btn-primary" style="height:32px; width:auto; font-size:12px; padding:0 12px;" onclick="switchMainTab('new_req')">➕ Новая заявка на ДС</button>
+      </div>
+      <div style="font-size:12px; color:#64748b; margin-bottom:12px;">
+        Группировка по месяцам. Нажмите на командировку, затем на сотрудника для просмотра цепочки документов.
+      </div>
+
+      <div id="trips_tree_container">Загрузка командировок...</div>
+    </div>
+  </div>
+
+  <!-- ВКЛАДКА 3: СОЗДАНИЕ ЗАЯВКИ / ПРОДЛЕНИЯ -->
+  <div id="tab-new-req" class="main-tab-content" style="display:none;">
+    <div class="card">
+      <h2 id="req_form_title">💰 Новая заявка на ДС</h2>
+      <input type="hidden" id="req_target_trip_id" value="">
+
+      <div class="field">
+        <label>Тип заявки</label>
+        <select id="req_type" onchange="onRequestTypeChange()">
+          <option value="primary">Первичная заявка на командировку</option>
+          <option value="prolong">Продление сроков командировки</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Город назначения <span class="req-star">*</span></label>
+        <input type="text" id="req_city" placeholder="Например: Красноярск">
+      </div>
+
+      <div class="field">
+        <label>Цель командировки (K14 заявки / E15 служебной записки) <span class="req-star">*</span></label>
+        <select id="req_purpose_select" onchange="onPurposeSelectChange()">
+          <option value="Открытие нового магазина, контроль и внедрение рабочих процессов">Открытие нового магазина, контроль и внедрение рабочих процессов</option>
+          <option value="Перезапуск и оптимизация рабочих процессов">Перезапуск и оптимизация рабочих процессов</option>
+          <option value="custom">✏️️ Свой вариант (ввести вручную...)</option>
+        </select>
+        <textarea id="req_purpose_custom" style="display:none; margin-top:6px;" placeholder="Введите индивидуальную цель командировки..."></textarea>
+      </div>
+
+      <div class="field">
+        <label id="req_date_label">Сроки поездки <span class="req-star">*</span></label>
+        <input type="text" id="req_date_range" class="range-input" placeholder="Нажмите для выбора дат..." readonly>
+        <input type="hidden" id="req_date_start">
+        <input type="hidden" id="req_date_end">
+      </div>
+
+      <div class="field">
+        <label>Состав участников поездки <span class="req-star">*</span></label>
+        <div id="admin_team_picker" style="position:relative; margin-bottom:6px;">
+          <div style="display:flex; gap:6px;">
+            <input type="text" id="team_search_input" placeholder="Фамилия сотрудника..." autocomplete="off" oninput="filterTeamSearch(this.value)">
+            <button type="button" class="btn btn-secondary" style="width:auto; height:40px; padding:0 12px; font-size:12px;" onclick="showAllTeamDropdown()">👥 Все</button>
+          </div>
+          <div id="team_suggest_box" class="suggest-box" style="display:none;"></div>
+        </div>
+        <div id="selected_team_chips" style="min-height:32px; background:#fff; border:1px solid #d1d1d6; border-radius:8px; padding:4px; display:flex; flex-wrap:wrap; align-items:center;">
+          <span id="no_team_placeholder" style="color:#94a3b8; font-size:12px; padding-left:4px;">Сотрудники не выбраны</span>
         </div>
       </div>
 
-      <!-- ФОРМА СОЗДАНИЯ ЗАЯВКИ / ПРОДЛЕНИЯ -->
-      <div id="advance_request_builder" style="display:none; background:#f8fafc; border:1px solid #cbd5e1; border-radius:12px; padding:12px; margin-bottom:14px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-          <h3 id="req_form_title" style="margin:0; font-size:15px; color:#0f172a;">Новая заявка на ДС</h3>
-          <button type="button" class="btn btn-secondary" style="height:26px; width:auto; padding:0 8px; font-size:11px;" onclick="closeNewRequestForm()">✕</button>
-        </div>
+      <h3 style="margin:12px 0 6px 0; font-size:13px;">Расчёт сметы по сотрудникам</h3>
+      <div id="req_team_estimates"></div>
 
-        <input type="hidden" id="req_target_trip_id" value="">
-        <div class="field">
-          <label>Тип заявки</label>
-          <select id="req_type" onchange="onRequestTypeChange()">
-            <option value="primary">Первичная заявка на командировку</option>
-            <option value="prolong">Продление сроков командировки</option>
-          </select>
-        </div>
-
-        <div class="field">
-          <label>Город назначения <span class="req-star">*</span></label>
-          <input type="text" id="req_city" placeholder="Например: Красноярск">
-        </div>
-
-        <div class="field">
-          <label>Цель командировки (K14 заявки / E15 служебной записки) <span class="req-star">*</span></label>
-          <select id="req_purpose_select" onchange="onPurposeSelectChange()">
-            <option value="Открытие нового магазина, контроль и внедрение рабочих процессов">Открытие нового магазина, контроль и внедрение рабочих процессов</option>
-            <option value="Перезапуск и оптимизация рабочих процессов">Перезапуск и оптимизация рабочих процессов</option>
-            <option value="custom">✏️ Свой вариант (ввести вручную...)</option>
-          </select>
-          <textarea id="req_purpose_custom" style="display:none; margin-top:6px;" placeholder="Введите индивидуальную цель командировки..."></textarea>
-        </div>
-
-        <div class="field">
-          <label id="req_date_label">Сроки поездки <span class="req-star">*</span></label>
-          <input type="text" id="req_date_range" class="range-input" placeholder="Нажмите для выбора дат..." readonly>
-          <input type="hidden" id="req_date_start">
-          <input type="hidden" id="req_date_end">
-        </div>
-
-        <div class="field">
-          <label>Состав участников поездки <span class="req-star">*</span></label>
-          <div id="admin_team_picker" style="position:relative; margin-bottom:6px;">
-            <div style="display:flex; gap:6px;">
-              <input type="text" id="team_search_input" placeholder="Начните вводить фамилию сотрудника..." autocomplete="off" oninput="filterTeamSearch(this.value)">
-              <button type="button" class="btn btn-secondary" style="width:auto; height:40px; padding:0 12px; font-size:12px;" onclick="showAllTeamDropdown()">👥 Все</button>
-            </div>
-            <div id="team_suggest_box" class="suggest-box" style="display:none; position:absolute; top:100%; left:0; right:0; z-index:1000; background:#fff;"></div>
-          </div>
-          <div id="selected_team_chips" style="min-height:32px; background:#fff; border:1px solid #d1d1d6; border-radius:8px; padding:4px; display:flex; flex-wrap:wrap; align-items:center;">
-            <span id="no_team_placeholder" style="color:#94a3b8; font-size:12px; padding-left:4px;">Сотрудники не выбраны</span>
-          </div>
-        </div>
-
-        <h3 style="margin:12px 0 6px 0; font-size:13px;">Расчёт сметы по сотрудникам</h3>
-        <div id="req_team_estimates"></div>
-
-        <div style="background:#e0f2fe; border:1px solid #bae6fd; border-radius:8px; padding:10px; margin:10px 0; font-size:13px; font-weight:700; color:#0369a1;">
-          Общая сумма аванса по заявке: <span id="req_total_sum_display">0</span> ₽
-        </div>
-
-        <div style="display:flex; gap:8px;">
-          <button type="button" class="btn btn-primary" onclick="submitAdvanceRequest()">💾 Сформировать заявку и письмо</button>
-          <button type="button" class="btn btn-secondary" onclick="closeNewRequestForm()">Отмена</button>
-        </div>
+      <div style="background:#e0f2fe; border:1px solid #bae6fd; border-radius:8px; padding:10px; margin:10px 0; font-size:13px; font-weight:700; color:#0369a1;">
+        Общая сумма по заявке: <span id="req_total_sum_display">0</span> ₽
       </div>
 
-      <!-- РЕЗУЛЬТАТ ПИСЬМА -->
-      <div id="email_result_card" class="card" style="display:none; border-left:4px solid var(--primary); background:#f0fdf4;">
+      <div style="display:flex; gap:8px;">
+        <button type="button" class="btn btn-primary" onclick="submitAdvanceRequest()">💾 Сформировать заявку и письмо</button>
+        <button type="button" class="btn btn-secondary" onclick="switchMainTab('trips')">Отмена</button>
+      </div>
+
+      <!-- КАРТОЧКА РЕЗУЛЬТАТА ПИСЬМА -->
+      <div id="email_result_card" style="display:none; margin-top:14px; border-left:4px solid var(--primary); background:#f0fdf4; padding:10px; border-radius:8px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-          <h3 style="margin:0; color:#166534;">✉️️ Готовое письмо для согласования</h3>
+          <h3 style="margin:0; color:#166534;">✉️ Готовое письмо на согласование</h3>
           <div style="display:flex; gap:6px;">
             <button type="button" class="btn btn-secondary" style="height:28px; width:auto; font-size:11px; padding:0 8px;" onclick="copyAdvanceEmailText()">📋 Скопировать</button>
             <a id="btn_mailto_link" href="#" class="btn btn-primary" style="height:28px; width:auto; font-size:11px; padding:0 10px; text-decoration:none;">✉️ В Почту</a>
           </div>
         </div>
-        <div id="email_preview_box" style="white-space:pre-wrap; font-size:12px; line-height:1.5; color:#1e293b; background:#fff; border:1px solid #bbf7d0; border-radius:8px; padding:10px; margin-bottom:10px;"></div>
-        
-        <h4 style="margin:0 0 6px 0; font-size:13px; color:#166534;">📄 Заполненные бланки заявок на Диске:</h4>
+        <div id="email_preview_box" style="white-space:pre-wrap; font-size:12px; line-height:1.5; color:#1e293b; background:#fff; border:1px solid #bbf7d0; border-radius:8px; padding:10px; margin-bottom:8px;"></div>
+        <h4 style="margin:0 0 6px 0; font-size:13px; color:#166534;">📄 Бланки на Google Диске:</h4>
         <div id="generated_files_links" style="display:flex; flex-direction:column; gap:4px;"></div>
       </div>
-
-      <h3 style="color:#0f172a; margin-top:16px;">📋 Хронология и таймлайн командировок</h3>
-      <div id="trips_timeline_container">Загрузка данных...</div>
     </div>
   </div>
 
-  <!-- ВКЛАДКА 3: АРХИВ ВСЕХ ЗАЯВОК НА ДС -->
-  <div id="tab-req-archive" class="main-tab-content" style="display:none;">
+  <!-- ВКЛАДКА 4: НЕЗАВЕРШЕННЫЕ ЧЕРНОВИКИ (ТОЛЬКО ЕСЛИ ОНИ ЕСТЬ) -->
+  <div id="tab-drafts" class="main-tab-content" style="display:none;">
     <div class="card">
-      <h2>📑 Архив всех заявок на ДС</h2>
-      <div style="font-size:12px; color:#64748b; margin-bottom:10px;">
-        Каждая сформированная заявка хранится как отдельный файл в формате шаблона на Google Диске.
-      </div>
-      <div id="requests_archive_container">Загрузка архива...</div>
+      <h2>💾 Черновики в процессе заполнения</h2>
+      <div id="drafts_list_container">Черновиков нет.</div>
     </div>
   </div>
 
-  <!-- ВКЛАДКА 4: РЕЕСТР ОТЧЕТОВ И ЧЕРНОВИКОВ -->
-  <div id="tab-reports" class="main-tab-content" style="display:none;">
-    <div class="card">
-      <h2 id="reports_title">📊 Все отчёты и черновики</h2>
-      
-      <h3 style="color:#d84315; margin-top:14px;">💾 Черновики в процессе</h3>
-      <div id="drafts_container" style="font-size:12px; color:#8e8e93;">Черновиков нет.</div>
-
-      <h3 style="color:#1e3a8a; margin-top:16px;">📁 Готовые сданные отчёты</h3>
-      <div id="done_reports_container" style="font-size:12px; color:#8e8e93;">Отчетов пока нет.</div>
-    </div>
-  </div>
-
-  <!-- ВКЛАДКА 5: УПРАВЛЕНИЕ СОТРУДНИКАМИ И ДОСТУПАМИ -->
+  <!-- ВКЛАДКА 5: БАЗА СОТРУДНИКОВ И ПРАВА -->
   <div id="tab-employees" class="main-tab-content" style="display:none;">
     <div class="card">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
@@ -633,16 +504,14 @@
         <button type="button" class="btn btn-primary" style="height:32px; width:auto; padding:0 12px; font-size:12px;" onclick="openAddEmployeeModal()">➕ Добавить сотрудника</button>
       </div>
 
-      <!-- БЛОК НАЗНАЧЕНИЯ РУКОВОДИТЕЛЕЙ (ТОЛЬКО ДЛЯ СУПЕРАДМИНА) -->
       <div id="super_admin_roles_box" style="display:none; background:#f0f9ff; border:1px solid #bae6fd; border-radius:10px; padding:10px; margin-bottom:12px;">
-        <h3 style="margin-top:0; color:#0369a1; font-size:14px;">👑 Настройка доступа руководителей</h3>
-        <p style="font-size:11px; color:#075985; margin:0 0 8px 0;">Укажите Telegram ID руководителя и список табельных номеров через запятую, либо 'ALL' для полного доступа.</p>
+        <h3 style="margin-top:0; color:#0369a1; font-size:14px;">👑 Настройка доступа руководителей (Суперадмин)</h3>
         <div class="grid-2">
           <input type="text" id="role_lead_tg" placeholder="Telegram ID руководителя">
           <input type="text" id="role_lead_name" placeholder="ФИО руководителя">
         </div>
         <div class="field" style="margin-top:6px;">
-          <input type="text" id="role_lead_tabs" placeholder="Табельные номера через запятую (напр.: 0000013789, 0000013790) или ALL">
+          <input type="text" id="role_lead_tabs" placeholder="Табельные номера через запятую или ALL">
         </div>
         <button type="button" class="btn btn-primary" style="height:34px; font-size:12px;" onclick="saveLeadPermissions()">Сохранить права руководителя</button>
       </div>
@@ -653,18 +522,44 @@
 
 </div>
 
-<!-- МОДАЛКИ -->
+<!-- МОДАЛКА ПЕРЕСЧЕТА ИЗ СТАТУСА -->
+<div id="recalc_modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:10010; align-items:center; justify-content:center; padding:16px;">
+  <div style="background:white; padding:18px; border-radius:14px; width:100%; max-width:440px; box-shadow:0 12px 30px rgba(0,0,0,0.25);">
+    <h3 style="margin-top:0; color:#b45309; font-size:16px;">⚠️ Пересчёт данных командировки</h3>
+    <div id="recalc_modal_content" style="font-size:13px; line-height:1.5; color:#334155; margin-bottom:14px;"></div>
+    <div style="display:flex; flex-direction:column; gap:8px;">
+      <button type="button" class="btn btn-primary" onclick="confirmRecalcAndApply()">✅ Применить пересчёт и перезаписать АО-1</button>
+      <button type="button" class="btn btn-secondary" onclick="cancelUnsavedChangesFromModal()">↩️ Отменить изменения (вернуть как было)</button>
+      <button type="button" class="btn btn-secondary" onclick="closeRecalcModal()">Закрыть окно</button>
+    </div>
+  </div>
+</div>
+
+<!-- МОДАЛКА ПРЕДЛОЖЕНИЯ ОТКРЫТЬ ЧЕРНОВИК -->
+<div id="cloud_draft_modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.55); z-index:10001; align-items:center; justify-content:center; padding:16px;">
+  <div style="background:white; padding:20px; border-radius:16px; width:100%; max-width:380px; box-shadow:0 12px 36px rgba(0,0,0,0.3); text-align:center; position:relative;">
+    <button type="button" onclick="dismissCloudDraftTemporarily()" style="position:absolute; top:12px; right:12px; background:none; border:none; font-size:18px; color:#8e8e93; cursor:pointer;">✕</button>
+    <div style="font-size:36px; margin-bottom:8px;">📝</div>
+    <h3 style="margin:0 0 8px 0; font-size:17px; color:#1c1c1e;">Найден незавершённый черновик</h3>
+    <div id="cloud_draft_modal_text" style="font-size:13px; color:#495057; margin-bottom:18px; line-height:1.5;"></div>
+    <div style="display:flex; flex-direction:column; gap:8px;">
+      <button type="button" class="btn btn-primary" onclick="confirmOpenCloudDraft()">✏️ Продолжить заполнение</button>
+      <button type="button" class="btn btn-secondary" onclick="dismissCloudDraftTemporarily()">🕒 Напомнить позже</button>
+      <button type="button" class="btn btn-secondary" onclick="confirmDiscardCloudDraft()" style="color:#ff3b30; background:transparent;">🗑️ Начать с нуля</button>
+    </div>
+  </div>
+</div>
+
+<!-- МОДАЛКА БАНКОВСКИХ РЕКВИЗИТОВ -->
 <div id="bank_details_modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:10005; align-items:center; justify-content:center; padding:16px;">
   <div style="background:white; padding:18px; border-radius:14px; width:100%; max-width:420px; box-shadow:0 12px 30px rgba(0,0,0,0.25);">
     <h3 style="margin-top:0; font-size:16px; color:#0f172a;">🏦 Реквизиты для перечисления ДС</h3>
     <p id="bank_modal_desc" style="font-size:12px; color:#64748b; margin-bottom:12px;">Укажите банковские реквизиты сотрудника:</p>
     <input type="hidden" id="bank_modal_fio">
-    
     <div class="field"><label>ИНН банка <span class="req-star">*</span></label><input type="text" id="bm_inn" placeholder="7707083893"></div>
     <div class="field"><label>БИК банка <span class="req-star">*</span></label><input type="text" id="bm_bik" placeholder="046902606"></div>
     <div class="field"><label>Лицевой счёт (20 знаков) <span class="req-star">*</span></label><input type="text" id="bm_acc" placeholder="40817810364004802956" maxlength="20"></div>
     <div class="field"><label>Домашний город (выезд) <span class="req-star">*</span></label><input type="text" id="bm_city" placeholder="г. Томск"></div>
-    
     <div style="display:flex; gap:6px; margin-top:12px;">
       <button type="button" class="btn btn-primary" onclick="saveBankDetailsModal()">Сохранить реквизиты</button>
       <button type="button" class="btn btn-secondary" onclick="closeBankDetailsModal()">Отмена</button>
@@ -672,63 +567,43 @@
   </div>
 </div>
 
-<div id="cloud_draft_modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.55); z-index:10001; align-items:center; justify-content:center; padding:16px;">
-  <div style="background:white; padding:20px; border-radius:16px; width:100%; max-width:380px; box-shadow:0 12px 36px rgba(0,0,0,0.3); text-align:center; position:relative;">
-    <button type="button" onclick="dismissCloudDraftTemporarily()" style="position:absolute; top:12px; right:12px; background:none; border:none; font-size:18px; color:#8e8e93; cursor:pointer; padding:4px 8px;">✕</button>
-    <div style="font-size:36px; margin-bottom:8px;">📝</div>
-    <h3 style="margin:0 0 8px 0; font-size:17px; color:#1c1c1e;">Найден незавершённый черновик</h3>
-    <div id="cloud_draft_modal_text" style="font-size:13px; color:#495057; margin-bottom:18px; line-height:1.5;">
-      Загрузка...
-    </div>
-    <div style="display:flex; flex-direction:column; gap:8px;">
-      <button type="button" class="btn btn-primary" onclick="confirmOpenCloudDraft()" style="height:42px; font-size:14px;">✏️ Продолжить заполнение</button>
-      <button type="button" class="btn btn-secondary" onclick="dismissCloudDraftTemporarily()" style="height:38px; font-size:13px; color:#475569;">🕒 Напомнить позже (закрыть)</button>
-      <button type="button" class="btn btn-secondary" onclick="confirmDiscardCloudDraft()" style="height:32px; font-size:12px; color:#ff3b30; background:transparent;">🗑️ Начать с нуля</button>
-    </div>
-  </div>
-</div>
-
+<!-- МОДАЛКА ПОДТВЕРЖДЕНИЯ РЕДАКТИРОВАНИЯ РАСХОДА -->
 <div id="edit_confirm_modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:10000; align-items:center; justify-content:center;">
   <div style="background:white; padding:18px; border-radius:14px; width:90%; max-width:380px; box-shadow:0 10px 30px rgba(0,0,0,0.25); text-align:center;">
     <div style="font-size: 30px; margin-bottom: 6px;">✏️</div>
-    <h3 style="margin:0 0 6px 0; font-size:16px; color:#1c1c1e;">Редактирование расхода</h3>
-    <div id="edit_confirm_text" style="font-size:13px; color:#495057; margin-bottom:16px; line-height:1.4;">
-      Желаете отредактировать этот расход?
-    </div>
+    <h3 style="margin:0 0 6px 0; font-size:16px;">Редактирование расхода</h3>
+    <div id="edit_confirm_text" style="font-size:13px; color:#495057; margin-bottom:16px; line-height:1.4;"></div>
     <div style="display:flex; gap:8px;">
-      <button type="button" class="btn btn-primary" id="btn_confirm_edit" style="flex:1; height:38px; font-size:13px;">Да, изменить</button>
-      <button type="button" class="btn btn-secondary" onclick="closeEditConfirmModal()" style="flex:1; height:38px; font-size:13px;">Отмена</button>
+      <button type="button" class="btn btn-primary" id="btn_confirm_edit" style="flex:1;">Да, изменить</button>
+      <button type="button" class="btn btn-secondary" onclick="closeEditConfirmModal()" style="flex:1;">Отмена</button>
     </div>
   </div>
 </div>
 
+<!-- МОДАЛКА ПЕРЕЧНЯ ДОКУМЕНТОВ -->
 <div id="checklist_modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:10000; align-items:center; justify-content:center;">
   <div style="background:white; padding:16px; border-radius:14px; width:92%; max-width:540px; box-shadow:0 10px 30px rgba(0,0,0,0.25);">
-    <h3 style="margin-top:0; font-size:16px; color:#1c1c1e;">📋 Документы для бухгалтерии</h3>
+    <h3 style="margin-top:0; font-size:16px;">📋 Документы для бухгалтерии</h3>
     <div id="checklist_content" class="checklist-box"></div>
     <div style="display:flex; gap:8px; margin-top:14px;">
-      <button type="button" class="btn btn-primary" style="flex:1; height:38px;" onclick="copyChecklistText()">📋 Скопировать список</button>
-      <button type="button" class="btn btn-secondary" style="flex:1; height:38px;" onclick="closeChecklistModal()">Понятно</button>
+      <button type="button" class="btn btn-primary" style="flex:1;" onclick="copyChecklistText()">📋 Скопировать список</button>
+      <button type="button" class="btn btn-secondary" style="flex:1;" onclick="closeChecklistModal()">Понятно</button>
     </div>
   </div>
 </div>
 
+<!-- МОДАЛКА СОТРУДНИКА -->
 <div id="emp_modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:10000; align-items:center; justify-content:center;">
   <div style="background:white; padding:16px; border-radius:12px; width:90%; max-width:440px; max-height:90vh; overflow-y:auto;">
-    <h3 id="modal_title" style="margin-top:0;">Редактировать сотрудника</h3>
+    <h3 id="modal_title" style="margin-top:0;">Сотрудник</h3>
     <input type="hidden" id="modal_old_tab">
     <div class="field"><label>ФИО</label><input type="text" id="modal_fio"></div>
     <div class="field"><label>Должность</label><input type="text" id="modal_role"></div>
     <div class="field"><label>Табельный номер</label><input type="text" id="modal_tab"></div>
-    <div class="field"><label>Telegram ID</label><input type="text" id="modal_tgid" placeholder="Например: 446642559"></div>
-    <hr style="border:none; border-top:1px dashed #cbd5e1; margin:10px 0;">
-    <div class="field"><label>ИНН банка</label><input type="text" id="modal_inn" placeholder="7707083893"></div>
-    <div class="field"><label>БИК банка</label><input type="text" id="modal_bik" placeholder="046902606"></div>
-    <div class="field"><label>Лицевой счёт (20 знаков)</label><input type="text" id="modal_acc" placeholder="40817810364004802956" maxlength="20"></div>
-    <div class="field"><label>Домашний город</label><input type="text" id="modal_home_city" placeholder="г. Томск"></div>
+    <div class="field"><label>Telegram ID</label><input type="text" id="modal_tgid"></div>
     <div style="display:flex; gap:6px; margin-top:12px;">
-      <button type="button" class="btn btn-primary" style="height:38px;" onclick="saveModalEmployee()">Сохранить</button>
-      <button type="button" class="btn btn-secondary" style="height:38px;" onclick="closeEmpModal()">Отмена</button>
+      <button type="button" class="btn btn-primary" onclick="saveModalEmployee()">Сохранить</button>
+      <button type="button" class="btn btn-secondary" onclick="closeEmpModal()">Отмена</button>
     </div>
   </div>
 </div>
@@ -746,6 +621,7 @@
   let pendingEditExpenseId = null;
   let detectedDraftReport = null;
   let isDraftPromptDismissedForSession = false;
+  let activeRecalcTripId = null;
 
   let globalAppData = { employees: [], currentUser: null, reports: [], trips: [], requestsArchive: [], isAdmin: false, isSuperAdmin: false };
   let store = {
@@ -758,6 +634,8 @@
   let datePickerExpense = null;
   let datePickerReqRange = null;
   let currentReqTeamData = {};
+
+  const MONTH_NAMES = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];
 
   const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
   if (tg) { try { tg.ready(); tg.expand(); } catch(e){} }
@@ -779,10 +657,7 @@
   }
 
   function formatFlatpickrToRu(d) {
-    const day = String(d.getDate()).padStart(2, '0');
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const year = d.getFullYear();
-    return `${day}.${month}.${year}`;
+    return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`;
   }
 
   function getTelegramUser() {
@@ -809,6 +684,14 @@
           telegram_user: tgUser
         })
       });
+      // Помечаем в UI наличие несохраненных изменений
+      if (store.passport.tripId) {
+        fetch(GOOGLE_SHEET_API, {
+          method: "POST", mode: "no-cors",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "mark_trip_warning", tripId: store.passport.tripId })
+        });
+      }
     }, 1000);
   }
 
@@ -818,7 +701,6 @@
     datePickerRange = flatpickr("#p_date_range", {
       mode: "range", locale: "ru", dateFormat: "d.m.Y", showMonths: 1,
       onChange: function(selectedDates) {
-        document.getElementById("p_date_range").classList.remove('input-error');
         if (selectedDates.length === 2) {
           const start = selectedDates[0], end = selectedDates[1];
           document.getElementById('p_date_start').value = formatFlatpickrToRu(start);
@@ -827,11 +709,6 @@
           document.getElementById('p_days').value = diffDays > 0 ? diffDays : 1;
           calcDaily();
           triggerCloudAutoSave();
-        } else if (selectedDates.length === 1) {
-          document.getElementById('p_date_start').value = formatFlatpickrToRu(selectedDates[0]);
-          document.getElementById('p_date_end').value = "";
-          document.getElementById('p_days').value = 1;
-          calcDaily();
         }
       }
     });
@@ -868,42 +745,327 @@
           document.getElementById('admin_emp_card').style.display = 'block';
           renderEmployeeDropdown(res.employees);
           renderAdminEmployees();
-          document.getElementById('reports_title').innerText = "📊 Все отчёты и черновики";
         } else {
           document.getElementById('tab_btn_emp').style.display = 'none';
           document.getElementById('admin_emp_card').style.display = 'none';
-          document.getElementById('reports_title').innerText = "📁 Мои отчёты и черновики";
         }
 
         if (res.isSuperAdmin) {
           document.getElementById('super_admin_roles_box').style.display = 'block';
-          document.getElementById('btn_clear_all_trips').style.display = 'inline-flex';
         } else {
           document.getElementById('super_admin_roles_box').style.display = 'none';
-          document.getElementById('btn_clear_all_trips').style.display = 'none';
         }
 
-        renderSeparatedReports(res.reports);
-        renderTripsTimeline(res.trips);
-        renderRequestsArchive(res.requestsArchive);
+        // Контроль видимости таба «Черновики»
+        const activeDrafts = (res.reports || []).filter(r => r.isDraft);
+        const draftTabBtn = document.getElementById('tab_btn_drafts');
+        if (activeDrafts.length > 0) {
+          draftTabBtn.style.display = 'block';
+          document.getElementById('draft_count_badge').innerText = activeDrafts.length;
+          renderDraftsList(activeDrafts);
+        } else {
+          draftTabBtn.style.display = 'none';
+        }
+
+        renderTripsTree(res.trips, res.requestsArchive, res.reports);
 
         if (!document.getElementById('p_fio').value && !isViewingRemoteReport) {
           if (res.currentUser) {
             document.getElementById('p_fio').value = res.currentUser.fio;
             document.getElementById('p_role').value = res.currentUser.role;
             document.getElementById('p_tab').value = res.currentUser.tab;
-          } else if (res.isAdmin) {
-            document.getElementById('p_fio').value = "Илгин Александр Александрович";
-            document.getElementById('p_role').value = "Руководитель команды открытия";
-            document.getElementById('p_tab').value = "0000013789";
           }
         }
 
         checkCloudDraftPopup(res.reports, userId, res.isAdmin);
       })
-      .catch((err) => {
-        document.getElementById('drafts_container').innerHTML = '<div style="color:var(--danger); font-size:12px;">Ошибка соединения.</div>';
+      .catch(() => {
+        document.getElementById('trips_tree_container').innerHTML = '<div style="color:var(--danger); font-size:12px;">Ошибка загрузки командировок.</div>';
       });
+  }
+
+  // --- ЛОГИКА ОПРЕДЕЛЕНИЯ ПРЕОБЛАДАЮЩЕГО МЕСЯЦА ---
+  function getDominantMonthYear(dStartStr, dEndStr) {
+    const t1 = parseDateToTimestamp(dStartStr);
+    const t2 = parseDateToTimestamp(dEndStr);
+    if (!t1 || !t2 || t2 < t1) {
+      const fallback = new Date();
+      return { monthIdx: fallback.getMonth(), year: fallback.getFullYear(), label: `${MONTH_NAMES[fallback.getMonth()]} ${fallback.getFullYear()}` };
+    }
+
+    const cur = new Date(t1);
+    const end = new Date(t2);
+    const dayCounts = {};
+
+    while (cur <= end) {
+      const key = `${cur.getFullYear()}_${cur.getMonth()}`;
+      dayCounts[key] = (dayCounts[key] || 0) + 1;
+      cur.setDate(cur.getDate() + 1);
+    }
+
+    let maxKey = Object.keys(dayCounts)[0];
+    let maxDays = 0;
+    for (const k in dayCounts) {
+      if (dayCounts[k] > maxDays) {
+        maxDays = dayCounts[k];
+        maxKey = k;
+      }
+    }
+
+    const parts = maxKey.split('_');
+    const y = parseInt(parts[0]);
+    const m = parseInt(parts[1]);
+    return { monthIdx: m, year: y, label: `${MONTH_NAMES[m]} ${y}` };
+  }
+
+  // --- ОТРИСОВКА ИЕРАРХИЧЕСКОГО ДЕРЕВА КОМАНДИРОВОК ---
+  function renderTripsTree(trips, reqsArchive, reports) {
+    const container = document.getElementById('trips_tree_container');
+    if (!trips || trips.length === 0) {
+      container.innerHTML = '<div style="color:#64748b; font-size:12px;">Командировок пока нет. Нажмите «Заявка на ДС», чтобы создать первую.</div>';
+      return;
+    }
+
+    // 1. Группируем поездки в уникальные сущности (город + даты)
+    const tripGroups = {};
+    trips.forEach(tr => {
+      const dates = (tr.dates || '').split('—').map(s => s.trim());
+      const monthInfo = getDominantMonthYear(dates[0], dates[1]);
+      const groupKey = `${monthInfo.year}_${String(monthInfo.monthIdx).padStart(2,'0')}_${tr.cities}_${tr.dates}`;
+
+      if (!tripGroups[groupKey]) {
+        tripGroups[groupKey] = {
+          monthLabel: monthInfo.label,
+          cities: tr.cities || 'Город',
+          dates: tr.dates || '',
+          members: []
+        };
+      }
+      tripGroups[groupKey].members.push(tr);
+    });
+
+    // 2. Сортируем месяцы в обратном хронологическом порядке
+    const sortedGroupKeys = Object.keys(tripGroups).sort().reverse();
+
+    let html = '';
+    let currentMonthHeader = '';
+
+    sortedGroupKeys.forEach((gKey, gIdx) => {
+      const grp = tripGroups[gKey];
+      if (grp.monthLabel !== currentMonthHeader) {
+        currentMonthHeader = grp.monthLabel;
+        html += `<div class="month-header">📅 ${currentMonthHeader}</div>`;
+      }
+
+      // Вычисляем общую продолжительность командировки
+      const dParts = grp.dates.split('—').map(s => s.trim());
+      let daysCount = 0;
+      if (dParts.length === 2) {
+        const t1 = parseDateToTimestamp(dParts[0]), t2 = parseDateToTimestamp(dParts[1]);
+        if (t2 >= t1 && t1 > 0) daysCount = Math.ceil((t2 - t1)/(1000*60*60*24)) + 1;
+      }
+
+      const hasAnyWarning = grp.members.some(m => m.hasPendingRecalc);
+      const warnClass = hasAnyWarning ? 'warning-active' : '';
+
+      html += `
+        <div style="margin-bottom:8px;">
+          <button type="button" class="trip-accordion-btn ${warnClass}" onclick="toggleAccordion('box_trip_${gIdx}')">
+            <span>🧳 Командировка ${grp.cities} (${daysCount || 18} дн) <small style="font-weight:400; opacity:0.85;">(${grp.dates})</small></span>
+            <span style="font-size:11px;">${hasAnyWarning ? '⚠️ Изменено ▾' : 'Раскрыть ▾'}</span>
+          </button>
+
+          <div id="box_trip_${gIdx}" style="display:none; padding:4px 0 8px 6px;">
+      `;
+
+      // Перебор сотрудников внутри командировки
+      grp.members.forEach((tr, mIdx) => {
+        const personFio = tr.team || "Сотрудник";
+        const shortFio = personFio.split(' ')[0] || personFio;
+        const memberBoxId = `box_mem_${gIdx}_${mIdx}`;
+        const relatedReqs = (reqsArchive || []).filter(rq => rq.tripId === tr.tripId);
+        const relatedAo = (reports || []).find(r => r.tripId === tr.tripId && !r.isDraft);
+
+        html += `
+          <button type="button" class="trip-emp-btn" onclick="toggleAccordion('${memberBoxId}')">
+            <span>👤 ${shortFio} ${tr.cities} (${daysCount || 18} дн)</span>
+            <span style="font-size:11px; color:#007aff;">Цепочка документов ▾</span>
+          </button>
+
+          <div id="${memberBoxId}" class="timeline-chain-box" style="display:none;">
+        `;
+
+        // Уровень 3: Цепочка штрихпунктирных полей
+        if (relatedReqs.length === 0) {
+          html += `
+            <div class="timeline-node-field">
+              <b>📄 Заявка на ДС</b> (${Number(tr.totalAdvance).toLocaleString('ru-RU')} ₽)<br>
+              <small>Срок: ${tr.dates} | ${tr.cities}</small>
+              ${tr.url ? `<br><a href="${tr.url}" target="_blank" style="color:var(--primary); font-size:11px;">Открыть бланк заявки ➔</a>` : ''}
+            </div>
+          `;
+        } else {
+          relatedReqs.forEach((rq, rIdx) => {
+            const label = rIdx === 0 ? "📄 Заявка на ДС" : (rIdx === 1 ? "➕ Заявка на ДС (Продление)" : `➕ Заявка на ДС (Продление ${rIdx})`);
+            html += `
+              <div class="timeline-node-field">
+                <b>${label}</b>: ${Number(rq.sum).toLocaleString('ru-RU')} ₽<br>
+                <small>Даты: ${rq.dates} (${rq.days} сут.) | Цель: ${rq.purpose}</small>
+                ${rq.fileUrl ? `<br><a href="${rq.fileUrl}" target="_blank" style="color:var(--primary); font-size:11px;">Открыть таблицу заявки на Диске ➔</a>` : ''}
+              </div>
+            `;
+          });
+        }
+
+        // Поле Авансового отчета
+        if (relatedAo) {
+          html += `
+            <div class="timeline-node-field" onclick="openReportInReviewMode('${relatedAo.id}')">
+              <b>📊 Авансовый отчет АО-1</b> (Сумма: ${Number(relatedAo.sum).toLocaleString('ru-RU')} ₽)<br>
+              <small>Статус: Сдан | Нажмите для открытия сводки и расходов</small>
+              ${relatedAo.url ? `<br><a href="${relatedAo.url}" target="_blank" style="color:var(--primary); font-size:11px;" onclick="event.stopPropagation();">Открыть файл Excel на Диске ➔</a>` : ''}
+            </div>
+          `;
+        } else {
+          html += `
+            <div class="timeline-node-field" style="border-color:#f59e0b; background:#fffbeb;" onclick="loadTripIntoReport('${tr.tripId}')">
+              <b>📝 Авансовый отчет АО-1</b>: не заполнен<br>
+              <small style="color:#b45309;">Нажмите сюда для начала заполнения расходов</small>
+            </div>
+          `;
+        }
+
+        // Поле «Статус»
+        if (tr.hasPendingRecalc) {
+          html += `
+            <div class="status-field-box status-warning">
+              <b>⚠️ Изменены данные командировки!</b><br>
+              Обнаружены новые или измененные заявки. Необходимо обновить и пересохранить АО-1.<br>
+              <button type="button" class="btn btn-warning" style="height:32px; font-size:11px; margin-top:6px;" onclick="openRecalcModal('${tr.tripId}')">🔄 Произвести пересчёт и изменить Авансовый отчёт?</button>
+            </div>
+          `;
+        } else if (relatedAo) {
+          html += `
+            <div class="status-field-box status-ready">
+              ✅ <b>Документы сформированы, Отчет сдан и закрыт.</b><br>
+              Сумма отчёта о расходах: <b>${Number(relatedAo.sum).toLocaleString('ru-RU')} ₽</b>
+            </div>
+          `;
+        } else {
+          html += `
+            <div class="status-field-box">
+              ⏳ <b>Командировка в процессе.</b> Ожидается сдача расходов подотчетным лицом.
+            </div>
+          `;
+        }
+
+        html += `
+            <div style="display:flex; gap:6px; margin-top:4px;">
+              <button type="button" class="btn btn-primary" style="height:30px; font-size:11px;" onclick="loadTripIntoReport('${tr.tripId}')">✏️ Заполнить АО-1</button>
+              <button type="button" class="btn btn-secondary" style="height:30px; font-size:11px;" onclick="prolongPersonTrip('${tr.tripId}')">➕ Продление</button>
+            </div>
+          </div>
+        `;
+      });
+
+      html += `</div></div>`;
+    });
+
+    container.innerHTML = html;
+  }
+
+  function toggleAccordion(elId) {
+    const el = document.getElementById(elId);
+    if (!el) return;
+    el.style.display = el.style.display === 'block' ? 'none' : 'block';
+  }
+
+  // --- ЛОГИКА ПЕРЕСЧЕТА ИЗ ПОЛЯ «СТАТУС» ---
+  function openRecalcModal(tripId) {
+    activeRecalcTripId = tripId;
+    const tr = globalAppData.trips.find(x => x.tripId === tripId);
+    if (!tr) return;
+
+    let content = `<b>Командировка:</b> ${tr.cities} (${tr.dates})<br>`;
+    content += `<b>Сотрудник:</b> ${tr.team}<br>`;
+    content += `<b>Общий актуальный аванс по заявкам:</b> ${Number(tr.totalAdvance).toLocaleString('ru-RU')} ₽<br><br>`;
+    content += `Будут пересчитаны совокупные суточные, обновлена сумма аванса и перегенерирован пакет документов АО-1.`;
+
+    document.getElementById('recalc_modal_content').innerHTML = content;
+    document.getElementById('recalc_modal').style.display = 'flex';
+  }
+
+  function closeRecalcModal() {
+    document.getElementById('recalc_modal').style.display = 'none';
+    activeRecalcTripId = null;
+  }
+
+  function confirmRecalcAndApply() {
+    if (!activeRecalcTripId) return;
+    showToast("Пересчёт и перезапись отчёта...");
+    loadTripIntoReport(activeRecalcTripId);
+    closeRecalcModal();
+    goToStep(4);
+    // Отправляем перезапись в облако
+    sendReportToCloudOnce();
+  }
+
+  function cancelUnsavedChangesFromModal() {
+    if (!activeRecalcTripId) return;
+    fetch(GOOGLE_SHEET_API, {
+      method: "POST", mode: "no-cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "cancel_unsaved_changes", tripId: activeRecalcTripId })
+    }).then(() => {
+      showToast("Изменения отменены. Данные возвращены к исходным.");
+      closeRecalcModal();
+      loadAppData();
+    });
+  }
+
+  // --- КНОПКА ДЕМО НА ШАГЕ 2 ---
+  function loadStep2DemoExpenses() {
+    const dStart = document.getElementById('p_date_start').value || "10.09.2026";
+    const dEnd = document.getElementById('p_date_end').value || "28.09.2026";
+    const city = document.getElementById('p_city').value || "Красноярск";
+
+    store.expenses = [
+      { id: 'd1', date: dStart, no: 'TK-4821', name: `Авиабилет (Томск - ${city})`, sum: 11500, dir: 'there', cat: 'plane', route: `Томск - ${city}`, groupKey: 'dem_th', isMainTicket: true },
+      { id: 'd2', date: dStart, no: 'SB-109', name: 'Сервисный сбор', sum: 1200, dir: 'there', cat: 'plane', route: `Томск - ${city}`, groupKey: 'dem_th' },
+      { id: 'd3', date: dStart, no: 'TX-301', name: 'Чек, такси', sum: 850, cat: 'taxi' },
+      { id: 'd4', date: dStart, no: 'ДОГ-44', name: 'Гостиница', sum: 48000, cat: 'hotel', bizType: 'corp' },
+      { id: 'd5', date: dEnd, no: 'RD-902', name: `Ж/д билет (${city} - Томск)`, sum: 4500, dir: 'back', cat: 'train', route: `${city} - Томск`, groupKey: 'dem_bk', isMainTicket: true },
+      { id: 'd6', date: dEnd, no: 'TX-402', name: 'Чек, такси', sum: 600, cat: 'taxi' }
+    ];
+
+    store.taxis = [
+      { date: dStart, no: 'TX-301', sum: 850, route: 'Дом — Аэропорт Богашево', purpose: 'Проезд в аэропорт вылета' },
+      { date: dEnd, no: 'TX-402', sum: 600, route: 'Вокзал Томск-1 — Дом', purpose: 'Возвращение домой с вокзала' }
+    ];
+
+    renderExpenseList();
+    triggerCloudAutoSave();
+    showToast("⚡ ДЕМО-расходы добавлены на Шаге 2!");
+  }
+
+  // --- ФОРМИРОВАНИЕ ЗАЯВОК НА ДС С УЧЕТОМ ТИПА И ШАБЛОНОВ ---
+  function onRequestTypeChange() {
+    const t = document.getElementById('req_type').value;
+    const isProlong = (t === 'prolong');
+
+    if (isProlong) {
+      document.getElementById('req_form_title').innerText = "➕ Продление командировки";
+      document.getElementById('req_date_label').innerHTML = "Период продления (новые даты) <span class='req-star'>*</span>";
+      // Обнуляем стоимость проезда для всех выбранных участников
+      Object.keys(currentReqTeamData).forEach(fio => {
+        currentReqTeamData[fio].sumTravel = 0;
+        currentReqTeamData[fio].sumTotal = Number(currentReqTeamData[fio].sumHotel || 0) + Number(currentReqTeamData[fio].sumDaily || 0);
+      });
+      renderTeamEstimateCards();
+    } else {
+      document.getElementById('req_form_title').innerText = "💰 Новая заявка на ДС";
+      document.getElementById('req_date_label').innerHTML = "Сроки поездки <span class='req-star'>*</span>";
+    }
   }
 
   function onPurposeSelectChange() {
@@ -919,51 +1081,16 @@
 
   function getSelectedPurpose() {
     const sel = document.getElementById('req_purpose_select').value;
-    if (sel === 'custom') {
-      return document.getElementById('req_purpose_custom').value.trim() || 'Служебная поездка';
-    }
+    if (sel === 'custom') return document.getElementById('req_purpose_custom').value.trim() || 'Служебная поездка';
     return sel;
-  }
-
-  function openNewRequestForm() {
-    document.getElementById('advance_request_builder').style.display = 'block';
-    document.getElementById('req_target_trip_id').value = '';
-    document.getElementById('req_type').value = 'primary';
-    onRequestTypeChange();
-
-    if (!globalAppData.isAdmin && globalAppData.currentUser) {
-      addTeamMemberToEstimate(globalAppData.currentUser);
-      document.getElementById('admin_team_picker').style.display = 'none';
-    } else {
-      document.getElementById('admin_team_picker').style.display = 'block';
-    }
-    renderSelectedTeamChips();
-  }
-
-  function closeNewRequestForm() {
-    document.getElementById('advance_request_builder').style.display = 'none';
-    document.getElementById('req_target_trip_id').value = '';
-  }
-
-  function onRequestTypeChange() {
-    const t = document.getElementById('req_type').value;
-    if (t === 'prolong') {
-      document.getElementById('req_form_title').innerText = "➕ Продление сроков командировки";
-      document.getElementById('req_date_label').innerHTML = "Период продления (новые даты) <span class='req-star'>*</span>";
-    } else {
-      document.getElementById('req_form_title').innerText = "💰 Новая заявка на ДС";
-      document.getElementById('req_date_label').innerHTML = "Сроки поездки <span class='req-star'>*</span>";
-    }
   }
 
   function filterTeamSearch(val) {
     const box = document.getElementById('team_suggest_box');
     val = (val || '').toLowerCase().trim();
     if (!val) { box.style.display = 'none'; return; }
-
     const matches = (globalAppData.employees || []).filter(e => e.fio.toLowerCase().includes(val));
     if (matches.length === 0) { box.style.display = 'none'; return; }
-
     box.innerHTML = matches.map(e => `
       <div class="suggest-item" onclick="onSuggestTeamMemberClick('${e.fio.replace(/'/g, "\\'")}')">
         👤 <b>${e.fio}</b> <span style="color:#64748b; font-size:11px;">(${e.role})</span>
@@ -976,7 +1103,6 @@
     const box = document.getElementById('team_suggest_box');
     const list = globalAppData.employees || [];
     if (list.length === 0) return;
-
     box.innerHTML = list.map(e => `
       <div class="suggest-item" onclick="onSuggestTeamMemberClick('${e.fio.replace(/'/g, "\\'")}')">
         👤 <b>${e.fio}</b> <span style="color:#64748b; font-size:11px;">(${e.role})</span>
@@ -993,19 +1119,16 @@
   }
 
   function addTeamMemberToEstimate(emp) {
-    if (currentReqTeamData[emp.fio]) {
-      showToast("Сотрудник уже добавлен");
-      return;
-    }
+    if (currentReqTeamData[emp.fio]) { showToast("Сотрудник уже добавлен"); return; }
+    if (!emp.bankInn || !emp.bankBik || !emp.bankAcc) promptBankDetailsModal(emp);
 
-    if (!emp.bankInn || !emp.bankBik || !emp.bankAcc) {
-      promptBankDetailsModal(emp);
-    }
+    const isProlong = (document.getElementById('req_type').value === 'prolong');
+    const travelSum = isProlong ? 0 : 20000;
 
     currentReqTeamData[emp.fio] = {
       fio: emp.fio, role: emp.role, tab: emp.tab, tgId: emp.tgId,
       bankInn: emp.bankInn || '', bankBik: emp.bankBik || '', bankAcc: emp.bankAcc || '',
-      days: 18, sumTravel: 20000, hotelDaily: 3100, sumHotel: 55800, sumDaily: 27000, sumTotal: 102800
+      days: 18, sumTravel: travelSum, hotelDaily: 3100, sumHotel: 55800, sumDaily: 27000, sumTotal: travelSum + 55800 + 27000
     };
 
     renderSelectedTeamChips();
@@ -1025,12 +1148,8 @@
       box.innerHTML = '<span id="no_team_placeholder" style="color:#94a3b8; font-size:12px; padding-left:4px;">Сотрудники не выбраны</span>';
       return;
     }
-
     box.innerHTML = fnames.map(fio => `
-      <span class="team-chip">
-        ${fio}
-        <span class="team-chip-del" onclick="removeTeamMemberFromEstimate('${fio.replace(/'/g, "\\'")}')">✕</span>
-      </span>
+      <span class="team-chip">${fio}<span class="team-chip-del" onclick="removeTeamMemberFromEstimate('${fio.replace(/'/g, "\\'")}')">✕</span></span>
     `).join('');
   }
 
@@ -1039,7 +1158,7 @@
       const it = currentReqTeamData[fio];
       it.days = diffDays;
       it.sumDaily = diffDays * 1500;
-      it.sumHotel = (diffDays > 1 ? (diffDays - 1) : 1) * (it.hotelDaily || 3000);
+      it.sumHotel = (diffDays > 1 ? (diffDays - 1) : 1) * (it.hotelDaily || 3100);
       it.sumTotal = Number(it.sumTravel || 0) + Number(it.sumHotel || 0) + Number(it.sumDaily || 0);
     });
     renderTeamEstimateCards();
@@ -1049,7 +1168,7 @@
     const box = document.getElementById('req_team_estimates');
     const fnames = Object.keys(currentReqTeamData);
     if (fnames.length === 0) {
-      box.innerHTML = '<small style="color:#64748b;">Выберите сотрудников из списка выше.</small>';
+      box.innerHTML = '<small style="color:#64748b;">Выберите сотрудников из базы.</small>';
       document.getElementById('req_total_sum_display').innerText = '0';
       return;
     }
@@ -1066,20 +1185,19 @@
           </div>
           <div class="grid-2">
             <div class="field"><label>Проезд (₽)</label><input type="number" value="${d.sumTravel}" oninput="updateTeamMemberVal('${fio}', 'sumTravel', this.value)"></div>
-            <div class="field"><label>Цена жилья/сутки (₽)</label><input type="number" value="${d.hotelDaily}" oninput="updateTeamMemberVal('${fio}', 'hotelDaily', this.value)"></div>
+            <div class="field"><label>Жильё/сутки (₽)</label><input type="number" value="${d.hotelDaily}" oninput="updateTeamMemberVal('${fio}', 'hotelDaily', this.value)"></div>
           </div>
           <div class="grid-2">
-            <div class="field"><label>Дней проживания</label><input type="number" value="${d.days}" oninput="updateTeamMemberVal('${fio}', 'days', this.value)"></div>
-            <div class="field"><label>Итого проживание (₽)</label><input type="number" value="${d.sumHotel}" readonly style="background:#f1f5f9;"></div>
+            <div class="field"><label>Дней</label><input type="number" value="${d.days}" oninput="updateTeamMemberVal('${fio}', 'days', this.value)"></div>
+            <div class="field"><label>Итого жилье (₽)</label><input type="number" value="${d.sumHotel}" readonly style="background:#f1f5f9;"></div>
           </div>
           <div class="grid-2">
             <div class="field"><label>Суточные (₽)</label><input type="number" value="${d.sumDaily}" oninput="updateTeamMemberVal('${fio}', 'sumDaily', this.value)"></div>
-            <div class="field"><label><b>Итого на сотрудника (₽)</b></label><input type="number" value="${d.sumTotal}" readonly style="background:#e0f2fe; font-weight:700;"></div>
+            <div class="field"><label><b>Итого (₽)</b></label><input type="number" value="${d.sumTotal}" readonly style="background:#e0f2fe; font-weight:700;"></div>
           </div>
         </div>
       `;
     }).join('');
-
     document.getElementById('req_total_sum_display').innerText = overall.toLocaleString('ru-RU');
   }
 
@@ -1087,7 +1205,6 @@
     const it = currentReqTeamData[fio];
     if (!it) return;
     it[key] = parseFloat(val) || 0;
-
     if (key === 'hotelDaily' || key === 'days') {
       const stayDays = it.days > 1 ? (it.days - 1) : 1;
       it.sumHotel = stayDays * (it.hotelDaily || 0);
@@ -1095,45 +1212,6 @@
     }
     it.sumTotal = Number(it.sumTravel || 0) + Number(it.sumHotel || 0) + Number(it.sumDaily || 0);
     renderTeamEstimateCards();
-  }
-
-  function promptBankDetailsModal(emp) {
-    document.getElementById('bank_modal_fio').value = emp.fio;
-    document.getElementById('bank_modal_desc').innerText = `Для формирования заявки укажите банковские реквизиты: ${emp.fio}`;
-    document.getElementById('bm_inn').value = emp.bankInn || '';
-    document.getElementById('bm_bik').value = emp.bankBik || '';
-    document.getElementById('bm_acc').value = emp.bankAcc || '';
-    document.getElementById('bm_city').value = emp.homeCity || 'г. Томск';
-    document.getElementById('bank_details_modal').style.display = 'flex';
-  }
-
-  function closeBankDetailsModal() { document.getElementById('bank_details_modal').style.display = 'none'; }
-
-  function saveBankDetailsModal() {
-    const fio = document.getElementById('bank_modal_fio').value;
-    const inn = document.getElementById('bm_inn').value.trim();
-    const bik = document.getElementById('bm_bik').value.trim();
-    const acc = document.getElementById('bm_acc').value.trim();
-    const city = document.getElementById('bm_city').value.trim();
-
-    if (!inn || !bik || !acc) { showToast("Заполните ИНН, БИК и Расчетный счет"); return; }
-
-    const emp = globalAppData.employees.find(e => e.fio === fio);
-    if (emp) {
-      emp.bankInn = inn; emp.bankBik = bik; emp.bankAcc = acc; emp.homeCity = city;
-    }
-    if (currentReqTeamData[fio]) {
-      currentReqTeamData[fio].bankInn = inn; currentReqTeamData[fio].bankBik = bik; currentReqTeamData[fio].bankAcc = acc;
-    }
-
-    fetch(GOOGLE_SHEET_API, {
-      method: "POST", mode: "no-cors",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "update_bank_details", employee: { fio, bankInn: inn, bankBik: bik, bankAcc: acc, homeCity: city } })
-    });
-
-    closeBankDetailsModal();
-    showToast("Реквизиты сохранены!");
   }
 
   function submitAdvanceRequest() {
@@ -1146,7 +1224,7 @@
     const teamArr = Object.values(currentReqTeamData);
 
     if (!city || !dStart || !dEnd) { showToast("Укажите город и период"); return; }
-    if (teamArr.length === 0) { showToast("Выберите хотя бы одного сотрудника"); return; }
+    if (teamArr.length === 0) { showToast("Выберите сотрудников"); return; }
 
     if (targetTripId) {
       teamArr.forEach(m => m.tripId = targetTripId);
@@ -1155,18 +1233,11 @@
     const payload = {
       action: "save_advance_request",
       request_type: reqType,
-      trip: {
-        city: city,
-        purpose: purpose,
-        dStart: dStart,
-        dEnd: dEnd,
-        team: teamArr
-      },
+      trip: { city, purpose, dStart, dEnd, team: teamArr },
       telegram_user: getTelegramUser()
     };
 
-    showToast("Формирование заявки...");
-
+    showToast("Формирование заявок...");
     fetch(GOOGLE_SHEET_API, {
       method: "POST",
       body: JSON.stringify(payload)
@@ -1182,160 +1253,38 @@
         if (res.files && res.files.length > 0) {
           filesBox.innerHTML = res.files.map(f => `
             <a href="${f.url}" target="_blank" class="btn btn-secondary" style="height:32px; font-size:12px; justify-content:flex-start; text-decoration:none; padding:0 10px; background:#fff; border:1px solid #cbd5e1;">
-              📄 <b>${f.fio}</b> (${Number(f.sum).toLocaleString('ru-RU')} ₽) — Открыть бланк [${f.reqId}] ➔
+              📄 <b>${f.fio}</b> (${Number(f.sum).toLocaleString('ru-RU')} ₽) — Открыть заявку [${f.reqId}] ➔
             </a>
           `).join('');
         }
       }
-      showToast("✅ Заявка на ДС сохранена на Диске и внесена в реестры!");
-      closeNewRequestForm();
+      showToast("✅ Заявки сохранены на Google Диске!");
       loadAppData();
     })
     .catch(() => {
-      showToast("Заявка передана на сервер");
-      closeNewRequestForm();
+      showToast("Заявки переданы на сервер");
       setTimeout(loadAppData, 1500);
     });
   }
 
   function copyAdvanceEmailText() {
-    const txt = document.getElementById('email_preview_box').innerText;
-    navigator.clipboard.writeText(txt).then(() => showToast("Текст письма скопирован!"));
-  }
-
-  function renderTripsTimeline(trips) {
-    const box = document.getElementById('trips_timeline_container');
-    if (!trips || trips.length === 0) {
-      box.innerHTML = '<small style="color:#64748b;">Командировок пока нет.</small>';
-      return;
-    }
-
-    box.innerHTML = trips.map((tr, idx) => {
-      let d = tr.rawJson;
-      if (typeof d === 'string') { try { d = JSON.parse(d); } catch(e){} }
-      const est = d.estimate || {};
-      const personFio = tr.team || d.fio || "Сотрудник";
-      const fileLink = tr.url || d.fileUrl || "";
-
-      return `
-        <div class="report-card-item" style="border-left: 4px solid var(--primary); flex-direction:column; align-items:flex-start; margin-bottom:10px;">
-          <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
-            <div style="cursor:pointer; flex:1;" onclick="toggleTripDetails('trip_details_${idx}')">
-              <strong style="font-size:14px; color:#0f172a;">${personFio}</strong> 
-              <span style="font-size:11px; color:#64748b;">(Заявок: ${tr.reqCount || 1})</span><br>
-              <span style="font-size:12px; color:#475569;">${tr.cities} (${tr.dates})</span>
-            </div>
-            <div style="display:flex; align-items:center; gap:6px;">
-              <span class="${tr.status === 'Завершена' ? 'badge-done' : 'badge-draft'}">${tr.status}</span>
-              ${globalAppData.isAdmin ? `<button type="button" class="btn btn-danger" style="height:26px; width:26px; min-width:26px; font-size:11px;" onclick="deleteSingleTrip('${tr.tripId}', '${personFio.replace(/'/g, "\\'")}')">🗑️</button>` : ''}
-              <span style="font-size:11px; color:#007aff; font-weight:600; cursor:pointer;" onclick="toggleTripDetails('trip_details_${idx}')">Детали ▾</span>
-            </div>
-          </div>
-
-          <div id="trip_details_${idx}" style="display:none; width:100%; margin-top:8px; padding-top:8px; border-top:1px dashed #cbd5e1; font-size:12px;">
-            <div style="background:#f8fafc; border-radius:8px; padding:8px; margin-bottom:8px;">
-              <div>• Trip ID: <code>${tr.tripId}</code></div>
-              <div>• Проезд: <b>${Number(est.sumTravel || 0).toLocaleString('ru-RU')} ₽</b></div>
-              <div>• Проживание: <b>${Number(est.sumHotel || 0).toLocaleString('ru-RU')} ₽</b></div>
-              <div>• Суточные: <b>${Number(est.sumDaily || 0).toLocaleString('ru-RU')} ₽</b></div>
-              <div style="margin-top:4px; font-weight:700; color:#0369a1;">• Общий аванс по всем заявкам: ${Number(tr.totalAdvance || 0).toLocaleString('ru-RU')} ₽</div>
-              <div style="margin-top:2px; color:#64748b; font-size:11px;">Цель: ${tr.lastPurpose || 'Служебная поездка'}</div>
-            </div>
-
-            ${fileLink ? `
-              <div style="margin-bottom:6px;">
-                <a href="${fileLink}" target="_blank" class="btn btn-secondary" style="height:32px; font-size:12px; text-decoration:none; background:#ecfdf5; border:1px solid #a7f3d0; color:#065f46;">
-                  🖨️ Открыть последнюю заявку на Диске ➔
-                </a>
-              </div>
-            ` : ''}
-
-            <div style="display:flex; gap:6px; width:100%;">
-              <button type="button" class="btn btn-primary" style="height:32px; font-size:12px; flex:1;" onclick="loadTripIntoReport('${tr.tripId}')">📝 Заполнять АО-1 (${Number(tr.totalAdvance || 0).toLocaleString('ru-RU')} ₽)</button>
-              <button type="button" class="btn btn-secondary" style="height:32px; font-size:12px; flex:1;" onclick="prolongPersonTrip('${tr.tripId}')">➕ Продление</button>
-            </div>
-          </div>
-        </div>
-      `;
-    }).join('');
-  }
-
-  function renderRequestsArchive(reqs) {
-    const box = document.getElementById('requests_archive_container');
-    if (!reqs || reqs.length === 0) {
-      box.innerHTML = '<div style="color:#64748b; font-size:12px;">Заявок пока нет.</div>';
-      return;
-    }
-
-    box.innerHTML = reqs.map(r => `
-      <div class="report-card-item" style="border-left: 4px solid #0284c7; flex-direction:column; align-items:flex-start;">
-        <div style="display:flex; justify-content:space-between; width:100%;">
-          <div>
-            <span style="font-weight:700; color:#0f172a;">${r.fio}</span> <span style="font-size:11px; color:#0369a1; background:#e0f2fe; padding:2px 6px; border-radius:4px;">ID: ${r.reqId}</span><br>
-            <small style="color:#64748b;">${r.city} | ${r.dates} (${r.days} сут.)</small>
-          </div>
-          <div style="font-weight:700; color:#0f172a; font-size:13px;">
-            ${Number(r.sum).toLocaleString('ru-RU')} ₽
-          </div>
-        </div>
-        <div style="margin-top:6px; font-size:11px; color:#475569; width:100%;">
-          <div>Цель: ${r.purpose}</div>
-          <div style="margin-top:4px;">
-            ${r.fileUrl ? `<a href="${r.fileUrl}" target="_blank" style="color:var(--primary); font-weight:600; text-decoration:none;">📄 Открыть отдельную таблицу заявки на Диске ➔</a>` : '<span style="color:#94a3b8;">Ссылка на файл недоступна</span>'}
-          </div>
-        </div>
-      </div>
-    `).join('');
-  }
-
-  function toggleTripDetails(boxId) {
-    const el = document.getElementById(boxId);
-    if (!el) return;
-    el.style.display = el.style.display === 'block' ? 'none' : 'block';
-  }
-
-  function deleteSingleTrip(tripId, fio) {
-    if (!confirm(`Удалить командировку и все связанные заявки сотрудника ${fio}?`)) return;
-    showToast("Удаление...");
-    fetch(GOOGLE_SHEET_API, {
-      method: "POST", mode: "no-cors",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "delete_trip", tripId: tripId })
-    }).then(() => {
-      showToast("Удалено!");
-      setTimeout(loadAppData, 1200);
-    });
-  }
-
-  function confirmClearAllTrips() {
-    if (!confirm("⚠️ Вы уверены, что хотите удалить ВСЕ командировки, заявки и черновики?")) return;
-    showToast("Очистка...");
-    fetch(GOOGLE_SHEET_API, {
-      method: "POST", mode: "no-cors",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "clear_all_trips" })
-    }).then(() => {
-      showToast("Все командировки очищены!");
-      setTimeout(loadAppData, 1200);
-    });
+    navigator.clipboard.writeText(document.getElementById('email_preview_box').innerText).then(() => showToast("Письмо скопировано!"));
   }
 
   function prolongPersonTrip(tripId) {
     const tr = globalAppData.trips.find(x => x.tripId === tripId);
     if (!tr) return;
-    let d = tr.rawJson;
-    if (typeof d === 'string') { try { d = JSON.parse(d); } catch(e){} }
 
-    openNewRequestForm();
+    switchMainTab('new_req');
     document.getElementById('req_type').value = 'prolong';
     document.getElementById('req_target_trip_id').value = tripId;
     onRequestTypeChange();
     document.getElementById('req_city').value = tr.cities || '';
-    
+
     currentReqTeamData = {};
-    const emp = (globalAppData.employees || []).find(e => e.fio === (tr.team || d.fio));
+    const emp = (globalAppData.employees || []).find(e => e.fio === tr.team);
     if (emp) addTeamMemberToEstimate(emp);
-    showToast("Оформление продления для: " + (tr.team || d.fio));
+    showToast("Продление для: " + tr.team);
   }
 
   function loadTripIntoReport(tripId) {
@@ -1361,48 +1310,37 @@
     calcDaily();
     switchMainTab('form');
     goToStep(1);
-    showToast("Данные командировки загружены в АО-1!");
+    showToast("Данные командировки загружены!");
   }
 
-  function saveLeadPermissions() {
-    const tgId = document.getElementById('role_lead_tg').value.trim();
-    const name = document.getElementById('role_lead_name').value.trim();
-    const tabs = document.getElementById('role_lead_tabs').value.trim();
-
-    if (!tgId || !name) { showToast("Укажите TG ID и ФИО"); return; }
-    showToast("Сохранение прав руководителя...");
-
-    fetch(GOOGLE_SHEET_API, {
-      method: "POST",
-      body: JSON.stringify({
-        action: "update_lead_permissions",
-        sender_id: getTelegramUser().id,
-        lead_tgid: tgId,
-        lead_name: name,
-        allowed_tabs: tabs || "ALL"
-      })
-    })
-    .then(r => r.json())
-    .then(() => {
-      showToast("Права руководителя успешно обновлены!");
-      document.getElementById('role_lead_tg').value = '';
-      document.getElementById('role_lead_name').value = '';
-      document.getElementById('role_lead_tabs').value = '';
-    })
-    .catch(() => showToast("Права отправлены на сервер"));
+  // --- УПРАВЛЕНИЕ ЧЕРНОВИКАМИ ---
+  function renderDraftsList(drafts) {
+    const box = document.getElementById('drafts_list_container');
+    if (!drafts || drafts.length === 0) {
+      box.innerHTML = '<div style="color:#8e8e93; font-size:12px;">Черновиков нет.</div>';
+      return;
+    }
+    box.innerHTML = drafts.map(d => `
+      <div style="background:#fff; border:1px solid #cbd5e1; border-left:4px solid var(--warning); border-radius:8px; padding:10px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <strong>${d.fio || 'Без ФИО'}</strong> (${d.city || 'Город не указан'})<br>
+          <small style="color:#64748b;">${d.date || ''} | Накоплено: <b>${Number(d.sum || 0).toLocaleString('ru-RU')} ₽</b></small>
+        </div>
+        <div style="display:flex; gap:6px;">
+          <button type="button" class="btn btn-primary" style="height:32px; font-size:12px; width:auto; padding:0 10px;" onclick="openReportInReviewMode('${d.id}')">Продолжить</button>
+          <button type="button" class="btn btn-danger" onclick="deleteReport('${d.id}')">🗑️</button>
+        </div>
+      </div>
+    `).join('');
   }
 
   function checkCloudDraftPopup(reports, userId, isAdmin) {
-    if (isDraftPromptDismissedForSession) return;
-    if (!reports || reports.length === 0 || isViewingRemoteReport) return;
-    const userDrafts = reports.filter(r => r.isDraft && (!userId || String(r.tgId).trim() === String(userId).trim()));
+    if (isDraftPromptDismissedForSession || isViewingRemoteReport) return;
+    const userDrafts = (reports || []).filter(r => r.isDraft && (!userId || String(r.tgId).trim() === String(userId).trim()));
     if (userDrafts.length === 0) return;
 
     detectedDraftReport = userDrafts[0];
-    let cityClean = (detectedDraftReport.city || '—').replace(/^г\.?\s*г\.?\s*/i, 'г. ');
-    if (!cityClean.startsWith('г.') && cityClean !== '—') cityClean = 'г. ' + cityClean;
-
-    let desc = `Командировка: <b>${cityClean}</b><br>`;
+    let desc = `Командировка: <b>${detectedDraftReport.city || '—'}</b><br>`;
     if (detectedDraftReport.date) desc += `Период: ${detectedDraftReport.date}<br>`;
     desc += `Накоплено расходов: <b>${Number(detectedDraftReport.sum || 0).toLocaleString('ru-RU')} ₽</b>`;
 
@@ -1413,19 +1351,16 @@
   function dismissCloudDraftTemporarily() {
     isDraftPromptDismissedForSession = true;
     document.getElementById('cloud_draft_modal').style.display = 'none';
-    showToast("Черновик сохранён.");
   }
 
   function confirmOpenCloudDraft() {
     if (!detectedDraftReport) return;
     document.getElementById('cloud_draft_modal').style.display = 'none';
-    
     CURRENT_REPORT_UID = detectedDraftReport.id;
+
     if (detectedDraftReport.rawJson) {
       let data = detectedDraftReport.rawJson;
-      if (typeof data === 'string') {
-        try { data = JSON.parse(data); } catch(e){}
-      }
+      if (typeof data === 'string') { try { data = JSON.parse(data); } catch(e){} }
       store.passport = data.passport || {};
       store.expenses = data.expenses || [];
       store.taxis = data.taxis || [];
@@ -1443,9 +1378,7 @@
     document.getElementById('p_days').value = p.days || 0;
     document.getElementById('p_rate').value = p.rate || 1500;
 
-    if (datePickerRange && p.dStart && p.dEnd) {
-      datePickerRange.setDate([p.dStart, p.dEnd]);
-    }
+    if (datePickerRange && p.dStart && p.dEnd) datePickerRange.setDate([p.dStart, p.dEnd]);
 
     calcDaily();
     renderExpenseList();
@@ -1457,53 +1390,35 @@
   function confirmDiscardCloudDraft() {
     if (!detectedDraftReport) return;
     document.getElementById('cloud_draft_modal').style.display = 'none';
-    
-    const draftIdToDelete = detectedDraftReport.id;
     fetch(GOOGLE_SHEET_API, {
       method: "POST", mode: "no-cors",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "delete_report", reportId: draftIdToDelete })
+      body: JSON.stringify({ action: "delete_report", reportId: detectedDraftReport.id })
     });
-
     detectedDraftReport = null;
-    CURRENT_REPORT_UID = "rep_" + Date.now();
-    store.expenses = [];
-    store.taxis = [];
-    document.getElementById('p_trip_id').value = '';
-    document.getElementById('p_city').value = '';
-    document.getElementById('p_advance').value = '';
-    document.getElementById('p_days').value = '0';
-    if (datePickerRange) datePickerRange.clear();
-    calcDaily();
-    renderExpenseList();
     showToast("Черновик удален.");
+    loadAppData();
   }
 
   function switchMainTab(tab) {
     document.querySelectorAll('.top-tabs .tab-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.main-tab-content').forEach(c => c.style.display = 'none');
 
-    if (tab === 'form') {
-      document.getElementById('tab-form').style.display = 'block';
-    } else if (tab === 'requests') {
-      document.getElementById('tab-requests').style.display = 'block';
-    } else if (tab === 'req_archive') {
-      document.getElementById('tab-req-archive').style.display = 'block';
-      renderRequestsArchive(globalAppData.requestsArchive);
-    } else if (tab === 'employees') {
+    if (tab === 'form') document.getElementById('tab-form').style.display = 'block';
+    else if (tab === 'trips') document.getElementById('tab-trips').style.display = 'block';
+    else if (tab === 'new_req') document.getElementById('tab-new-req').style.display = 'block';
+    else if (tab === 'drafts') document.getElementById('tab-drafts').style.display = 'block';
+    else if (tab === 'employees') {
       document.getElementById('tab-employees').style.display = 'block';
       renderAdminEmployees();
-    } else if (tab === 'reports') {
-      document.getElementById('tab-reports').style.display = 'block';
-      loadAppData();
     }
 
     const btns = document.querySelectorAll('.top-tabs .tab-btn');
     if (tab === 'form') btns[0].classList.add('active');
-    if (tab === 'requests') btns[1].classList.add('active');
-    if (tab === 'req_archive') btns[2].classList.add('active');
-    if (tab === 'reports') btns[3].classList.add('active');
-    if (tab === 'employees') btns[4].classList.add('active');
+    else if (tab === 'trips') btns[1].classList.add('active');
+    else if (tab === 'new_req') btns[2].classList.add('active');
+    else if (tab === 'drafts') btns[3].classList.add('active');
+    else if (tab === 'employees') btns[4].classList.add('active');
   }
 
   function renderEmployeeDropdown(list) {
@@ -1523,49 +1438,8 @@
       document.getElementById('p_role').value = emp.role;
       document.getElementById('p_tab').value = emp.tab;
       triggerCloudAutoSave();
-      showToast("Данные сотрудника подставлены!");
+      showToast("Данные подставлены!");
     }
-  }
-
-  function renderSeparatedReports(reports) {
-    const dBox = document.getElementById("drafts_container");
-    const rBox = document.getElementById("done_reports_container");
-
-    if (!reports || reports.length === 0) {
-      dBox.innerHTML = '<div style="color:#8e8e93; font-size:12px;">Черновиков нет.</div>';
-      rBox.innerHTML = '<div style="color:#8e8e93; font-size:12px;">Отчетов пока нет.</div>';
-      return;
-    }
-
-    const drafts = reports.filter(r => r.isDraft);
-    const done = reports.filter(r => !r.isDraft);
-
-    dBox.innerHTML = drafts.length === 0 ? '<div style="color:#8e8e93; font-size:12px;">Черновиков нет.</div>' : drafts.map((rep) => `
-      <div class="report-card-item" style="border-left: 4px solid var(--warning);">
-        <div class="report-card-info">
-          <span class="badge-draft">ЧЕРНОВИК</span> <strong>${rep.fio || 'Без ФИО'}</strong><br>
-          <small style="color:#666;">${rep.city || '—'} | ${rep.date || ''}<br>Накоплено: <b>${Number(rep.sum || 0).toLocaleString('ru-RU')} ₽</b></small>
-        </div>
-        <div class="action-btn-group">
-          <button type="button" class="btn btn-primary btn-action-view" onclick="openReportInReviewMode('${rep.id}')">👁️ Открыть</button>
-          <button type="button" class="btn btn-danger btn-icon-del" onclick="deleteReport('${rep.id}')">🗑️</button>
-        </div>
-      </div>
-    `).join('');
-
-    rBox.innerHTML = done.length === 0 ? '<div style="color:#8e8e93; font-size:12px;">Отчетов пока нет.</div>' : done.map((rep) => `
-      <div class="report-card-item" style="border-left: 4px solid var(--success);">
-        <div class="report-card-info">
-          <span class="badge-done">ГОТОВ</span> <strong>${rep.fio}</strong><br>
-          <small style="color:#666;">${rep.city} | ${rep.date}<br>Итого: <b>${Number(rep.sum || 0).toLocaleString('ru-RU')} ₽</b></small>
-        </div>
-        <div class="action-btn-group">
-          <button type="button" class="btn btn-primary btn-action-view" onclick="openReportInReviewMode('${rep.id}')">👁️ Просмотр</button>
-          ${rep.url ? `<a href="${rep.url}" target="_blank" class="btn btn-secondary btn-action-view" style="display:inline-flex; align-items:center;">📄</a>` : ''}
-          ${globalAppData.isAdmin ? `<button type="button" class="btn btn-danger btn-icon-del" onclick="deleteReport('${rep.id}')">🗑️</button>` : ''}
-        </div>
-      </div>
-    `).join('');
   }
 
   function openReportInReviewMode(reportId) {
@@ -1576,9 +1450,7 @@
       isViewingRemoteReport = true;
       if (rep.rawJson) {
         let data = rep.rawJson;
-        if (typeof data === 'string') {
-          try { data = JSON.parse(data); } catch(e){}
-        }
+        if (typeof data === 'string') { try { data = JSON.parse(data); } catch(e){} }
         store.passport = data.passport || {};
         store.expenses = data.expenses || [];
         store.taxis = data.taxis || [];
@@ -1597,9 +1469,7 @@
       document.getElementById('p_days').value = p.days || 0;
       document.getElementById('p_rate').value = p.rate || 1500;
 
-      if (datePickerRange && p.dStart && p.dEnd) {
-        datePickerRange.setDate([p.dStart, p.dEnd]);
-      }
+      if (datePickerRange && p.dStart && p.dEnd) datePickerRange.setDate([p.dStart, p.dEnd]);
 
       switchMainTab('form');
       document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
@@ -1610,39 +1480,23 @@
       document.getElementById('review_banner').style.display = 'flex';
       window.scrollTo(0, 0);
     } catch(e) {
-      showToast("Ошибка при открытии отчёта: " + e.message);
+      showToast("Ошибка при открытии: " + e.message);
     }
   }
 
   function enableEditingCurrentReport() {
     isViewingRemoteReport = false;
     document.getElementById('review_banner').style.display = 'none';
-    const p = store.passport;
-
-    document.getElementById('p_fio').value = p.fio || '';
-    document.getElementById('p_role').value = p.role || '';
-    document.getElementById('p_tab').value = p.tab || '';
-    document.getElementById('p_city').value = p.city || '';
-    document.getElementById('p_date_start').value = p.dStart || '';
-    document.getElementById('p_date_end').value = p.dEnd || '';
-    document.getElementById('p_advance').value = p.advance || '';
-    document.getElementById('p_days').value = p.days || 0;
-    document.getElementById('p_rate').value = p.rate || 1500;
-
-    if (datePickerRange && p.dStart && p.dEnd) {
-      datePickerRange.setDate([p.dStart, p.dEnd]);
-    }
-
     calcDaily();
     renderExpenseList();
     goToStep(1);
-    showToast("Отчёт готов к редактированию!");
+    showToast("Отчёт готов к изменению!");
   }
 
   function closeReviewMode() {
     isViewingRemoteReport = false;
     document.getElementById('review_banner').style.display = 'none';
-    switchMainTab('reports');
+    switchMainTab('trips');
   }
 
   function deleteReport(reportId) {
@@ -1657,6 +1511,29 @@
     });
   }
 
+  function saveLeadPermissions() {
+    const tgId = document.getElementById('role_lead_tg').value.trim();
+    const name = document.getElementById('role_lead_name').value.trim();
+    const tabs = document.getElementById('role_lead_tabs').value.trim();
+
+    if (!tgId || !name) { showToast("Укажите TG ID и ФИО"); return; }
+    fetch(GOOGLE_SHEET_API, {
+      method: "POST",
+      body: JSON.stringify({
+        action: "update_lead_permissions",
+        sender_id: getTelegramUser().id,
+        lead_tgid: tgId, lead_name: name, allowed_tabs: tabs || "ALL"
+      })
+    })
+    .then(r => r.json())
+    .then(() => {
+      showToast("Права руководителя обновлены!");
+      document.getElementById('role_lead_tg').value = '';
+      document.getElementById('role_lead_name').value = '';
+      document.getElementById('role_lead_tabs').value = '';
+    });
+  }
+
   function renderAdminEmployees() {
     const c = document.getElementById("admin_employees_container");
     if (!globalAppData.employees || globalAppData.employees.length === 0) {
@@ -1664,14 +1541,14 @@
       return;
     }
     c.innerHTML = globalAppData.employees.map((emp, idx) => `
-      <div class="report-card-item">
-        <div class="report-card-info">
+      <div style="background:#fff; border:1px solid #cbd5e1; border-radius:8px; padding:10px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+        <div>
           <strong>${emp.fio}</strong><br>
-          <small style="color:#8e8e93;">${emp.role} | Таб: ${emp.tab} | TG: ${emp.tgId || '—'}<br>Банк: ${emp.bankAcc ? emp.bankAcc.substring(0,8)+'...' : 'нет реквизитов'} (${emp.homeCity || 'город не указан'})</small>
+          <small style="color:#64748b;">${emp.role} | Таб: ${emp.tab} | TG: ${emp.tgId || '—'}</small>
         </div>
-        <div class="action-btn-group">
-          <button type="button" class="btn btn-secondary btn-action-view" onclick="openEditEmployeeModal(${idx})">✏️ Изм.</button>
-          <button type="button" class="btn btn-danger btn-icon-del" onclick="deleteEmployee('${emp.tab}')">🗑️</button>
+        <div style="display:flex; gap:6px;">
+          <button type="button" class="btn btn-secondary" style="height:32px; font-size:11px; width:auto; padding:0 8px;" onclick="openEditEmployeeModal(${idx})">✏️ Изм.</button>
+          <button type="button" class="btn btn-danger" onclick="deleteEmployee('${emp.tab}')">🗑️</button>
         </div>
       </div>
     `).join('');
@@ -1684,10 +1561,6 @@
     document.getElementById("modal_role").value = "";
     document.getElementById("modal_tab").value = "";
     document.getElementById("modal_tgid").value = "";
-    document.getElementById("modal_inn").value = "";
-    document.getElementById("modal_bik").value = "";
-    document.getElementById("modal_acc").value = "";
-    document.getElementById("modal_home_city").value = "";
     document.getElementById("emp_modal").style.display = "flex";
   }
 
@@ -1699,10 +1572,6 @@
     document.getElementById("modal_role").value = emp.role;
     document.getElementById("modal_tab").value = emp.tab;
     document.getElementById("modal_tgid").value = emp.tgId || "";
-    document.getElementById("modal_inn").value = emp.bankInn || "";
-    document.getElementById("modal_bik").value = emp.bankBik || "";
-    document.getElementById("modal_acc").value = emp.bankAcc || "";
-    document.getElementById("modal_home_city").value = emp.homeCity || "";
     document.getElementById("emp_modal").style.display = "flex";
   }
 
@@ -1714,52 +1583,76 @@
     const tab = document.getElementById("modal_tab").value.trim();
     const tgid = document.getElementById("modal_tgid").value.trim();
     const oldTab = document.getElementById("modal_old_tab").value.trim();
-    const bankInn = document.getElementById("modal_inn").value.trim();
-    const bankBik = document.getElementById("modal_bik").value.trim();
-    const bankAcc = document.getElementById("modal_acc").value.trim();
-    const homeCity = document.getElementById("modal_home_city").value.trim();
-
     if (!fio || !role || !tab) { showToast("Заполните обязательные поля"); return; }
-    const action = oldTab ? "update" : "add";
 
     fetch(GOOGLE_SHEET_API, {
       method: "POST", mode: "no-cors",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action, fio, role, tab, tgid, oldTab, bankInn, bankBik, bankAcc, homeCity })
+      body: JSON.stringify({ action: oldTab ? "update" : "add", fio, role, tab, tgid, oldTab, sender_id: getTelegramUser().id })
     }).then(() => {
-      showToast("Успешно сохранено!");
+      showToast("Сохранено!");
       closeEmpModal();
       setTimeout(loadAppData, 1200);
     });
   }
 
   function deleteEmployee(tab) {
-    if (!confirm("Удалить сотрудника из базы?")) return;
+    if (!confirm("Удалить сотрудника?")) return;
     fetch(GOOGLE_SHEET_API, {
       method: "POST", mode: "no-cors",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "delete", tab })
+      body: JSON.stringify({ action: "delete", tab, sender_id: getTelegramUser().id })
     }).then(() => {
-      showToast("Успешно удалено!");
+      showToast("Удалено!");
       setTimeout(loadAppData, 1200);
     });
   }
 
+  function promptBankDetailsModal(emp) {
+    document.getElementById('bank_modal_fio').value = emp.fio;
+    document.getElementById('bank_modal_desc').innerText = `Реквизиты: ${emp.fio}`;
+    document.getElementById('bm_inn').value = emp.bankInn || '';
+    document.getElementById('bm_bik').value = emp.bankBik || '';
+    document.getElementById('bm_acc').value = emp.bankAcc || '';
+    document.getElementById('bm_city').value = emp.homeCity || 'г. Томск';
+    document.getElementById('bank_details_modal').style.display = 'flex';
+  }
+
+  function closeBankDetailsModal() { document.getElementById('bank_details_modal').style.display = 'none'; }
+
+  function saveBankDetailsModal() {
+    const fio = document.getElementById('bank_modal_fio').value;
+    const inn = document.getElementById('bm_inn').value.trim();
+    const bik = document.getElementById('bm_bik').value.trim();
+    const acc = document.getElementById('bm_acc').value.trim();
+    const city = document.getElementById('bm_city').value.trim();
+
+    if (!inn || !bik || !acc) { showToast("Заполните ИНН, БИК и счет"); return; }
+    const emp = globalAppData.employees.find(e => e.fio === fio);
+    if (emp) { emp.bankInn = inn; emp.bankBik = bik; emp.bankAcc = acc; emp.homeCity = city; }
+    if (currentReqTeamData[fio]) { currentReqTeamData[fio].bankInn = inn; currentReqTeamData[fio].bankBik = bik; currentReqTeamData[fio].bankAcc = acc; }
+
+    fetch(GOOGLE_SHEET_API, {
+      method: "POST", mode: "no-cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "update_bank_details", employee: { fio, bankInn: inn, bankBik: bik, bankAcc: acc, homeCity: city } })
+    });
+    closeBankDetailsModal();
+    showToast("Реквизиты сохранены!");
+  }
+
   function validateFields(fieldIds) {
-    let isValid = true;
-    let firstInvalid = null;
+    let isValid = true, firstInvalid = null;
     fieldIds.forEach(id => {
       const el = document.getElementById(id);
       if (!el) return;
       const val = el.value.trim();
-      const isZeroSum = (el.type === 'number' && parseFloat(val) <= 0);
-      if (!val || isZeroSum) {
+      const isZero = (el.type === 'number' && parseFloat(val) <= 0);
+      if (!val || isZero) {
         el.classList.add('input-error');
         isValid = false;
         if (!firstInvalid) firstInvalid = el;
-      } else {
-        el.classList.remove('input-error');
-      }
+      } else el.classList.remove('input-error');
     });
     if (!isValid && firstInvalid) firstInvalid.focus();
     return isValid;
@@ -1773,7 +1666,7 @@
     fiasTimer = setTimeout(() => {
       fetch("https://suggestions.dadata.ru/suggestions/api/4_1/rs/suggest/address", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "Accept": "application/json", "Authorization": "Token " + DADATA_API_KEY },
+        headers: { "Content-Type": "application/json", "Authorization": "Token " + DADATA_API_KEY },
         body: JSON.stringify({ query: query, count: 7 })
       })
       .then(res => res.json())
@@ -1787,16 +1680,12 @@
   }
 
   function chooseFiasAddress(inputId, listId, val) {
-    const input = document.getElementById(inputId);
-    input.value = val;
-    input.classList.remove('input-error');
+    document.getElementById(inputId).value = val;
     document.getElementById(listId).style.display = 'none';
   }
 
   document.addEventListener('click', (e) => {
-    if (!e.target.closest('.main-addr')) {
-      document.querySelectorAll('.suggest-box').forEach(b => b.style.display = 'none');
-    }
+    if (!e.target.closest('.main-addr')) document.querySelectorAll('.suggest-box').forEach(b => b.style.display = 'none');
     if (!e.target.closest('#admin_team_picker')) {
       const tb = document.getElementById('team_suggest_box');
       if (tb) tb.style.display = 'none';
@@ -1811,29 +1700,19 @@
 
   function goToStep(s) {
     if (s === 2) {
-      const reqFields = ['p_fio', 'p_role', 'p_city', 'p_date_range'];
-      if (!validateFields(reqFields)) { showToast('Заполните обязательные поля'); return; }
-      if (!document.getElementById('p_date_end').value) {
-        document.getElementById('p_date_range').classList.add('input-error');
-        showToast('Выберите диапазон дат');
-        return;
-      }
+      if (!validateFields(['p_fio', 'p_role', 'p_city', 'p_date_range'])) { showToast('Заполните обязательные поля'); return; }
       savePassport();
       triggerCloudAutoSave();
       renderExpenseList();
     }
     if (s === 3) { savePassport(); triggerCloudAutoSave(); renderDetailedReview(); }
     if (s === 4) {
-      if (!isViewingRemoteReport) {
-        savePassport();
-        triggerCloudAutoSave();
-      }
+      if (!isViewingRemoteReport) { savePassport(); triggerCloudAutoSave(); }
       renderFinal();
     }
-
     document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
-    const target = document.getElementById('step-' + s);
-    if (target) { target.classList.add('active'); window.scrollTo(0,0); }
+    document.getElementById('step-' + s).classList.add('active');
+    window.scrollTo(0,0);
   }
 
   function calcDaily() {
@@ -1844,7 +1723,6 @@
 
   function savePassport() {
     if (isViewingRemoteReport) return;
-
     const days = parseInt(document.getElementById('p_days').value) || 0;
     const rate = parseFloat(document.getElementById('p_rate').value) || 0;
     store.passport = {
@@ -1865,37 +1743,22 @@
     curCategory = c;
     document.getElementById('edit_item_id').value = '';
     document.getElementById('edit_group_key').value = '';
-
     document.getElementById('add-box').style.display = 'block';
     ['box-transport','box-taxi','box-hotel','box-misc'].forEach(id => document.getElementById(id).style.display = 'none');
     ['chk_fee','chk_bag','chk_ins'].forEach(id => document.getElementById(id).checked = false);
     ['sub_fee','sub_bag','sub_ins'].forEach(id => document.getElementById(id).style.display = 'none');
-    document.querySelectorAll('#add-box .input-error').forEach(el => el.classList.remove('input-error'));
 
     if (datePickerExpense) datePickerExpense.clear();
-    document.getElementById('e_route').value = '';
-    document.getElementById('e_ticket_no').value = '';
-    document.getElementById('e_ticket_sum').value = '';
-    document.getElementById('e_fee_no').value = '';
-    document.getElementById('e_fee_sum').value = '';
-    document.getElementById('e_bag_no').value = '';
-    document.getElementById('e_bag_sum').value = '';
-    document.getElementById('e_ins_no').value = '';
-    document.getElementById('e_ins_sum').value = '';
-
-    document.getElementById('e_taxi_no').value = '';
-    document.getElementById('e_taxi_sum').value = '';
-    document.getElementById('e_taxi_from').value = '';
-    document.getElementById('e_taxi_obj_a').value = '';
-    document.getElementById('e_taxi_to').value = '';
-    document.getElementById('e_taxi_obj_b').value = '';
+    document.getElementById('e_route').value = ''; document.getElementById('e_ticket_no').value = ''; document.getElementById('e_ticket_sum').value = '';
+    document.getElementById('e_fee_no').value = ''; document.getElementById('e_fee_sum').value = '';
+    document.getElementById('e_bag_no').value = ''; document.getElementById('e_bag_sum').value = '';
+    document.getElementById('e_ins_no').value = ''; document.getElementById('e_ins_sum').value = '';
+    document.getElementById('e_taxi_no').value = ''; document.getElementById('e_taxi_sum').value = '';
+    document.getElementById('e_taxi_from').value = ''; document.getElementById('e_taxi_obj_a').value = '';
+    document.getElementById('e_taxi_to').value = ''; document.getElementById('e_taxi_obj_b').value = '';
     document.getElementById('e_taxi_purpose').value = '';
-
-    document.getElementById('e_hotel_no').value = '';
-    document.getElementById('e_hotel_sum').value = '';
-    document.getElementById('e_misc_no').value = '';
-    document.getElementById('e_misc_name').value = '';
-    document.getElementById('e_misc_sum').value = '';
+    document.getElementById('e_hotel_no').value = ''; document.getElementById('e_hotel_sum').value = '';
+    document.getElementById('e_misc_no').value = ''; document.getElementById('e_misc_name').value = ''; document.getElementById('e_misc_sum').value = '';
 
     if (['plane','bus','train'].includes(c)) {
       document.getElementById('box-transport').style.display = 'block';
@@ -1922,15 +1785,12 @@
 
   function promptEditExpense(id, title) {
     pendingEditExpenseId = id;
-    document.getElementById('edit_confirm_text').innerHTML = `Желаете отредактировать:<br><b>${title}</b>?`;
+    document.getElementById('edit_confirm_text').innerHTML = `Отредактировать:<br><b>${title}</b>?`;
     document.getElementById('btn_confirm_edit').onclick = function() {
       const targetId = pendingEditExpenseId;
       closeEditConfirmModal();
-      if (targetId === 'passport') {
-        goToStep(1);
-      } else {
-        editExpenseItem(targetId);
-      }
+      if (targetId === 'passport') goToStep(1);
+      else editExpenseItem(targetId);
     };
     document.getElementById('edit_confirm_modal').style.display = 'flex';
   }
@@ -1942,8 +1802,7 @@
 
   function parseTaxiPoint(str) {
     if (!str) return { addr: '', obj: '' };
-    str = String(str).trim();
-    const match = str.match(/^(.*?)\s*\((.*?)\)$/);
+    const match = String(str).trim().match(/^(.*?)\s*\((.*?)\)$/);
     if (match) return { addr: match[1].trim(), obj: match[2].trim() };
     return { addr: str, obj: '' };
   }
@@ -1951,7 +1810,7 @@
   function editExpenseItem(id) {
     let item = store.expenses.find(x => x.id === id);
     if (!item) item = store.expenses.find(x => x.groupKey === id) || store.expenses[0];
-    if (!item) { showToast("Запись не найдена"); return; }
+    if (!item) return;
 
     goToStep(2);
     openExpense(item.cat);
@@ -1965,29 +1824,6 @@
       document.getElementById('e_route').value = item.route || '';
       document.getElementById('e_ticket_no').value = item.no || '';
       document.getElementById('e_ticket_sum').value = item.sum || '';
-
-      if (item.groupKey) {
-        const related = store.expenses.filter(x => x.groupKey === item.groupKey && x.id !== item.id);
-        related.forEach(rel => {
-          const lower = rel.name.toLowerCase();
-          if (lower.includes('сбор')) {
-            document.getElementById('chk_fee').checked = true;
-            document.getElementById('sub_fee').style.display = 'block';
-            document.getElementById('e_fee_no').value = rel.no || '';
-            document.getElementById('e_fee_sum').value = rel.sum || '';
-          } else if (lower.includes('багаж')) {
-            document.getElementById('chk_bag').checked = true;
-            document.getElementById('sub_bag').style.display = 'block';
-            document.getElementById('e_bag_no').value = rel.no || '';
-            document.getElementById('e_bag_sum').value = rel.sum || '';
-          } else if (lower.includes('страхов') || lower.includes('полис')) {
-            document.getElementById('chk_ins').checked = true;
-            document.getElementById('sub_ins').style.display = 'block';
-            document.getElementById('e_ins_no').value = rel.no || '';
-            document.getElementById('e_ins_sum').value = rel.sum || '';
-          }
-        });
-      }
     } else if (item.cat === 'taxi') {
       const t = store.taxis.find(x => x.no === item.no && x.date === item.date) || store.taxis[0];
       document.getElementById('e_taxi_no').value = item.no || '';
@@ -1996,7 +1832,6 @@
         const parts = (t.route || '').split(' — ');
         const ptA = parseTaxiPoint(parts[0] || '');
         const ptB = parseTaxiPoint(parts[1] || '');
-
         document.getElementById('e_taxi_from').value = ptA.addr;
         document.getElementById('e_taxi_obj_a').value = ptA.obj;
         document.getElementById('e_taxi_to').value = ptB.addr;
@@ -2012,11 +1847,6 @@
       document.getElementById('e_misc_name').value = item.customName || item.name.replace(/^Чек,\s*/i, '');
       document.getElementById('e_misc_sum').value = item.sum || '';
     }
-
-    setTimeout(() => {
-      const box = document.getElementById('add-box');
-      if (box) box.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 100);
   }
 
   function saveExpense() {
@@ -2033,13 +1863,10 @@
     const oldGroupKey = document.getElementById('edit_group_key').value;
 
     if (editId) {
-      if (oldGroupKey) {
-        store.expenses = store.expenses.filter(x => x.groupKey !== oldGroupKey);
-      } else {
+      if (oldGroupKey) store.expenses = store.expenses.filter(x => x.groupKey !== oldGroupKey);
+      else {
         const oldIt = store.expenses.find(x => x.id === editId);
-        if (oldIt && oldIt.cat === 'taxi') {
-          store.taxis = store.taxis.filter(t => !(t.no === oldIt.no && t.date === oldIt.date));
-        }
+        if (oldIt && oldIt.cat === 'taxi') store.taxis = store.taxis.filter(t => !(t.no === oldIt.no && t.date === oldIt.date));
         store.expenses = store.expenses.filter(x => x.id !== editId);
       }
     }
@@ -2056,19 +1883,16 @@
       store.expenses.push({ id: Date.now()+'1', date, no, name, sum, dir, cat: curCategory, route, groupKey, isMainTicket: true });
 
       if (document.getElementById('chk_fee').checked) {
-        const feeNo = document.getElementById('e_fee_no').value.trim() || no;
         const feeSum = parseFloat(document.getElementById('e_fee_sum').value) || 0;
-        if (feeSum > 0) store.expenses.push({ id: Date.now()+'fee', date, no: feeNo, name: 'Сервисный сбор', sum: feeSum, dir, cat: curCategory, groupKey });
+        if (feeSum > 0) store.expenses.push({ id: Date.now()+'fee', date, no: document.getElementById('e_fee_no').value.trim() || no, name: 'Сервисный сбор', sum: feeSum, dir, cat: curCategory, groupKey });
       }
       if (document.getElementById('chk_bag').checked) {
-        const bagNo = document.getElementById('e_bag_no').value.trim() || no;
         const bagSum = parseFloat(document.getElementById('e_bag_sum').value) || 0;
-        if (bagSum > 0) store.expenses.push({ id: Date.now()+'bag', date, no: bagNo, name: 'Багаж', sum: bagSum, dir, cat: curCategory, groupKey });
+        if (bagSum > 0) store.expenses.push({ id: Date.now()+'bag', date, no: document.getElementById('e_bag_no').value.trim() || no, name: 'Багаж', sum: bagSum, dir, cat: curCategory, groupKey });
       }
       if (document.getElementById('chk_ins').checked) {
-        const insNo = document.getElementById('e_ins_no').value.trim() || no;
         const insSum = parseFloat(document.getElementById('e_ins_sum').value) || 0;
-        if (insSum > 0) store.expenses.push({ id: Date.now()+'ins', date, no: insNo, name: 'Страховой полис', sum: insSum, dir, cat: curCategory, groupKey });
+        if (insSum > 0) store.expenses.push({ id: Date.now()+'ins', date, no: document.getElementById('e_ins_no').value.trim() || no, name: 'Страховой полис', sum: insSum, dir, cat: curCategory, groupKey });
       }
     } else if (curCategory === 'taxi') {
       const no = document.getElementById('e_taxi_no').value.trim();
@@ -2091,7 +1915,7 @@
     closeExpense();
     triggerCloudAutoSave();
     renderExpenseList();
-    showToast(editId ? 'Позиция обновлена!' : 'Позиция добавлена!');
+    showToast("Позиция сохранена!");
   }
 
   function renderExpenseList() {
@@ -2104,9 +1928,9 @@
           <strong>${e.name}</strong><br>
           <small style="color:#8e8e93;">${formatRuDateString(e.date)} | № ${e.no}</small>
         </div>
-        <div class="action-btn-group">
+        <div style="display:flex; gap:6px; align-items:center;">
           <strong>${Number(e.sum).toLocaleString('ru-RU')} ₽</strong>
-          <button type="button" class="btn btn-secondary btn-action-view" onclick="promptEditExpense('${e.id}', '${e.name.replace(/'/g, "\\'")}')">✏️</button>
+          <button type="button" class="btn btn-secondary" style="height:30px; width:auto; font-size:11px; padding:0 8px;" onclick="promptEditExpense('${e.id}', '${e.name.replace(/'/g, "\\'")}')">✏️</button>
           <button type="button" class="btn btn-danger" onclick="delExp('${e.id}')">✕</button>
         </div>
       </div>
@@ -2128,126 +1952,52 @@
     const groups = {};
     items.forEach(it => {
       const key = it.groupKey || (it.date + '_' + it.cat);
-      if (!groups[key]) {
-        groups[key] = { date: it.date, cat: it.cat, route: it.route || '', mainId: it.id, items: [] };
-      }
+      if (!groups[key]) groups[key] = { date: it.date, cat: it.cat, route: it.route || '', mainId: it.id, items: [] };
       if (it.route && !groups[key].route) groups[key].route = it.route;
       if (it.isMainTicket) groups[key].mainId = it.id;
       groups[key].items.push(it);
     });
 
-    const groupArray = Object.values(groups).sort((a,b) => parseDateToTimestamp(a.date) - parseDateToTimestamp(b.date));
     const totalDirSum = items.reduce((s,e) => s + Number(e.sum || 0), 0);
-
     let html = `<div style="font-size:14px; font-weight:700; margin-bottom:6px;">ИТОГО: ${totalDirSum.toLocaleString('ru-RU')} ₽</div>`;
 
-    groupArray.forEach((g, idx) => {
+    Object.values(groups).sort((a,b) => parseDateToTimestamp(a.date) - parseDateToTimestamp(b.date)).forEach((g, idx) => {
       const segTotal = g.items.reduce((s, x) => s + Number(x.sum || 0), 0);
-      let typeTitle = 'ПРОЕЗД';
-      if (g.cat === 'plane') typeTitle = 'АВИАПЕРЕЛЕТ';
-      else if (g.cat === 'train') typeTitle = 'ПОЕЗДКА НА ПОЕЗДЕ';
-      else if (g.cat === 'bus') typeTitle = 'ПОЕЗДКА НА АВТОБУСЕ';
+      let typeTitle = g.cat === 'plane' ? 'АВИАПЕРЕЛЕТ' : (g.cat === 'train' ? 'ПОЕЗДКА НА ПОЕЗДЕ' : 'ПОЕЗДКА НА АВТОБУСЕ');
+      const mainTitle = `${idx + 1}. ${typeTitle} (${g.route}) ${segTotal.toLocaleString('ru-RU')} ₽`;
 
-      const routeLabel = g.route ? ` (${g.route})` : '';
-      const mainTitle = `${idx + 1}. ${typeTitle}${routeLabel} ${segTotal.toLocaleString('ru-RU')} ₽`;
-
-      html += `<div class="clickable-expense-row" onclick="promptEditExpense('${g.mainId}', '${mainTitle.replace(/'/g, "\\'")}')">`;
-      html += `<div>`;
+      html += `<div class="clickable-expense-row" onclick="promptEditExpense('${g.mainId}', '${mainTitle.replace(/'/g, "\\'")}')"><div>`;
       html += `<div style="font-weight:700; font-size:13px; color:#1c1c1e;">${mainTitle}:</div>`;
-
-      const sortedItems = [...g.items].sort((a,b) => Number(b.sum || 0) - Number(a.sum || 0));
-
-      sortedItems.forEach(row => {
-        let cleanName = row.name;
-        if (cleanName.includes('(')) cleanName = cleanName.split('(')[0].trim();
-        cleanName = cleanName.replace(/^Чек,\s*/i, '');
-
-        const isExtra = !row.isMainTicket && (
-          cleanName.toLowerCase().includes('сбор') || 
-          cleanName.toLowerCase().includes('багаж') || 
-          cleanName.toLowerCase().includes('страхов') || 
-          cleanName.toLowerCase().includes('полис')
-        );
-
-        const prefix = isExtra ? '+ ' : '';
-        html += `<div style="padding-left:8px; font-size:12px; line-height:1.4; color:#3a3a3c;">${prefix}${cleanName} ${Number(row.sum).toLocaleString('ru-RU')} ₽</div>`;
+      g.items.forEach(row => {
+        html += `<div style="padding-left:8px; font-size:12px; color:#3a3a3c;">• ${row.name} - ${Number(row.sum).toLocaleString('ru-RU')} ₽</div>`;
       });
-
-      html += `</div>`;
-      html += `</div>`;
+      html += `</div></div>`;
     });
-
     return html;
   }
 
   function renderDetailedReview() {
     const p = store.passport;
     const box = document.getElementById('review_cards_container');
-    
     const hotelExp = store.expenses.filter(e => e.cat === 'hotel');
     const hotelSum = hotelExp.reduce((s,e) => s + Number(e.sum || 0), 0);
-    let hotelDetails = hotelExp.map(e => `
-      <div class="clickable-expense-row" onclick="promptEditExpense('${e.id}', '${e.name.replace(/'/g, "\\'")}: ${Number(e.sum).toLocaleString('ru-RU')} ₽')">
-        <div>&nbsp;&nbsp;— ${e.name}: <strong>${Number(e.sum).toLocaleString('ru-RU')} ₽</strong> (${formatRuDateString(e.date)}, док. № ${e.no})</div>
-      </div>
-    `).join('');
-
     const taxiSum = store.taxis.reduce((s,t) => s + Number(t.sum || 0), 0);
-    let taxiDetails = store.taxis.map((t, idx) => {
-      const matchExp = store.expenses.find(x => x.cat === 'taxi' && x.no === t.no && x.date === t.date);
-      const rowId = matchExp ? matchExp.id : (store.expenses.find(x => x.cat === 'taxi') || {}).id;
-      return `
-        <div class="clickable-expense-row" onclick="promptEditExpense('${rowId}', 'Такси ${formatRuDateString(t.date)}: ${Number(t.sum).toLocaleString('ru-RU')} ₽')">
-          <div>&nbsp;&nbsp;${idx+1}) <strong>${formatRuDateString(t.date)}</strong> | ${t.route} — <strong>${Number(t.sum).toLocaleString('ru-RU')} ₽</strong> <em>(${t.purpose})</em></div>
-        </div>
-      `;
-    }).join('');
-
     const miscExp = store.expenses.filter(e => e.cat === 'misc');
     const miscSum = miscExp.reduce((s,e) => s + Number(e.sum || 0), 0);
-    let miscDetails = miscExp.map(e => `
-      <div class="clickable-expense-row" onclick="promptEditExpense('${e.id}', '${e.name.replace(/'/g, "\\'")}: ${Number(e.sum).toLocaleString('ru-RU')} ₽')">
-        <div>&nbsp;&nbsp;— ${e.name}: <strong>${Number(e.sum).toLocaleString('ru-RU')} ₽</strong> (${formatRuDateString(e.date)}, док. № ${e.no})</div>
-      </div>
-    `).join('');
 
     box.innerHTML = `
-      <div class="review-item">
-        <div class="review-header"><h3>1. Данные сотрудника и аванс</h3></div>
-        <div class="clickable-passport-box" onclick="promptEditExpense('passport', 'Данные командировки и аванс')">
-          <div style="font-size:12px; line-height:1.45;">
-            • Сотрудник: <b>${p.fio}</b> (${p.role}, таб. ${p.tab})<br>
-            • Командировка: ${p.city} с ${formatRuDateString(p.dStart)} по ${formatRuDateString(p.dEnd)} (${p.days} дн.)<br>
-            • Аванс: <b>${Number(p.advance || 0).toLocaleString('ru-RU')} ₽</b>
-          </div>
+      <div class="card" style="padding:10px;">
+        <h3>1. Данные сотрудника и аванс</h3>
+        <div class="clickable-passport-box" onclick="promptEditExpense('passport', 'Данные командировки')">
+          <div style="font-size:12px; line-height:1.45;">• Сотрудник: <b>${p.fio}</b> (${p.city}, ${p.days} дн.)<br>• Аванс: <b>${Number(p.advance || 0).toLocaleString('ru-RU')} ₽</b></div>
         </div>
       </div>
-      <div class="review-item">
-        <div class="review-header"><h3>2. Проезд «ТУДА»</h3></div>
-        <div style="font-size:12px; line-height:1.4;">${renderStep3TransportBlock('there')}</div>
-      </div>
-      <div class="review-item">
-        <div class="review-header"><h3>3. Проживание</h3></div>
-        <div style="font-size:12px; line-height:1.4;">${hotelExp.length > 0 ? `<div style="margin-bottom:4px; font-weight:700;">ИТОГО: ${hotelSum.toLocaleString('ru-RU')} ₽</div>${hotelDetails}` : 'Нет расходов'}</div>
-      </div>
-      <div class="review-item">
-        <div class="review-header"><h3>4. Такси (${store.taxis.length} поездки)</h3></div>
-        <div style="font-size:12px; line-height:1.4;">${store.taxis.length > 0 ? `<div style="margin-bottom:4px; font-weight:700;">ИТОГО: ${taxiSum.toLocaleString('ru-RU')} ₽</div>${taxiDetails}` : 'Нет поездок'}</div>
-      </div>
-      <div class="review-item">
-        <div class="review-header"><h3>5. Проезд «ОБРАТНО»</h3></div>
-        <div style="font-size:12px; line-height:1.4;">${renderStep3TransportBlock('back')}</div>
-      </div>
-      <div class="review-item">
-        <div class="review-header"><h3>6. Прочие расходы</h3></div>
-        <div style="font-size:12px; line-height:1.4;">${miscExp.length > 0 ? `<div style="margin-bottom:4px; font-weight:700;">ИТОГО: ${miscSum.toLocaleString('ru-RU')} ₽</div>${miscDetails}` : 'Нет расходов'}</div>
-      </div>
-      <div class="review-item">
-        <div class="review-header"><h3>7. Суточные</h3></div>
-        <div class="clickable-passport-box" onclick="promptEditExpense('passport', 'Расчет суточных')">
-          <div style="font-size:12px; line-height:1.4;">• ${p.days} сут. × ${p.rate} ₽ = <strong>${Number(p.dailyTotal || 0).toLocaleString('ru-RU')} ₽</strong></div>
-        </div>
-      </div>
+      <div class="card" style="padding:10px;"><h3>2. Проезд «ТУДА»</h3><div style="font-size:12px;">${renderStep3TransportBlock('there')}</div></div>
+      <div class="card" style="padding:10px;"><h3>3. Проживание (ИТОГО: ${hotelSum.toLocaleString('ru-RU')} ₽)</h3>${hotelExp.map(e => `<div class="clickable-expense-row" onclick="promptEditExpense('${e.id}', '${e.name}')"><div>${e.name}: <b>${Number(e.sum).toLocaleString('ru-RU')} ₽</b></div></div>`).join('')}</div>
+      <div class="card" style="padding:10px;"><h3>4. Такси (ИТОГО: ${taxiSum.toLocaleString('ru-RU')} ₽)</h3>${store.taxis.map(t => `<div class="clickable-expense-row"><div>${t.route}: <b>${Number(t.sum).toLocaleString('ru-RU')} ₽</b></div></div>`).join('')}</div>
+      <div class="card" style="padding:10px;"><h3>5. Проезд «ОБРАТНО»</h3><div style="font-size:12px;">${renderStep3TransportBlock('back')}</div></div>
+      <div class="card" style="padding:10px;"><h3>6. Прочее (ИТОГО: ${miscSum.toLocaleString('ru-RU')} ₽)</h3>${miscExp.map(e => `<div class="clickable-expense-row" onclick="promptEditExpense('${e.id}', '${e.name}')"><div>${e.name}: <b>${Number(e.sum).toLocaleString('ru-RU')} ₽</b></div></div>`).join('')}</div>
+      <div class="card" style="padding:10px;"><h3>7. Суточные</h3><div style="font-size:12px;">• ${p.days} сут. × ${p.rate} ₽ = <b>${Number(p.dailyTotal || 0).toLocaleString('ru-RU')} ₽</b></div></div>
     `;
   }
 
@@ -2256,236 +2006,80 @@
     const total = store.expenses.reduce((s,e)=>s + Number(e.sum || 0), 0) + (Number(p.dailyTotal) || 0);
     const diff = (Number(p.advance) || 0) - total;
 
-    function formatTransportList(dir) {
-      const items = store.expenses.filter(e => e.dir === dir);
-      if (items.length === 0) return null;
-
-      const groups = {};
-      items.forEach(it => {
-        const key = it.groupKey || (it.date + '_' + it.cat);
-        if (!groups[key]) groups[key] = { date: it.date, cat: it.cat, route: it.route || '', items: [] };
-        if (it.route && !groups[key].route) groups[key].route = it.route;
-        groups[key].items.push(it);
-      });
-
-      const groupArray = Object.values(groups).sort((a,b) => parseDateToTimestamp(a.date) - parseDateToTimestamp(b.date));
-
-      const formattedSegments = groupArray.map(g => {
-        const segTotal = g.items.reduce((sum, x) => sum + Number(x.sum || 0), 0);
-        let transName = 'на транспорте';
-        if (g.cat === 'plane') transName = 'САМОЛЁТОМ';
-        else if (g.cat === 'bus') transName = 'НА АВТОБУСЕ';
-        else if (g.cat === 'train') transName = 'НА ПОЕЗДЕ';
-
-        const routeStr = g.route ? ` (Маршрут ${g.route})` : '';
-        const sortedItems = [...g.items].sort((a,b) => Number(b.sum || 0) - Number(a.sum || 0));
-
-        const details = sortedItems.map(it => {
-          let label = it.name;
-          if (label.includes('(')) label = label.split('(')[0].trim();
-          label = label.replace(/^Чек,\s*/i, '');
-          return `${label} - ${Number(it.sum).toLocaleString('ru-RU')} ₽`;
-        }).join('; ');
-
-        return `${transName}${routeStr} за ${segTotal.toLocaleString('ru-RU')} ₽ (${details})`;
-      });
-
-      return {
-        date: groupArray[0].date,
-        text: formattedSegments.join(', затем ')
-      };
-    }
-
-    const thereData = formatTransportList('there');
-    const backData = formatTransportList('back');
-
-    const hotelItems = store.expenses.filter(e => e.cat === 'hotel');
-    const hotelSum = hotelItems.reduce((s,e) => s + Number(e.sum || 0), 0);
-    const miscItems = store.expenses.filter(e => e.cat === 'misc');
-    const miscSum = miscItems.reduce((s,e) => s + Number(e.sum || 0), 0);
-
-    let html = `<p>💬 <i>Мы проверили и утвердили следующие расходы:</i></p>`;
-
-    if (thereData) {
-      html += `<p><b>${thereData.date}</b> Вы поехали в командировку в ${p.city} ${thereData.text}.</p>`;
-    } else {
-      html += `<p><b>${formatRuDateString(p.dStart)}</b> Вы поехали в командировку в ${p.city}.</p>`;
-    }
-
-    if (hotelItems.length > 0) {
-      html += `<p>Прожили в гостинице / арендованном жилье на сумму <b>${hotelSum.toLocaleString('ru-RU')} ₽</b>.</p>`;
-    }
-
-    if (store.taxis.length > 0) {
-      html += `<p>Использовали <b>${store.taxis.length}</b> ${store.taxis.length === 1 ? 'раз' : (store.taxis.length < 5 ? 'раза' : 'раз')} такси:<ul>`;
-      store.taxis.forEach(t => {
-        html += `<li>${t.route} (<b>${Number(t.sum).toLocaleString('ru-RU')} ₽</b>);</li>`;
-      });
-      html += `</ul></p>`;
-    }
-
-    if (miscItems.length > 0) {
-      const names = miscItems.map(m => m.customName || m.name.replace(/^Чек,\s*/i, '')).join(', ');
-      html += `<p>Закупили хозтовары / сопутствующие материалы (${names}) на сумму <b>${miscSum.toLocaleString('ru-RU')} ₽</b>.</p>`;
-    }
-
-    if (backData) {
-      html += `<p><b>${backData.date}</b> Вы вернулись из командировки домой ${backData.text}.</p>`;
-    } else {
-      html += `<p><b>${formatRuDateString(p.dEnd)}</b> Вы вернулись из командировки домой.</p>`;
-    }
-
-    html += `<p>Начислены суточные за <b>${p.days}</b> дней на сумму <b>${Number(p.dailyTotal).toLocaleString('ru-RU')} ₽</b>.</p>`;
-
-    html += `<hr style="border:none; border-top:1px dashed #c7c7cc; margin:10px 0;">`;
-    html += `<div>Всего расходов: <b>${total.toLocaleString('ru-RU')} ₽</b></div>`;
-    html += `<div>Получено авансом: <b>${Number(p.advance || 0).toLocaleString('ru-RU')} ₽</b></div>`;
-
-    if (diff < 0) {
-      html += `<div style="color:var(--danger); font-size:14px; font-weight:700; margin-top:5px;">🔴 Перерасход к выплате: ${Math.abs(diff).toLocaleString('ru-RU')} ₽</div>`;
-    } else if (diff > 0) {
-      html += `<div style="color:var(--warning); font-size:14px; font-weight:700; margin-top:5px;">🟡 Остаток к возврату в кассу: ${diff.toLocaleString('ru-RU')} ₽</div>`;
-    } else {
-      html += `<div style="font-size:14px; font-weight:700; margin-top:5px;">🟢 Аванс израсходован точно под ноль</div>`;
-    }
-
-    html += `<p style="margin-top:8px; font-weight:600;">Всё верно?</p>`;
+    let html = `<p>💬 <b>Командировка сотрудника:</b> ${p.fio} (${p.city}, ${p.days} дн.)</p>`;
+    html += `<p>• Суточные: <b>${Number(p.dailyTotal).toLocaleString('ru-RU')} ₽</b></p>`;
+    html += `<p>• Всего подтвержденных расходов: <b>${total.toLocaleString('ru-RU')} ₽</b></p>`;
+    html += `<p>• Получено авансом: <b>${Number(p.advance || 0).toLocaleString('ru-RU')} ₽</b></p>`;
+    if (diff < 0) html += `<p style="color:var(--danger); font-weight:700;">🔴 Перерасход к выплате: ${Math.abs(diff).toLocaleString('ru-RU')} ₽</p>`;
+    else if (diff > 0) html += `<p style="color:var(--warning); font-weight:700;">🟡 Остаток к возврату: ${diff.toLocaleString('ru-RU')} ₽</p>`;
+    else html += `<p style="color:var(--success); font-weight:700;">🟢 Аванс израсходован точно под ноль</p>`;
     return html;
   }
 
   function buildDocChecklistText() {
-    let list = [
-      "1. Авансовый отчёт на 2-х страницах",
-      "2. Заявки на ДС (все бланки) — НЕОБЯЗАТЕЛЬНО",
-      "3. Служебная записка на суточные",
-      "4. Документы, подтверждающие расходы:"
-    ];
-
-    if (store.taxis.length > 0) list.push("   • Детализация поездок на такси (с маршрутами и целями).");
-    if (store.expenses.some(e => e.cat === 'plane')) list.push("   • Самолёт: Чек оплаты + Маршрутная квитанция + Посадочные талоны.");
-    if (store.expenses.some(e => e.cat === 'train')) list.push("   • Поезд: Чек оплаты + Ж/Д билет.");
-    if (store.expenses.some(e => e.cat === 'bus')) list.push("   • Автобус: Чек оплаты + Билет на автобус.");
-    if (store.expenses.some(e => e.cat === 'hotel')) list.push("   • Проживание: Договор/Акт + Чек с QR-кодом (или справка о проживании).");
-    if (store.expenses.some(e => e.cat === 'misc')) list.push("   • Прочие расходы: Чеки оплаты хозтоваров и материалов.");
-
+    let list = ["1. Авансовый отчёт на 2-х страницах", "2. Заявки на ДС (все бланки) — НЕОБЯЗАТЕЛЬНО", "3. Служебная записка на суточные", "4. Документы расходов:"];
+    if (store.taxis.length > 0) list.push("   • Детализация поездок на такси.");
+    if (store.expenses.some(e => e.cat === 'plane')) list.push("   • Самолёт: Чек + Маршрутная квитанция + Посадочные талоны.");
+    if (store.expenses.some(e => e.cat === 'train')) list.push("   • Поезд: Чек + Ж/Д билет.");
+    if (store.expenses.some(e => e.cat === 'bus')) list.push("   • Автобус: Чек + Билет.");
+    if (store.expenses.some(e => e.cat === 'hotel')) list.push("   • Проживание: Договор/Акт + Чек с QR-кодом.");
     return list.join('\n\n');
   }
 
   function openChecklistModal() {
-    const raw = buildDocChecklistText();
-    const formatted = raw.replace(/\n\n/g, '<br><br>').replace(/\n/g, '<br>').replace(/(4\.\d[^\:]*)/g, '<b>$1</b>');
-    document.getElementById('checklist_content').innerHTML = formatted;
+    document.getElementById('checklist_content').innerHTML = buildDocChecklistText().replace(/\n/g, '<br>');
     document.getElementById('checklist_modal').style.display = 'flex';
   }
-
   function closeChecklistModal() { document.getElementById('checklist_modal').style.display = 'none'; }
-
-  function copyChecklistText() {
-    navigator.clipboard.writeText(buildDocChecklistText()).then(() => showToast("Перечень документов скопирован!"));
-  }
-
-  function copyNarrativeText() {
-    navigator.clipboard.writeText(document.getElementById('narrative_text').innerText).then(() => showToast("Текст сводки скопирован!"));
-  }
+  function copyChecklistText() { navigator.clipboard.writeText(buildDocChecklistText()).then(() => showToast("Список скопирован!")); }
+  function copyNarrativeText() { navigator.clipboard.writeText(document.getElementById('narrative_text').innerText).then(() => showToast("Сводка скопирована!")); }
 
   function renderFinal() {
     const p = store.passport;
     const total = store.expenses.reduce((s,e)=>s + Number(e.sum || 0), 0) + (Number(p.dailyTotal) || 0);
     const diff = (Number(p.advance) || 0) - total;
-
-    let resText = diff < 0 ? `Перерасход к выплате: ${Math.abs(diff).toLocaleString('ru-RU')} ₽` : `Остаток к возврату: ${diff.toLocaleString('ru-RU')} ₽`;
+    let resText = diff < 0 ? `Перерасход: ${Math.abs(diff).toLocaleString('ru-RU')} ₽` : `Остаток: ${diff.toLocaleString('ru-RU')} ₽`;
 
     document.getElementById('narrative_text').innerHTML = buildNarrativeSummary();
-
     document.querySelector('#tbl_pass tbody').innerHTML = `
       <tr><th style="width:30%;">Сотрудник</th><td><strong>${p.fio}</strong></td></tr>
-      <tr><th>Должность / Таб</th><td>${p.role} / ${p.tab}</td></tr>
-      <tr><th>Город</th><td>${p.city}</td></tr>
-      <tr><th>Срок командировки</th><td>${formatRuDateString(p.dStart)} — ${formatRuDateString(p.dEnd)} (${p.days} дн.)</td></tr>
+      <tr><th>Город / Сроки</th><td>${p.city} (${p.dStart} — ${p.dEnd}, ${p.days} дн.)</td></tr>
       <tr><th>Аванс</th><td>${Number(p.advance || 0).toLocaleString('ru-RU')} ₽</td></tr>
-      <tr><th>Суточные</th><td>${Number(p.dailyTotal || 0).toLocaleString('ru-RU')} ₽</td></tr>
-      <tr><th>Итого факт</th><td><strong>${total.toLocaleString('ru-RU')} ₽</strong></td></tr>
-      <tr style="background:#f9f9fb;"><th>Итоговый расчет</th><td><strong>${resText}</strong></td></tr>
+      <tr><th>Итого факт</th><td><strong>${total.toLocaleString('ru-RU')} ₽</strong> (${resText})</td></tr>
     `;
 
     const sorted = [...store.expenses].sort((a, b) => parseDateToTimestamp(a.date) - parseDateToTimestamp(b.date));
-    const tb = document.querySelector('#tbl_ao1 tbody');
-    let rowsHtml = sorted.map((e, i) => `<tr><td class="text-center">${i+1}</td><td>${formatRuDateString(e.date)}</td><td>${e.no}</td><td>${e.name}</td><td class="text-right">${Number(e.sum).toLocaleString('ru-RU', {minimumFractionDigits:2})}</td></tr>`).join('');
-    rowsHtml += `<tr><td class="text-center">${sorted.length+1}</td><td></td><td></td><td><strong>Суточные за ${p.days} дн.</strong></td><td class="text-right"><strong>${Number(p.dailyTotal || 0).toLocaleString('ru-RU', {minimumFractionDigits:2})}</strong></td></tr>`;
-    tb.innerHTML = rowsHtml;
+    let rowsHtml = sorted.map((e, i) => `<tr><td class="text-center">${i+1}</td><td>${e.date}</td><td>${e.no}</td><td>${e.name}</td><td class="text-right">${Number(e.sum).toLocaleString('ru-RU', {minimumFractionDigits:2})}</td></tr>`).join('');
+    rowsHtml += `<tr><td class="text-center">${sorted.length+1}</td><td></td><td></td><td><strong>Суточные (${p.days} дн.)</strong></td><td class="text-right"><strong>${Number(p.dailyTotal || 0).toLocaleString('ru-RU', {minimumFractionDigits:2})}</strong></td></tr>`;
+    document.querySelector('#tbl_ao1 tbody').innerHTML = rowsHtml;
 
-    const sortedTaxis = [...store.taxis].sort((a, b) => parseDateToTimestamp(a.date) - parseDateToTimestamp(b.date));
     const cardTaxi = document.getElementById('card_taxi');
-    const tbTaxi = document.querySelector('#tbl_taxi tbody');
-    if (sortedTaxis.length > 0 && tbTaxi && cardTaxi) {
+    if (store.taxis.length > 0) {
       cardTaxi.style.display = 'block';
-      tbTaxi.innerHTML = sortedTaxis.map(t => `<tr><td>${formatRuDateString(t.date)}</td><td>${t.route}</td><td>${t.purpose}</td><td class="text-right">${Number(t.sum).toLocaleString('ru-RU', {minimumFractionDigits:2})}</td></tr>`).join('');
-    } else if (cardTaxi) {
-      cardTaxi.style.display = 'none';
-    }
-  }
-
-  function loadDemoScenario() {
-    document.getElementById('p_city').value = "г. Красноярск";
-    document.getElementById('p_date_start').value = "01.10.2026";
-    document.getElementById('p_date_end').value = "18.10.2026";
-    if (datePickerRange) datePickerRange.setDate(["01.10.2026", "18.10.2026"]);
-    document.getElementById('p_advance').value = "80000";
-    document.getElementById('p_days').value = "18";
-    document.getElementById('p_rate').value = "1500";
-    
-    calcDaily();
-    savePassport();
-
-    store.expenses = [
-      { id: 'd1', date: '01.10.2026', no: '4212136762', name: 'Авиабилет (Омск - Красноярск)', sum: 11500, dir: 'there', cat: 'plane', route: 'Омск - Красноярск', groupKey: 'demo_there', isMainTicket: true },
-      { id: 'd2', date: '01.10.2026', no: '5841', name: 'Сервисный сбор', sum: 1290, dir: 'there', cat: 'plane', route: 'Омск - Красноярск', groupKey: 'demo_there' },
-      { id: 'd3', date: '02.10.2026', no: 'ДОГ-205e', name: 'Аренда квартиры', sum: 54000, cat: 'hotel', bizType: 'self' },
-      { id: 'd4', date: '18.10.2026', no: 'КД010247', name: 'Билет на автобус (Красноярск - Омск)', sum: 4200, dir: 'back', cat: 'bus', route: 'Красноярск - Омск', groupKey: 'demo_back', isMainTicket: true },
-      { id: 'd5', date: '18.10.2026', no: 'БАГ-3107', name: 'Багаж', sum: 800, dir: 'back', cat: 'bus', route: 'Красноярск - Омск', groupKey: 'demo_back' },
-      { id: 'd6', date: '18.10.2026', no: 'ПОЛ-192', name: 'Страховой полис', sum: 500, dir: 'back', cat: 'bus', route: 'Красноярск - Омск', groupKey: 'demo_back' },
-      { id: 'd7', date: '01.10.2026', no: '303', name: 'Чек, такси', sum: 780, cat: 'taxi' },
-      { id: 'd8', date: '01.10.2026', no: '206', name: 'Чек, такси', sum: 920, cat: 'taxi' },
-      { id: 'd9', date: '18.10.2026', no: '412', name: 'Чек, такси', sum: 450, cat: 'taxi' },
-      { id: 'd10', date: '18.10.2026', no: '119', name: 'Чек, такси', sum: 390, cat: 'taxi' }
-    ];
-
-    store.taxis = [
-      { date: '01.10.2026', no: '303', sum: 780, route: 'г. Омск, ул. Ленина, д. 12 (Дом) — Аэропорт Омск-Центральный (Аэропорт)', purpose: 'Поездка в аэропорт вылета' },
-      { date: '01.10.2026', no: '206', sum: 920, route: 'Аэропорт Красноярск (Аэропорт) — г. Красноярск, ул. Взлетная, д. 5 (Апартаменты)', purpose: 'Проезд из аэропорта к месту проживания' },
-      { date: '18.10.2026', no: '412', sum: 450, route: 'г. Красноярск, ул. Взлетная, д. 5 (Апартаменты) — Автовокзал Красноярск (Автовокзал)', purpose: 'Проезд на автовокзал' },
-      { date: '18.10.2026', no: '119', sum: 390, route: 'Автовокзал Омск (Автовокзал) — г. Омск, ул. Ленина, д. 12 (Дом)', purpose: 'Возвращение с вокзала домой' }
-    ];
-
-    triggerCloudAutoSave();
-    renderExpenseList();
-    showToast('⚡ Демо-сценарий загружен!');
+      document.querySelector('#tbl_taxi tbody').innerHTML = store.taxis.map(t => `<tr><td>${t.date}</td><td>${t.route}</td><td>${t.purpose}</td><td class="text-right">${Number(t.sum).toLocaleString('ru-RU', {minimumFractionDigits:2})}</td></tr>`).join('');
+    } else cardTaxi.style.display = 'none';
   }
 
   function sendReportToCloudOnce() {
-    if (isReportSubmittedToCloud) return;
     savePassport();
-    let tgUser = getTelegramUser();
-
     const sortedExpenses = [...store.expenses].sort((a, b) => parseDateToTimestamp(a.date) - parseDateToTimestamp(b.date));
     const sortedTaxis = [...store.taxis].sort((a, b) => parseDateToTimestamp(a.date) - parseDateToTimestamp(b.date));
-
-    const payload = {
-      action: "submit_report",
-      report_uid: CURRENT_REPORT_UID,
-      passport: store.passport,
-      expenses: sortedExpenses,
-      taxis: sortedTaxis,
-      checklist_text: buildDocChecklistText(),
-      telegram_user: tgUser
-    };
 
     fetch(GOOGLE_SHEET_API, {
       method: "POST", mode: "no-cors",
       headers: { "Content-Type": "text/plain" },
-      body: JSON.stringify(payload)
+      body: JSON.stringify({
+        action: "submit_report",
+        report_uid: CURRENT_REPORT_UID,
+        passport: store.passport,
+        expenses: sortedExpenses,
+        taxis: sortedTaxis,
+        checklist_text: buildDocChecklistText(),
+        telegram_user: getTelegramUser()
+      })
     }).then(() => {
       isReportSubmittedToCloud = true;
+      setTimeout(loadAppData, 1500);
     });
   }
 
@@ -2497,58 +2091,30 @@
       const p = store.passport;
       const sorted = [...store.expenses].sort((a, b) => parseDateToTimestamp(a.date) - parseDateToTimestamp(b.date));
       const total = sorted.reduce((s,e)=>s + Number(e.sum || 0), 0) + (Number(p.dailyTotal) || 0);
-      const diff = (Number(p.advance) || 0) - total;
 
       const wb = XLSX.utils.book_new();
       const ao1Data = [
         ["СВЕДЕНИЯ О КОМАНДИРОВКЕ И ПОДОТЧЕТНОМ ЛИЦЕ"],
         ["ФИО подотчетного лица:", p.fio],
-        ["Должность:", p.role],
-        ["Табельный номер:", p.tab],
         ["Город командировки:", p.city],
-        ["Срок командировки:", `${formatRuDateString(p.dStart)} — ${formatRuDateString(p.dEnd)} (${p.days} дней)`],
-        ["Количество суток:", p.days],
-        ["Получено авансом (руб.):", p.advance],
-        ["Суточные (руб.):", `${p.dailyTotal} (${p.rate} руб./сутки)`],
-        ["Итоговый расчет:", diff < 0 ? `Перерасход к выплате: ${Math.abs(diff)} руб.` : `Остаток к возврату: ${diff} руб.`],
+        ["Срок:", `${p.dStart} — ${p.dEnd} (${p.days} дней)`],
+        ["Получено авансом:", p.advance],
+        ["Суточные:", p.dailyTotal],
         [],
-        ["ОБОРОТНАЯ СТОРОНА ФОРМЫ № АО-1 (ОТЧЕТ О РАСХОДАХ)"],
+        ["ОБОРОТНАЯ СТОРОНА ФОРМЫ № АО-1"],
         ["№", "Дата", "Номер документа", "Наименование документа (расхода)", "Сумма (руб.)"]
       ];
 
-      sorted.forEach((e, idx) => { ao1Data.push([idx + 1, formatRuDateString(e.date), e.no, e.name, Number(e.sum || 0)]); });
-      ao1Data.push([sorted.length + 1, "", "", `Авансовый отчет суточные за ${p.days} дн.`, Number(p.dailyTotal || 0)]);
+      sorted.forEach((e, idx) => { ao1Data.push([idx + 1, e.date, e.no, e.name, Number(e.sum || 0)]); });
+      ao1Data.push([sorted.length + 1, "", "", `Суточные за ${p.days} дн.`, Number(p.dailyTotal || 0)]);
       ao1Data.push(["", "", "", "ИТОГО ПО ОТЧЕТУ:", total]);
 
       const ws1 = XLSX.utils.aoa_to_sheet(ao1Data);
-      ws1['!cols'] = [{wch: 6}, {wch: 14}, {wch: 18}, {wch: 50}, {wch: 15}];
       XLSX.utils.book_append_sheet(wb, ws1, "Авансовый отчет");
 
-      if (store.taxis.length > 0) {
-        const taxiData = [
-          ["ДЕТАЛИЗАЦИЯ СЛУЖЕБНЫХ ПОЕЗДОК НА ТАКСИ"],
-          ["Дата", "Маршрут поездки (Точка А — Точка Б)", "Служебная цель поездки", "Сумма (руб.)"]
-        ];
-        const sortedTaxis = [...store.taxis].sort((a, b) => parseDateToTimestamp(a.date) - parseDateToTimestamp(b.date));
-        sortedTaxis.forEach(t => { taxiData.push([formatRuDateString(t.date), t.route, t.purpose, Number(t.sum || 0)]); });
-        const ws2 = XLSX.utils.aoa_to_sheet(taxiData);
-        ws2['!cols'] = [{wch: 14}, {wch: 50}, {wch: 35}, {wch: 14}];
-        XLSX.utils.book_append_sheet(wb, ws2, "Детализация такси");
-      }
-
       const fileName = `Авансовый_отчет_${(p.fio || 'сотрудника').replace(/\s+/g, '_')}.xlsx`;
-      const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-      const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-
-      if (navigator.canShare && navigator.canShare({ files: [new File([blob], fileName, { type: blob.type })] })) {
-        navigator.share({ files: [new File([blob], fileName, { type: blob.type })], title: 'Авансовый отчет', text: `Авансовый отчет: ${p.fio}` }).catch(() => {});
-      } else {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url; a.download = fileName;
-        document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      }
-      showToast("✅ Excel скачан!");
+      XLSX.writeFile(wb, fileName);
+      showToast("✅ Excel сформирован!");
       setTimeout(openChecklistModal, 800);
     } catch(err) {
       showToast("Ошибка Excel: " + err.message);
@@ -2565,24 +2131,15 @@
       const element = document.getElementById('printable_report');
       const p = store.passport;
       const fileName = `Авансовый_отчет_${(p.fio || 'сотрудника').replace(/\s+/g, '_')}.pdf`;
-      const opt = { margin: [10, 10, 10, 10], filename: fileName, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
+      const opt = { margin: [10, 10, 10, 10], filename: fileName, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
 
-      html2pdf().set(opt).from(element).outputPdf('blob').then(function(blob) {
-        if (navigator.canShare && navigator.canShare({ files: [new File([blob], fileName, { type: 'application/pdf' })] })) {
-          navigator.share({ files: [new File([blob], fileName, { type: 'application/pdf' })], title: 'Авансовый отчет PDF', text: `Авансовый отчет: ${p.fio}` }).catch(() => {});
-        } else {
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url; a.download = fileName;
-          document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        }
-        showToast("✅ PDF готов!");
+      html2pdf().set(opt).from(element).save().then(() => {
+        showToast("✅ PDF сохранен!");
         setTimeout(openChecklistModal, 800);
       }).finally(() => {
         setTimeout(() => { btn.disabled = false; btn.innerText = "📄 Сохранить в PDF"; }, 1500);
       });
     } catch(err) {
-      showToast("Ошибка PDF: " + err.message);
       btn.disabled = false; btn.innerText = "📄 Сохранить в PDF";
     }
   }
