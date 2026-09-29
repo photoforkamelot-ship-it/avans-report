@@ -579,7 +579,7 @@
         </div>
       </div>
 
-      <!-- РЕЗУЛЬТАТ: СГЕНЕРИРОВАННОЕ ПИСЬМО И ССЫЛКИ -->
+      <!-- РЕЗУЛЬТАТ: СГЕНЕРИРОВАННОЕ ПИСЬМО И ССЫЛКИ НА ФАЙЛЫ ДЛЯ ПЕЧАТИ -->
       <div id="email_result_card" class="card" style="display:none; border-left:4px solid var(--primary); background:#f0fdf4;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
           <h3 style="margin:0; color:#166534;">✉️ Готовое письмо для согласования</h3>
@@ -588,7 +588,11 @@
             <a id="btn_mailto_link" href="#" class="btn btn-primary" style="height:28px; width:auto; font-size:11px; padding:0 10px; text-decoration:none;">✉️ В Почту</a>
           </div>
         </div>
-        <div id="email_preview_box" style="white-space:pre-wrap; font-size:12px; line-height:1.5; color:#1e293b; background:#fff; border:1px solid #bbf7d0; border-radius:8px; padding:10px;"></div>
+        <div id="email_preview_box" style="white-space:pre-wrap; font-size:12px; line-height:1.5; color:#1e293b; background:#fff; border:1px solid #bbf7d0; border-radius:8px; padding:10px; margin-bottom:10px;"></div>
+        
+        <!-- БЛОК ССЫЛОК НА ЗАПОЛНЕННЫЕ БЛАНКИ ЭКСЕЛЬ/ГУГЛ ТАБЛИЦ -->
+        <h4 style="margin:0 0 6px 0; font-size:13px; color:#166534;">📄 Заполненные бланки заявок на Диске:</h4>
+        <div id="generated_files_links" style="display:flex; flex-direction:column; gap:4px;"></div>
       </div>
 
       <h3 style="color:#0f172a; margin-top:16px;">📋 История и таймлайн командировок</h3>
@@ -1134,6 +1138,16 @@
         document.getElementById('email_result_card').style.display = 'block';
         document.getElementById('email_preview_box').innerText = res.emailText;
         document.getElementById('btn_mailto_link').href = res.mailtoUrl;
+
+        // Отрисовываем ссылки на сгенерированные файлы бланков на Google Диске
+        const filesBox = document.getElementById('generated_files_links');
+        if (res.files && res.files.length > 0) {
+          filesBox.innerHTML = res.files.map(f => `
+            <a href="${f.url}" target="_blank" class="btn btn-secondary" style="height:32px; font-size:12px; justify-content:flex-start; text-decoration:none; padding:0 10px; background:#fff; border:1px solid #cbd5e1;">
+              📄 <b>${f.fio}</b> (${Number(f.sum).toLocaleString('ru-RU')} ₽) — Открыть бланк для печати ➔
+            </a>
+          `).join('');
+        }
       }
       showToast("✅ Заявки на ДС сформированы!");
       closeNewRequestForm();
@@ -1182,6 +1196,7 @@
       if (typeof d === 'string') { try { d = JSON.parse(d); } catch(e){} }
       const est = d.estimate || {};
       const personFio = tr.team || d.fio || "Сотрудник";
+      const fileLink = tr.url || d.fileUrl || "";
 
       return `
         <div class="report-card-item" style="border-left: 4px solid var(--primary); flex-direction:column; align-items:flex-start; margin-bottom:10px;">
@@ -1204,6 +1219,15 @@
               <div style="margin-top:4px; font-weight:700; color:#0369a1;">• Личный аванс: ${Number(tr.totalAdvance || 0).toLocaleString('ru-RU')} ₽</div>
               <div style="margin-top:2px; color:#64748b; font-size:11px;">Цель: ${tr.lastPurpose || 'Служебная поездка'}</div>
             </div>
+
+            <!-- КНОПКА ПЕЧАТИ/СКАЧИВАНИЯ ЗАЯВКИ НА ДС -->
+            ${fileLink ? `
+              <div style="margin-bottom:6px;">
+                <a href="${fileLink}" target="_blank" class="btn btn-secondary" style="height:32px; font-size:12px; text-decoration:none; background:#ecfdf5; border:1px solid #a7f3d0; color:#065f46;">
+                  🖨️ Распечатать / Скачать заявку на ДС
+                </a>
+              </div>
+            ` : ''}
 
             <div style="display:flex; gap:6px; width:100%;">
               <button type="button" class="btn btn-primary" style="height:32px; font-size:12px; flex:1;" onclick="loadTripIntoReport('${tr.tripId}')">📝 Заполнять АО-1 (${Number(tr.totalAdvance || 0).toLocaleString('ru-RU')} ₽)</button>
