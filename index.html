@@ -167,6 +167,19 @@
       border-color: #fde047; background: #fefce8; color: #854d0e;
     }
 
+    .narrative-box {
+      background: #ffffff; border: 1px solid #007aff33; border-left: 4px solid var(--primary);
+      border-radius: 10px; padding: 12px 14px; font-size: 13px; line-height: 1.6; color: #1c1c1e; margin-bottom: 10px;
+    }
+    .narrative-box p { margin: 0 0 6px 0; }
+    .narrative-box ol, .narrative-box ul { margin: 4px 0 8px 20px; padding: 0; }
+    .narrative-box li { margin-bottom: 3px; }
+
+    .checklist-box {
+      background: #f9f9fb; border: 1px solid #e5e5ea; border-radius: 10px;
+      padding: 12px; font-size: 12px; line-height: 1.5; color: #2c2c2e; max-height: 60vh; overflow-y: auto; text-align: left;
+    }
+
     .emp-estimate-card { background: #fdfdfd; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px; margin-bottom: 8px; }
     .team-chip { display: inline-flex; align-items: center; gap: 6px; background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; margin: 3px; }
     .team-chip-del { cursor: pointer; color: #ef4444; font-weight: 700; margin-left: 2px; }
@@ -515,32 +528,43 @@
 
 </div>
 
-<!-- МОДАЛКА ПРОСМОТРА И РЕДАКТИРОВАНИЯ ЗАЯВКИ ИЗ ТАЙМЛАЙНА -->
+<!-- МОДАЛКА ПРОСМОТРА И РЕДАКТИРОВАНИЯ ЗАЯВКИ С ПОЛНОЙ СМЕТОЙ -->
 <div id="req_view_modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:10015; align-items:center; justify-content:center; padding:16px;">
-  <div style="background:white; padding:18px; border-radius:14px; width:100%; max-width:440px; box-shadow:0 12px 30px rgba(0,0,0,0.25);">
-    <h3 id="rvm_title" style="margin-top:0; color:#0369a1; font-size:16px;">📄 Параметры заявки на ДС</h3>
+  <div style="background:white; padding:18px; border-radius:14px; width:100%; max-width:440px; max-height:92vh; overflow-y:auto; box-shadow:0 12px 30px rgba(0,0,0,0.25);">
+    <h3 id="rvm_title" style="margin-top:0; color:#0369a1; font-size:16px;">📄 Редактирование сметы заявки на ДС</h3>
     <input type="hidden" id="rvm_req_id">
+    <input type="hidden" id="rvm_is_prolong">
     
-    <div class="field"><label>Сотрудник</label><input type="text" id="rvm_fio" readonly style="background:#f8fafc;"></div>
-    <div class="field"><label>Город и даты</label><input type="text" id="rvm_dates"></div>
-    <div class="grid-2">
-      <div class="field"><label>Суток</label><input type="number" id="rvm_days"></div>
-      <div class="field"><label>Сумма аванса (₽)</label><input type="number" id="rvm_sum"></div>
-    </div>
+    <div class="field"><label>Сотрудник</label><input type="text" id="rvm_fio" readonly style="background:#f8fafc; font-weight:700;"></div>
+    <div class="field"><label>Город и даты</label><input type="text" id="rvm_dates" oninput="updateModalEmailLive()"></div>
     <div class="field"><label>Цель поездки</label><input type="text" id="rvm_purpose"></div>
+
+    <h4 style="margin:10px 0 6px 0; font-size:13px; color:#0f172a;">Смета расходов заявки:</h4>
+    <div class="grid-2">
+      <div class="field"><label>Проезд (₽)</label><input type="number" id="rvm_travel" oninput="recalcModalEstimate()"></div>
+      <div class="field"><label>Жильё/сутки (₽)</label><input type="number" id="rvm_hotel_daily" oninput="recalcModalEstimate()"></div>
+    </div>
+    <div class="grid-2">
+      <div class="field"><label>Дней</label><input type="number" id="rvm_days" oninput="recalcModalEstimate()"></div>
+      <div class="field"><label>Итого жильё (₽)</label><input type="number" id="rvm_sum_hotel" readonly style="background:#f1f5f9;"></div>
+    </div>
+    <div class="grid-2">
+      <div class="field"><label>Суточные (₽)</label><input type="number" id="rvm_sum_daily" oninput="recalcModalEstimate()"></div>
+      <div class="field"><label><b>Итого заявка (₽)</b></label><input type="number" id="rvm_sum_total" readonly style="background:#e0f2fe; font-weight:700;"></div>
+    </div>
 
     <div style="margin:10px 0; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:10px;">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
         <b style="font-size:12px; color:#166534;">✉️ Текст письма на согласование:</b>
         <button type="button" class="btn btn-secondary" style="height:24px; font-size:11px; width:auto; padding:0 8px;" onclick="copyModalReqEmail()">📋 Копировать</button>
       </div>
-      <div id="rvm_email_box" style="white-space:pre-wrap; font-size:11px; max-height:100px; overflow-y:auto; color:#1e293b;"></div>
+      <div id="rvm_email_box" style="white-space:pre-wrap; font-size:11px; max-height:110px; overflow-y:auto; color:#1e293b; line-height:1.45;"></div>
     </div>
 
     <div id="rvm_file_link_box" style="margin-bottom:12px;"></div>
 
     <div style="display:flex; flex-direction:column; gap:6px;">
-      <button type="button" class="btn btn-primary" onclick="saveReqModalChanges()">💾 Сохранить изменения заявки</button>
+      <button type="button" class="btn btn-primary" onclick="saveReqModalChanges()">💾 Сохранить изменения сметы и заявки</button>
       <button type="button" class="btn btn-secondary" onclick="closeReqViewModal()">Закрыть</button>
     </div>
   </div>
@@ -776,7 +800,6 @@
 
         renderTripsTree(res.trips, res.requestsArchive, res.reports);
 
-        // НЕ подставляем данные администратора в форму, если смотрим/редактируем чужой отчёт!
         if (!document.getElementById('p_fio').value && !isViewingRemoteReport && !store.passport.fio) {
           if (res.currentUser) {
             document.getElementById('p_fio').value = res.currentUser.fio;
@@ -870,11 +893,15 @@
 
       html += `
         <div style="margin-bottom:8px;">
-          <button type="button" class="trip-accordion-btn ${warnClass}" onclick="toggleAccordion('box_trip_${gIdx}')">
-            <span>🧳 Командировка ${grp.cities} (${daysCount || 18} дн) <small style="font-weight:400; opacity:0.85;">(${grp.dates})</small></span>
-            <span style="font-size:11px;">${hasAnyWarning ? '⚠️ Изменено ▾' : 'Раскрыть ▾'}</span>
-          </button>
-          <div id="box_trip_${gIdx}" style="display:none; padding:4px 0 8px 6px;">
+          <div style="display:flex; gap:6px; align-items:center;">
+            <button type="button" class="trip-accordion-btn ${warnClass}" style="margin-bottom:0;" onclick="toggleAccordion('box_trip_${gIdx}')">
+              <span>🧳 Командировка ${grp.cities} (${daysCount || 18} дн) <small style="font-weight:400; opacity:0.85;">(${grp.dates})</small></span>
+              <span style="font-size:11px;">${hasAnyWarning ? '⚠️ Изменено ▾' : 'Раскрыть ▾'}</span>
+            </button>
+            ${globalAppData.isAdmin ? `<button type="button" class="btn btn-danger" title="Удалить всю командировку для всех сотрудников" onclick="deleteFullTripGroup('${grp.cities.replace(/'/g, "\\'")}', '${grp.dates.replace(/'/g, "\\'")}')">🗑️</button>` : ''}
+          </div>
+
+          <div id="box_trip_${gIdx}" style="display:none; padding:6px 0 8px 6px;">
       `;
 
       grp.members.forEach((tr, mIdx) => {
@@ -890,14 +917,17 @@
         );
 
         html += `
-          <button type="button" class="trip-emp-btn" onclick="toggleAccordion('${memberBoxId}')">
-            <span>👤 ${shortFio} ${tr.cities} (${daysCount || 18} дн)</span>
-            <span style="font-size:11px; color:#007aff;">Цепочка документов ▾</span>
-          </button>
+          <div style="display:flex; gap:4px; align-items:center; margin:4px 0;">
+            <button type="button" class="trip-emp-btn" style="margin:0;" onclick="toggleAccordion('${memberBoxId}')">
+              <span>👤 ${shortFio} ${tr.cities} (${daysCount || 18} дн)</span>
+              <span style="font-size:11px; color:#007aff;">Цепочка документов ▾</span>
+            </button>
+            ${globalAppData.isAdmin ? `<button type="button" class="btn btn-danger" style="height:34px; width:34px; min-width:34px;" title="Удалить командировку и всю историю этого сотрудника" onclick="deleteSingleMemberTrip('${tr.tripId}', '${personFio.replace(/'/g, "\\'")}')">🗑️</button>` : ''}
+          </div>
+
           <div id="${memberBoxId}" class="timeline-chain-box" style="display:none;">
         `;
 
-        // Кликабельные поля заявок с вызовом модалки управления и письма
         if (relatedReqs.length === 0) {
           html += `
             <div class="timeline-node-field" onclick="openReqDetailsModal('${tr.tripId}', 'Заявка на ДС')">
@@ -979,32 +1009,72 @@
     el.style.display = el.style.display === 'block' ? 'none' : 'block';
   }
 
-  // --- МОДАЛЬНОЕ ОКНО ПРОСМОТРА И РЕДАКТИРОВАНИЯ ЗАЯВКИ ---
+  function deleteFullTripGroup(cities, dates) {
+    if (!confirm(`Удалить ВСЮ командировку ${cities} (${dates}) для ВСЕХ сотрудников со всеми заявками и отчётами?`)) return;
+    showToast("Удаление всей командировки...");
+    fetch(GOOGLE_SHEET_API, {
+      method: "POST", mode: "no-cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "delete_full_trip_group", cities, dates })
+    }).then(() => {
+      showToast("Командировка полностью удалена!");
+      setTimeout(loadAppData, 1200);
+    });
+  }
+
+  function deleteSingleMemberTrip(tripId, fio) {
+    if (!confirm(`Удалить ВСЮ историю командировки, заявки и черновик/отчёт сотрудника ${fio}?`)) return;
+    showToast("Удаление данных сотрудника...");
+    fetch(GOOGLE_SHEET_API, {
+      method: "POST", mode: "no-cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "delete_single_member_trip", tripId })
+    }).then(() => {
+      showToast("Сотрудник и его история удалены!");
+      setTimeout(loadAppData, 1200);
+    });
+  }
+
+  // --- МОДАЛЬНОЕ ОКНО РЕДАКТИРОВАНИЯ ЗАЯВКИ С ПОЛНОЙ СМЕТОЙ И ЖИВЫМ ПИСЬМОМ ---
   function openReqDetailsModal(reqId, label) {
     const rq = (globalAppData.requestsArchive || []).find(r => r.reqId === reqId);
     const tr = (globalAppData.trips || []).find(t => t.tripId === reqId);
 
-    document.getElementById('rvm_title').innerText = label || "Параметры заявки на ДС";
+    document.getElementById('rvm_title').innerText = label || "Редактирование сметы заявки на ДС";
     document.getElementById('rvm_req_id').value = reqId;
 
     const fio = rq ? rq.fio : (tr ? tr.team : '');
     const dates = rq ? rq.dates : (tr ? tr.dates : '');
-    const days = rq ? rq.days : 18;
-    const sum = rq ? rq.sum : (tr ? tr.totalAdvance : 0);
+    const days = rq ? (rq.days || 18) : 18;
     const purpose = rq ? rq.purpose : (tr ? tr.lastPurpose : 'Служебная поездка');
     const fileUrl = rq ? rq.fileUrl : (tr ? tr.url : '');
+    const isProlong = (label || '').includes('Продление');
+    document.getElementById('rvm_is_prolong').value = isProlong ? "1" : "0";
+
+    // Считываем сырую смету, если она есть в архиве
+    let est = {};
+    if (rq && rq.rawEstimate) {
+      try {
+        est = (typeof rq.rawEstimate === 'string') ? JSON.parse(rq.rawEstimate) : rq.rawEstimate;
+      } catch(e) {}
+    }
+
+    const travelSum = (est.sumTravel !== undefined) ? Number(est.sumTravel) : (isProlong ? 0 : 20000);
+    const hotelDaily = (est.hotelDaily !== undefined) ? Number(est.hotelDaily) : 3100;
+    const stayDays = days > 1 ? (days - 1) : 1;
+    const sumHotel = (est.sumHotel !== undefined) ? Number(est.sumHotel) : (stayDays * hotelDaily);
+    const sumDaily = (est.sumDaily !== undefined) ? Number(est.sumDaily) : (days * 1500);
+    const sumTotal = rq ? (rq.sum || (travelSum + sumHotel + sumDaily)) : (travelSum + sumHotel + sumDaily);
 
     document.getElementById('rvm_fio').value = fio;
     document.getElementById('rvm_dates').value = dates;
     document.getElementById('rvm_days').value = days;
-    document.getElementById('rvm_sum').value = sum;
     document.getElementById('rvm_purpose').value = purpose;
-
-    // Генерируем точный текст письма
-    const isProlong = label.includes('Продление');
-    const reasonStr = isProlong ? `в связи с продлением командировки` : `в связи с командировкой`;
-    const emailText = `Коллеги, Добрый день!\n\nЕкатерина, прошу согласовать ДС под отчет\n${reasonStr} согласно заявкам (во вложении)\n\n${fio}:\nИтого: ${Number(sum).toLocaleString('ru-RU')}\n\nС уважением, Илгин Александр Александрович`;
-    document.getElementById('rvm_email_box').innerText = emailText;
+    document.getElementById('rvm_travel').value = travelSum;
+    document.getElementById('rvm_hotel_daily').value = hotelDaily;
+    document.getElementById('rvm_sum_hotel').value = sumHotel;
+    document.getElementById('rvm_sum_daily').value = sumDaily;
+    document.getElementById('rvm_sum_total').value = sumTotal;
 
     const linkBox = document.getElementById('rvm_file_link_box');
     if (fileUrl) {
@@ -1013,7 +1083,58 @@
       linkBox.innerHTML = `<small style="color:#94a3b8;">Ссылка на файл формируется</small>`;
     }
 
+    updateModalEmailLive();
     document.getElementById('req_view_modal').style.display = 'flex';
+  }
+
+  function recalcModalEstimate() {
+    const days = parseInt(document.getElementById('rvm_days').value) || 0;
+    const travel = parseFloat(document.getElementById('rvm_travel').value) || 0;
+    const hotelDaily = parseFloat(document.getElementById('rvm_hotel_daily').value) || 0;
+
+    const stayDays = days > 1 ? (days - 1) : 1;
+    const sumHotel = stayDays * hotelDaily;
+    const sumDaily = days * 1500;
+    const sumTotal = travel + sumHotel + sumDaily;
+
+    document.getElementById('rvm_sum_hotel').value = sumHotel;
+    document.getElementById('rvm_sum_daily').value = sumDaily;
+    document.getElementById('rvm_sum_total').value = sumTotal;
+
+    updateModalEmailLive();
+  }
+
+  function updateModalEmailLive() {
+    const fio = document.getElementById('rvm_fio').value || 'Сотрудник';
+    const dates = document.getElementById('rvm_dates').value || '';
+    const isProlong = document.getElementById('rvm_is_prolong').value === "1";
+    const travel = parseFloat(document.getElementById('rvm_travel').value) || 0;
+    const hotelDaily = parseFloat(document.getElementById('rvm_hotel_daily').value) || 0;
+    const sumHotel = parseFloat(document.getElementById('rvm_sum_hotel').value) || 0;
+    const sumDaily = parseFloat(document.getElementById('rvm_sum_daily').value) || 0;
+    const sumTotal = parseFloat(document.getElementById('rvm_sum_total').value) || 0;
+
+    const reasonStr = isProlong 
+      ? `в связи с продлением командировки ${dates ? dates + 'гг' : ''}`
+      : `в связи с командировкой ${dates ? dates + 'гг' : ''}`;
+
+    let lines = [
+      "Коллеги, Добрый день!\n",
+      "Екатерина, прошу согласовать ДС под отчет\n",
+      `${reasonStr.trim()} согласно заявкам (во вложении)\n\n`,
+      `${fio}:`
+    ];
+
+    if (travel > 0) lines.push(`${travel.toLocaleString('ru-RU')} проезд`);
+    if (sumHotel > 0) {
+      const dailyRateStr = hotelDaily > 0 ? ` (${hotelDaily.toLocaleString('ru-RU')} сутки)` : "";
+      lines.push(`${sumHotel.toLocaleString('ru-RU')} проживание${dailyRateStr}`);
+    }
+    if (sumDaily > 0) lines.push(`${sumDaily.toLocaleString('ru-RU')} суточные`);
+    lines.push(`Итого: ${sumTotal.toLocaleString('ru-RU')}\n`);
+    lines.push(`С уважением, Илгин Александр Александрович`);
+
+    document.getElementById('rvm_email_box').innerText = lines.join('\n');
   }
 
   function closeReqViewModal() {
@@ -1028,22 +1149,29 @@
     const reqId = document.getElementById('rvm_req_id').value;
     const dates = document.getElementById('rvm_dates').value.trim();
     const days = parseInt(document.getElementById('rvm_days').value) || 0;
-    const sum = parseFloat(document.getElementById('rvm_sum').value) || 0;
     const purpose = document.getElementById('rvm_purpose').value.trim();
+    const sumTravel = parseFloat(document.getElementById('rvm_travel').value) || 0;
+    const hotelDaily = parseFloat(document.getElementById('rvm_hotel_daily').value) || 0;
+    const sumHotel = parseFloat(document.getElementById('rvm_sum_hotel').value) || 0;
+    const sumDaily = parseFloat(document.getElementById('rvm_sum_daily').value) || 0;
+    const sumTotal = parseFloat(document.getElementById('rvm_sum_total').value) || 0;
 
-    showToast("Сохранение изменений заявки...");
+    showToast("Сохранение сметы заявки...");
     fetch(GOOGLE_SHEET_API, {
       method: "POST", mode: "no-cors",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "update_single_request", reqId, dates, days, sum, purpose })
+      body: JSON.stringify({
+        action: "update_single_request",
+        reqId, dates, days, purpose,
+        sumTravel, hotelDaily, sumHotel, sumDaily, sumTotal
+      })
     }).then(() => {
-      showToast("Заявка обновлена!");
+      showToast("Смета заявки успешно сохранена!");
       closeReqViewModal();
       setTimeout(loadAppData, 1200);
     });
   }
 
-  // --- ВЫГРУЗКА ПОЛНОГО EXCEL ИЗ ШАБЛОНА ПО КНОПКЕ НА 4-М ШАГЕ ---
   function downloadFullTemplateExcelAndNotify() {
     const btn = document.getElementById("btn_excel");
     btn.disabled = true;
@@ -1070,7 +1198,6 @@
     .then(r => r.json())
     .then(res => {
       if (res.excel_download_url) {
-        // Создаем скрытую ссылку и кликаем для мгновенного скачивания полного файла
         const a = document.createElement("a");
         a.href = res.excel_download_url;
         a.target = "_blank";
@@ -1095,7 +1222,6 @@
     });
   }
 
-  // --- КОРРЕКТНЫЙ ЭКСПОРТ В PDF БЕЗ ЗАКРЫТИЯ ВЕБМОРДЫ ---
   function generatePdfAndNotify() {
     const btn = document.getElementById("btn_pdf");
     btn.disabled = true;
@@ -1116,7 +1242,6 @@
     });
   }
 
-  // --- МГНОВЕННЫЙ ЛОКАЛЬНЫЙ ПЕРЕСЧЁТ СУТОЧНЫХ И ПЕРЕНОС ДАННЫХ ---
   function loadTripIntoReport(tripId) {
     const tr = globalAppData.trips.find(x => x.tripId === tripId);
     if (!tr) return;
@@ -1145,7 +1270,6 @@
     document.getElementById('p_rate').value = 1500;
     document.getElementById('p_advance').value = tr.totalAdvance || 0;
 
-    // Мгновенный локальный расчёт суточных
     calcDaily();
     savePassport();
 
@@ -1611,7 +1735,6 @@
 
       if (datePickerRange && p.dStart && p.dEnd) datePickerRange.setDate([p.dStart, p.dEnd]);
 
-      // Точный пересчёт суточных
       calcDaily();
       switchMainTab('form');
       document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
@@ -2131,13 +2254,72 @@
     const total = store.expenses.reduce((s,e)=>s + Number(e.sum || 0), 0) + (Number(p.dailyTotal) || 0);
     const diff = (Number(p.advance) || 0) - total;
 
-    let html = `<p>💬 <b>Командировка сотрудника:</b> ${p.fio} (${p.city}, ${p.days} дн.)</p>`;
-    html += `<p>• Суточные: <b>${Number(p.dailyTotal).toLocaleString('ru-RU')} ₽</b></p>`;
+    let html = `<p><b>${formatRuDateString(p.dStart)}</b> Вы поехали в командировку в ${p.city}.</p>`;
+
+    const relatedReqs = (globalAppData.requestsArchive || []).filter(rq => rq.tripId === (p.tripId || ''));
+    if (relatedReqs.length > 0) {
+      relatedReqs.forEach((rq, idx) => {
+        const title = idx === 0 ? "Заявка на ДС" : `Заявка на ДС (продление ${idx > 1 ? idx : ''})`.trim();
+        const datesClean = rq.dates.replace(/\s+/g, '');
+        html += `<p style="margin-top:6px;"><b>${cleanDateStr(rq.dates.split('—')[0] || p.dStart)}</b> ${title}<br>Командировка в ${rq.city} (${rq.days} дн) (с ${datesClean}) (${Number(rq.sum).toLocaleString('ru-RU')} ₽)</p>`;
+      });
+    } else {
+      html += `<p style="margin-top:6px;"><b>${formatRuDateString(p.dStart)}</b> Заявка на ДС<br>Командировка в ${p.city} (${p.days} дн) (${Number(p.advance).toLocaleString('ru-RU')} ₽)</p>`;
+    }
+
+    const thereItems = store.expenses.filter(e => e.dir === 'there');
+    if (thereItems.length > 0) {
+      const thereSum = thereItems.reduce((s, x) => s + Number(x.sum || 0), 0);
+      const mainThere = thereItems.find(x => x.isMainTicket) || thereItems[0];
+      let tName = mainThere.cat === 'plane' ? 'Самолёт' : (mainThere.cat === 'train' ? 'Поезд' : 'Автобус');
+      html += `<p style="margin-top:6px;"><b>${formatRuDateString(mainThere.date)}</b> ТУДА ${tName} (${Number(thereSum).toLocaleString('ru-RU')} ₽)</p>`;
+    }
+
+    const hotelItems = store.expenses.filter(e => e.cat === 'hotel');
+    if (hotelItems.length > 0) {
+      hotelItems.forEach(h => {
+        const typeName = h.bizType === 'self' ? 'арендованном жилье' : 'гостинице';
+        html += `<p style="margin-top:6px;"><b>${formatRuDateString(h.date)}</b> Вы оплатили жильё в ${typeName} (${Number(h.sum).toLocaleString('ru-RU')} ₽)</p>`;
+      });
+    }
+
+    if (store.taxis.length > 0) {
+      html += `<p style="margin-top:8px;">в командировке <b>${store.taxis.length}</b> ${store.taxis.length === 1 ? 'раз' : 'раза'} использовали такси:<ol>`;
+      store.taxis.forEach(t => {
+        html += `<li><b>${formatRuDateString(t.date)}</b> Такси (${t.route}) (${Number(t.sum).toLocaleString('ru-RU')} ₽)</li>`;
+      });
+      html += `</ol></p>`;
+    }
+
+    const miscItems = store.expenses.filter(e => e.cat === 'misc');
+    if (miscItems.length > 0) {
+      html += `<p style="margin-top:8px;">в командировке были дополнительные траты:<ul>`;
+      miscItems.forEach(m => {
+        const cleanName = m.customName || m.name.replace(/^Чек,\s*/i, '');
+        html += `<li><b>${formatRuDateString(m.date)}</b> ${cleanName} (${Number(m.sum).toLocaleString('ru-RU')} ₽)</li>`;
+      });
+      html += `</ul></p>`;
+    }
+
+    const backItems = store.expenses.filter(e => e.dir === 'back');
+    if (backItems.length > 0) {
+      const backSum = backItems.reduce((s, x) => s + Number(x.sum || 0), 0);
+      const mainBack = backItems.find(x => x.isMainTicket) || backItems[0];
+      let bName = mainBack.cat === 'plane' ? 'Самолёт' : (mainBack.cat === 'train' ? 'Поезд' : 'Автобус');
+      html += `<p style="margin-top:6px;"><b>${formatRuDateString(mainBack.date)}</b> ОБРАТНО ${bName} (${Number(backSum).toLocaleString('ru-RU')} ₽)</p>`;
+    }
+
+    html += `<p style="margin-top:8px;"><b>${formatRuDateString(p.dEnd)}</b> Вы вернулись из командировки.</p>`;
+    html += `<p style="margin-top:6px;">Начислены суточные за <b>${p.days}</b> дн.: <b>${Number(p.dailyTotal).toLocaleString('ru-RU')} ₽</b></p>`;
+
+    html += `<hr style="border:none; border-top:1px dashed #cbd5e1; margin:8px 0;">`;
     html += `<p>• Всего подтвержденных расходов: <b>${total.toLocaleString('ru-RU')} ₽</b></p>`;
     html += `<p>• Получено авансом: <b>${Number(p.advance || 0).toLocaleString('ru-RU')} ₽</b></p>`;
+
     if (diff < 0) html += `<p style="color:var(--danger); font-weight:700;">🔴 Перерасход к выплате: ${Math.abs(diff).toLocaleString('ru-RU')} ₽</p>`;
     else if (diff > 0) html += `<p style="color:var(--warning); font-weight:700;">🟡 Остаток к возврату: ${diff.toLocaleString('ru-RU')} ₽</p>`;
     else html += `<p style="color:var(--success); font-weight:700;">🟢 Аванс израсходован точно под ноль</p>`;
+
     return html;
   }
 
