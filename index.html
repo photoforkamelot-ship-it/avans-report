@@ -429,7 +429,7 @@
         <select id="req_purpose_select" onchange="onPurposeSelectChange()">
           <option value="Открытие нового магазина, контроль и внедрение рабочих процессов">Открытие нового магазина, контроль и внедрение рабочих процессов</option>
           <option value="Перезапуск и оптимизация рабочих процессов">Перезапуск и оптимизация рабочих процессов</option>
-          <option value="custom">✏️ Свой вариант (ввести вручную...)</option>
+          <option value="custom">✏️️ Свой вариант (ввести вручную...)</option>
         </select>
         <textarea id="req_purpose_custom" style="display:none; margin-top:6px;" placeholder="Введите индивидуальную цель командировки..."></textarea>
       </div>
@@ -467,7 +467,6 @@
         <button type="button" class="btn btn-secondary" onclick="switchMainTab('trips')">Отмена</button>
       </div>
 
-      <!-- КАРТОЧКА РЕЗУЛЬТАТА ПИСЬМА -->
       <div id="email_result_card" style="display:none; margin-top:14px; border-left:4px solid var(--primary); background:#f0fdf4; padding:10px; border-radius:8px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
           <h3 style="margin:0; color:#166534;">✉️ Готовое письмо на согласование</h3>
@@ -750,7 +749,8 @@
           document.getElementById('super_admin_roles_box').style.display = 'none';
         }
 
-        const activeDrafts = (res.reports || []).filter(r => r.isDraft);
+        // Черновики в табах отображаем ТОЛЬКО если статус отчета реально «Черновик»
+        const activeDrafts = (res.reports || []).filter(r => r.isDraft && String(r.status).toLowerCase() === 'черновик');
         const draftTabBtn = document.getElementById('tab_btn_drafts');
         if (activeDrafts.length > 0) {
           draftTabBtn.style.display = 'block';
@@ -869,7 +869,13 @@
         const shortFio = personFio.split(' ')[0] || personFio;
         const memberBoxId = `box_mem_${gIdx}_${mIdx}`;
         const relatedReqs = (reqsArchive || []).filter(rq => rq.tripId === tr.tripId);
-        const relatedAo = (reports || []).find(r => r.tripId === tr.tripId && !r.isDraft);
+        
+        // ТОЧНЫЙ ПОИСК СДАННОГО ОТЧЕТА: ищем по tripId или по табельному номеру и статусу «Готов»
+        const relatedAo = (reports || []).find(r => 
+          !r.isDraft && 
+          String(r.status).toLowerCase() === 'готов' && 
+          (r.tripId === tr.tripId || (tr.tab && r.tab === tr.tab))
+        );
 
         html += `
           <button type="button" class="trip-emp-btn" onclick="toggleAccordion('${memberBoxId}')">
@@ -904,7 +910,7 @@
           html += `
             <div class="timeline-node-field" onclick="openReportInReviewMode('${relatedAo.id}')">
               <b>📊 Авансовый отчет АО-1</b> (Сумма: ${Number(relatedAo.sum).toLocaleString('ru-RU')} ₽)<br>
-              <small>Статус: Сдан | Нажмите для открытия сводки и расходов</small>
+              <small>Статус: <b>Сдан</b> | Нажмите для открытия отчёта</small>
               ${relatedAo.url ? `<br><a href="${relatedAo.url}" target="_blank" style="color:var(--primary); font-size:11px;" onclick="event.stopPropagation();">Открыть файл Excel на Диске ➔</a>` : ''}
             </div>
           `;
@@ -917,19 +923,21 @@
           `;
         }
 
+        // Поле статуса: теперь безошибочно фиксирует завершение!
         if (tr.hasPendingRecalc) {
           html += `
             <div class="status-field-box status-warning">
               <b>⚠️ Изменены данные командировки!</b><br>
-              Обнаружены новые или измененные заявки. Необходимо обновить и пересохранить АО-1.<br>
+              Обнаружены новые или измененные заявки. Необходимо пересохранить АО-1.<br>
               <button type="button" class="btn btn-warning" style="height:32px; font-size:11px; margin-top:6px;" onclick="openRecalcModal('${tr.tripId}')">🔄 Произвести пересчёт и изменить Авансовый отчёт?</button>
             </div>
           `;
-        } else if (relatedAo) {
+        } else if (relatedAo || tr.status === 'Завершена') {
+          const finalSum = relatedAo ? Number(relatedAo.sum).toLocaleString('ru-RU') : Number(tr.totalAdvance).toLocaleString('ru-RU');
           html += `
             <div class="status-field-box status-ready">
               ✅ <b>Документы сформированы, Отчет сдан и закрыт.</b><br>
-              Сумма отчёта о расходах: <b>${Number(relatedAo.sum).toLocaleString('ru-RU')} ₽</b>
+              Сумма отчёта о расходах: <b>${finalSum} ₽</b>
             </div>
           `;
         } else {
@@ -996,7 +1004,7 @@
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "cancel_unsaved_changes", tripId: activeRecalcTripId })
     }).then(() => {
-      showToast("Изменения отменены. Данные возвращены к исходным.");
+      showToast("Изменения отменены.");
       closeRecalcModal();
       loadAppData();
     });
@@ -1311,7 +1319,8 @@
 
   function checkCloudDraftPopup(reports, userId, isAdmin) {
     if (isDraftPromptDismissedForSession || isViewingRemoteReport) return;
-    const userDrafts = (reports || []).filter(r => r.isDraft && (!userId || String(r.tgId).trim() === String(userId).trim()));
+    // Всплывающее окно показываем ТОЛЬКО если статус реально «Черновик» (а не «Готов»)!
+    const userDrafts = (reports || []).filter(r => r.isDraft && String(r.status).toLowerCase() === 'черновик' && (!userId || String(r.tgId).trim() === String(userId).trim()));
     if (userDrafts.length === 0) return;
 
     detectedDraftReport = userDrafts[0];
@@ -1991,7 +2000,6 @@
     return html;
   }
 
-  // --- ТОЧНЫЙ ХРОНОЛОГИЧЕСКИЙ ПЕРЕЧЕНЬ С ЖИРНЫМ ШРИФТОМ ДАТ И СУММ ---
   function buildDocChecklistText() {
     let list = [
       "1. Авансовый отчёт на 2-х страницах",
