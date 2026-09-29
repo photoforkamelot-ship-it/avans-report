@@ -593,7 +593,6 @@
         </div>
         <div id="email_preview_box" style="white-space:pre-wrap; font-size:12px; line-height:1.5; color:#1e293b; background:#fff; border:1px solid #bbf7d0; border-radius:8px; padding:10px; margin-bottom:10px;"></div>
         
-        <!-- БЛОК ССЫЛОК НА ЗАПОЛНЕННЫЕ БЛАНКИ ЭКСЕЛЬ/ГУГЛ ТАБЛИЦ -->
         <h4 style="margin:0 0 6px 0; font-size:13px; color:#166534;">📄 Заполненные бланки заявок на Диске:</h4>
         <div id="generated_files_links" style="display:flex; flex-direction:column; gap:4px;"></div>
       </div>
@@ -739,6 +738,7 @@
   let datePickerReqRange = null;
 
   let currentReqTeamData = {};
+  let editingExistingTripId = null; // ID командировки при продлении
 
   const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
   if (tg) { try { tg.ready(); tg.expand(); } catch(e){} }
@@ -899,6 +899,9 @@
   }
 
   function openNewRequestForm() {
+    editingExistingTripId = null;
+    document.getElementById('req_type').value = 'primary';
+    onRequestTypeChange();
     document.getElementById('advance_request_builder').style.display = 'block';
     
     if (!globalAppData.isAdmin && globalAppData.currentUser) {
@@ -912,6 +915,7 @@
 
   function closeNewRequestForm() {
     document.getElementById('advance_request_builder').style.display = 'none';
+    editingExistingTripId = null;
   }
 
   function onRequestTypeChange() {
@@ -963,7 +967,7 @@
     }
   }
 
-  function addTeamMemberToEstimate(emp) {
+  function addTeamMemberToEstimate(emp, customTripId = null) {
     if (currentReqTeamData[emp.fio]) {
       showToast("Сотрудник уже добавлен");
       return;
@@ -976,7 +980,8 @@
     currentReqTeamData[emp.fio] = {
       fio: emp.fio, role: emp.role, tab: emp.tab, tgId: emp.tgId,
       bankInn: emp.bankInn || '', bankBik: emp.bankBik || '', bankAcc: emp.bankAcc || '',
-      days: 18, sumTravel: 20000, hotelDaily: 3100, sumHotel: 55800, sumDaily: 27000, sumTotal: 102800
+      days: 18, sumTravel: 20000, hotelDaily: 3100, sumHotel: 55800, sumDaily: 27000, sumTotal: 102800,
+      existingTripId: customTripId
     };
 
     renderSelectedTeamChips();
@@ -1113,6 +1118,7 @@
     const dStart = document.getElementById('req_date_start').value;
     const dEnd = document.getElementById('req_date_end').value;
     const teamArr = Object.values(currentReqTeamData);
+    const isProlong = (document.getElementById('req_type').value === 'prolong');
 
     if (!city || !dStart || !dEnd) { showToast("Укажите город и период"); return; }
     if (teamArr.length === 0) { showToast("Выберите хотя бы одного сотрудника"); return; }
@@ -1124,7 +1130,8 @@
         purpose: purpose,
         dStart: dStart,
         dEnd: dEnd,
-        team: teamArr
+        team: teamArr,
+        isProlong: isProlong
       },
       telegram_user: getTelegramUser()
     };
@@ -1219,7 +1226,7 @@
               <div>• Проезд: <b>${Number(est.sumTravel || 0).toLocaleString('ru-RU')} ₽</b></div>
               <div>• Проживание: <b>${Number(est.sumHotel || 0).toLocaleString('ru-RU')} ₽</b> (${est.hotelDaily || 0} ₽/сутки)</div>
               <div>• Суточные: <b>${Number(est.sumDaily || 0).toLocaleString('ru-RU')} ₽</b> (${est.days || 0} дн.)</div>
-              <div style="margin-top:4px; font-weight:700; color:#0369a1;">• Личный аванс: ${Number(tr.totalAdvance || 0).toLocaleString('ru-RU')} ₽</div>
+              <div style="margin-top:4px; font-weight:700; color:#0369a1;">• Общий аванс: ${Number(tr.totalAdvance || 0).toLocaleString('ru-RU')} ₽ (Заявок: ${tr.reqCount})</div>
               <div style="margin-top:2px; color:#64748b; font-size:11px;">Цель: ${tr.lastPurpose || 'Служебная поездка'}</div>
             </div>
 
@@ -1287,7 +1294,7 @@
     currentReqTeamData = {};
     const emp = (globalAppData.employees || []).find(e => e.fio === (tr.team || d.fio));
     if (emp) {
-      addTeamMemberToEstimate(emp);
+      addTeamMemberToEstimate(emp, tr.tripId); // Передаем существующий Trip ID для объединения
     }
     showToast("Оформление продления для: " + (tr.team || d.fio));
   }
@@ -1465,7 +1472,7 @@
         <div class="report-card-item" style="border-left: 4px solid var(--warning);">
           <div class="report-card-info">
             <span class="badge-draft">ЧЕРНОВИК</span> <strong>${rep.fio || 'Без ФИО'}</strong><br>
-            <small style="color:#666;">${rep.city || '—'} | ${rep.date || ''}<br>Накоплено: <b>${Number(rep.sum || 0).toLocaleString('ru-RU')} ₽</b></small>
+            <small style="color:#666;">г. ${rep.city || '—'} | ${rep.date || ''}<br>Накоплено: <b>${Number(rep.sum || 0).toLocaleString('ru-RU')} ₽</b></small>
           </div>
           <div class="action-btn-group">
             <button type="button" class="btn btn-primary btn-action-view" onclick="openReportInReviewMode('${rep.id}')">👁️ Открыть</button>
@@ -1482,7 +1489,7 @@
         <div class="report-card-item" style="border-left: 4px solid var(--success);">
           <div class="report-card-info">
             <span class="badge-done">ГОТОВ</span> <strong>${rep.fio}</strong><br>
-            <small style="color:#666;">${rep.city} | ${rep.date}<br>Итого: <b>${Number(rep.sum || 0).toLocaleString('ru-RU')} ₽</b></small>
+            <small style="color:#666;">г. ${rep.city} | ${rep.date}<br>Итого: <b>${Number(rep.sum || 0).toLocaleString('ru-RU')} ₽</b></small>
           </div>
           <div class="action-btn-group">
             <button type="button" class="btn btn-primary btn-action-view" onclick="openReportInReviewMode('${rep.id}')">👁️ Просмотр</button>
