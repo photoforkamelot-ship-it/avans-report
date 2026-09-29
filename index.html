@@ -123,7 +123,6 @@
       background: #e7f3ff !important; border-style: solid !important; border-color: #007aff !important;
     }
 
-    /* СТИЛИЗАЦИЯ ИЕРАРХИЧЕСКОГО ТАЙМЛАЙНА */
     .month-header {
       font-size: 14px; font-weight: 700; color: #0f172a; margin: 14px 0 6px 0;
       display: flex; align-items: center; gap: 6px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;
@@ -157,9 +156,6 @@
       padding: 8px 10px; font-size: 12px; cursor: pointer; transition: all 0.2s;
     }
     .timeline-node-field:hover { border-color: var(--primary); background: #f8fafc; }
-    .timeline-node-field.warning-node {
-      border-color: var(--warning) !important; background: var(--warning-bg) !important;
-    }
 
     .status-field-box {
       border-radius: 8px; padding: 10px; font-size: 12px; line-height: 1.45;
@@ -271,7 +267,7 @@
       </div>
     </div>
 
-    <!-- ШАГ 2: ВВОД РАСХОДОВ С КНОПКОЙ ДЕМО -->
+    <!-- ШАГ 2: ВВОД РАСХОДОВ -->
     <div id="step-2" class="step-content">
       <div class="card">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
@@ -405,7 +401,6 @@
       <div style="font-size:12px; color:#64748b; margin-bottom:12px;">
         Группировка по месяцам. Нажмите на командировку, затем на сотрудника для просмотра цепочки документов.
       </div>
-
       <div id="trips_tree_container">Загрузка командировок...</div>
     </div>
   </div>
@@ -434,7 +429,7 @@
         <select id="req_purpose_select" onchange="onPurposeSelectChange()">
           <option value="Открытие нового магазина, контроль и внедрение рабочих процессов">Открытие нового магазина, контроль и внедрение рабочих процессов</option>
           <option value="Перезапуск и оптимизация рабочих процессов">Перезапуск и оптимизация рабочих процессов</option>
-          <option value="custom">✏️️ Свой вариант (ввести вручную...)</option>
+          <option value="custom">✏️ Свой вариант (ввести вручную...)</option>
         </select>
         <textarea id="req_purpose_custom" style="display:none; margin-top:6px;" placeholder="Введите индивидуальную цель командировки..."></textarea>
       </div>
@@ -488,7 +483,7 @@
     </div>
   </div>
 
-  <!-- ВКЛАДКА 4: НЕЗАВЕРШЕННЫЕ ЧЕРНОВИКИ (ТОЛЬКО ЕСЛИ ОНИ ЕСТЬ) -->
+  <!-- ВКЛАДКА 4: НЕЗАВЕРШЕННЫЕ ЧЕРНОВИКИ -->
   <div id="tab-drafts" class="main-tab-content" style="display:none;">
     <div class="card">
       <h2>💾 Черновики в процессе заполнения</h2>
@@ -567,7 +562,7 @@
   </div>
 </div>
 
-<!-- МОДАЛКА ПОДТВЕРЖДЕНИЯ РЕДАКТИРОВАНИЯ РАСХОДА -->
+<!-- МОДАЛКА РЕДАКТИРОВАНИЯ РАСХОДА -->
 <div id="edit_confirm_modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:10000; align-items:center; justify-content:center;">
   <div style="background:white; padding:18px; border-radius:14px; width:90%; max-width:380px; box-shadow:0 10px 30px rgba(0,0,0,0.25); text-align:center;">
     <div style="font-size: 30px; margin-bottom: 6px;">✏️</div>
@@ -684,7 +679,6 @@
           telegram_user: tgUser
         })
       });
-      // Помечаем в UI наличие несохраненных изменений
       if (store.passport.tripId) {
         fetch(GOOGLE_SHEET_API, {
           method: "POST", mode: "no-cors",
@@ -756,7 +750,6 @@
           document.getElementById('super_admin_roles_box').style.display = 'none';
         }
 
-        // Контроль видимости таба «Черновики»
         const activeDrafts = (res.reports || []).filter(r => r.isDraft);
         const draftTabBtn = document.getElementById('tab_btn_drafts');
         if (activeDrafts.length > 0) {
@@ -784,7 +777,6 @@
       });
   }
 
-  // --- ЛОГИКА ОПРЕДЕЛЕНИЯ ПРЕОБЛАДАЮЩЕГО МЕСЯЦА ---
   function getDominantMonthYear(dStartStr, dEndStr) {
     const t1 = parseDateToTimestamp(dStartStr);
     const t2 = parseDateToTimestamp(dEndStr);
@@ -818,7 +810,6 @@
     return { monthIdx: m, year: y, label: `${MONTH_NAMES[m]} ${y}` };
   }
 
-  // --- ОТРИСОВКА ИЕРАРХИЧЕСКОГО ДЕРЕВА КОМАНДИРОВОК ---
   function renderTripsTree(trips, reqsArchive, reports) {
     const container = document.getElementById('trips_tree_container');
     if (!trips || trips.length === 0) {
@@ -826,7 +817,6 @@
       return;
     }
 
-    // 1. Группируем поездки в уникальные сущности (город + даты)
     const tripGroups = {};
     trips.forEach(tr => {
       const dates = (tr.dates || '').split('—').map(s => s.trim());
@@ -844,9 +834,7 @@
       tripGroups[groupKey].members.push(tr);
     });
 
-    // 2. Сортируем месяцы в обратном хронологическом порядке
     const sortedGroupKeys = Object.keys(tripGroups).sort().reverse();
-
     let html = '';
     let currentMonthHeader = '';
 
@@ -857,7 +845,6 @@
         html += `<div class="month-header">📅 ${currentMonthHeader}</div>`;
       }
 
-      // Вычисляем общую продолжительность командировки
       const dParts = grp.dates.split('—').map(s => s.trim());
       let daysCount = 0;
       if (dParts.length === 2) {
@@ -874,11 +861,9 @@
             <span>🧳 Командировка ${grp.cities} (${daysCount || 18} дн) <small style="font-weight:400; opacity:0.85;">(${grp.dates})</small></span>
             <span style="font-size:11px;">${hasAnyWarning ? '⚠️ Изменено ▾' : 'Раскрыть ▾'}</span>
           </button>
-
           <div id="box_trip_${gIdx}" style="display:none; padding:4px 0 8px 6px;">
       `;
 
-      // Перебор сотрудников внутри командировки
       grp.members.forEach((tr, mIdx) => {
         const personFio = tr.team || "Сотрудник";
         const shortFio = personFio.split(' ')[0] || personFio;
@@ -891,11 +876,9 @@
             <span>👤 ${shortFio} ${tr.cities} (${daysCount || 18} дн)</span>
             <span style="font-size:11px; color:#007aff;">Цепочка документов ▾</span>
           </button>
-
           <div id="${memberBoxId}" class="timeline-chain-box" style="display:none;">
         `;
 
-        // Уровень 3: Цепочка штрихпунктирных полей
         if (relatedReqs.length === 0) {
           html += `
             <div class="timeline-node-field">
@@ -917,7 +900,6 @@
           });
         }
 
-        // Поле Авансового отчета
         if (relatedAo) {
           html += `
             <div class="timeline-node-field" onclick="openReportInReviewMode('${relatedAo.id}')">
@@ -935,7 +917,6 @@
           `;
         }
 
-        // Поле «Статус»
         if (tr.hasPendingRecalc) {
           html += `
             <div class="status-field-box status-warning">
@@ -980,7 +961,6 @@
     el.style.display = el.style.display === 'block' ? 'none' : 'block';
   }
 
-  // --- ЛОГИКА ПЕРЕСЧЕТА ИЗ ПОЛЯ «СТАТУС» ---
   function openRecalcModal(tripId) {
     activeRecalcTripId = tripId;
     const tr = globalAppData.trips.find(x => x.tripId === tripId);
@@ -1006,7 +986,6 @@
     loadTripIntoReport(activeRecalcTripId);
     closeRecalcModal();
     goToStep(4);
-    // Отправляем перезапись в облако
     sendReportToCloudOnce();
   }
 
@@ -1023,7 +1002,6 @@
     });
   }
 
-  // --- КНОПКА ДЕМО НА ШАГЕ 2 ---
   function loadStep2DemoExpenses() {
     const dStart = document.getElementById('p_date_start').value || "10.09.2026";
     const dEnd = document.getElementById('p_date_end').value || "28.09.2026";
@@ -1048,7 +1026,6 @@
     showToast("⚡ ДЕМО-расходы добавлены на Шаге 2!");
   }
 
-  // --- ФОРМИРОВАНИЕ ЗАЯВОК НА ДС С УЧЕТОМ ТИПА И ШАБЛОНОВ ---
   function onRequestTypeChange() {
     const t = document.getElementById('req_type').value;
     const isProlong = (t === 'prolong');
@@ -1056,7 +1033,6 @@
     if (isProlong) {
       document.getElementById('req_form_title').innerText = "➕ Продление командировки";
       document.getElementById('req_date_label').innerHTML = "Период продления (новые даты) <span class='req-star'>*</span>";
-      // Обнуляем стоимость проезда для всех выбранных участников
       Object.keys(currentReqTeamData).forEach(fio => {
         currentReqTeamData[fio].sumTravel = 0;
         currentReqTeamData[fio].sumTotal = Number(currentReqTeamData[fio].sumHotel || 0) + Number(currentReqTeamData[fio].sumDaily || 0);
@@ -1313,7 +1289,6 @@
     showToast("Данные командировки загружены!");
   }
 
-  // --- УПРАВЛЕНИЕ ЧЕРНОВИКАМИ ---
   function renderDraftsList(drafts) {
     const box = document.getElementById('drafts_list_container');
     if (!drafts || drafts.length === 0) {
@@ -2016,14 +1991,85 @@
     return html;
   }
 
+  // --- ТОЧНЫЙ ХРОНОЛОГИЧЕСКИЙ ПЕРЕЧЕНЬ С ЖИРНЫМ ШРИФТОМ ДАТ И СУММ ---
   function buildDocChecklistText() {
-    let list = ["1. Авансовый отчёт на 2-х страницах", "2. Заявки на ДС (все бланки) — НЕОБЯЗАТЕЛЬНО", "3. Служебная записка на суточные", "4. Документы расходов:"];
-    if (store.taxis.length > 0) list.push("   • Детализация поездок на такси.");
-    if (store.expenses.some(e => e.cat === 'plane')) list.push("   • Самолёт: Чек + Маршрутная квитанция + Посадочные талоны.");
-    if (store.expenses.some(e => e.cat === 'train')) list.push("   • Поезд: Чек + Ж/Д билет.");
-    if (store.expenses.some(e => e.cat === 'bus')) list.push("   • Автобус: Чек + Билет.");
-    if (store.expenses.some(e => e.cat === 'hotel')) list.push("   • Проживание: Договор/Акт + Чек с QR-кодом.");
-    return list.join('\n\n');
+    let list = [
+      "1. Авансовый отчёт на 2-х страницах",
+      "2. Заявки на ДС (все бланки) — НЕОБЯЗАТЕЛЬНО",
+      "3. Служебная записка на суточные",
+      "4. Документы расходов:"
+    ];
+
+    if (store.taxis.length > 0) {
+      list.push("   • Детализация поездок на такси.");
+    }
+
+    const events = [];
+    const transGroups = {};
+
+    (store.expenses || []).forEach(ex => {
+      const cat = ex.cat || "";
+      const isTrans = ['plane', 'bus', 'train'].includes(cat) || /авиа|самол|поезд|ж[\/\s-]?д|автобус/i.test(ex.name || "");
+
+      if (isTrans) {
+        const gKey = ex.groupKey || (`${ex.date}_${cat}_${ex.dir || 'dir'}`);
+        if (!transGroups[gKey]) {
+          transGroups[gKey] = {
+            date: ex.date,
+            cat: cat || 'plane',
+            items: [],
+            totalSum: 0
+          };
+        }
+        transGroups[gKey].items.push(ex);
+        transGroups[gKey].totalSum += Number(ex.sum || 0);
+      } else if (cat === 'hotel' || /гостиниц|отель|аренда|проживан/i.test(ex.name || "")) {
+        events.push({
+          date: ex.date,
+          type: 'hotel',
+          sum: Number(ex.sum || 0)
+        });
+      } else if (cat === 'misc' || (!isTrans && cat !== 'taxi')) {
+        events.push({
+          date: ex.date,
+          type: 'misc',
+          name: ex.customName || String(ex.name || '').replace(/^Чек,\s*/i, ''),
+          sum: Number(ex.sum || 0)
+        });
+      }
+    });
+
+    Object.values(transGroups).forEach(tg => {
+      events.push({
+        date: tg.date,
+        type: 'transport',
+        cat: tg.cat,
+        sum: tg.totalSum
+      });
+    });
+
+    events.sort((a, b) => parseDateToTimestamp(a.date) - parseDateToTimestamp(b.date));
+
+    events.forEach(ev => {
+      const dStr = formatRuDateString(ev.date);
+      const sumFormatted = Number(ev.sum || 0).toLocaleString('ru-RU');
+
+      if (ev.type === 'transport') {
+        if (ev.cat === 'plane') {
+          list.push(`   • Самолёт: Чек + Маршрутная квитанция + Посадочные талоны <b>от ${dStr} на ${sumFormatted}</b>.`);
+        } else if (ev.cat === 'train') {
+          list.push(`   • Поезд: Чек + Ж/Д билет <b>от ${dStr} на ${sumFormatted}</b>.`);
+        } else if (ev.cat === 'bus') {
+          list.push(`   • Автобус: Чек + Билет <b>от ${dStr} на ${sumFormatted}</b>.`);
+        }
+      } else if (ev.type === 'hotel') {
+        list.push(`   • Проживание: Договор/Акт + Чек с QR-кодом <b>от ${dStr} на ${sumFormatted}</b>.`);
+      } else if (ev.type === 'misc') {
+        list.push(`   • Прочие расходы (${ev.name}): Чек <b>от ${dStr} на ${sumFormatted}</b>.`);
+      }
+    });
+
+    return list.join('\n');
   }
 
   function openChecklistModal() {
@@ -2031,7 +2077,7 @@
     document.getElementById('checklist_modal').style.display = 'flex';
   }
   function closeChecklistModal() { document.getElementById('checklist_modal').style.display = 'none'; }
-  function copyChecklistText() { navigator.clipboard.writeText(buildDocChecklistText()).then(() => showToast("Список скопирован!")); }
+  function copyChecklistText() { navigator.clipboard.writeText(buildDocChecklistText().replace(/<b>|<\/b>/g, '')).then(() => showToast("Список скопирован!")); }
   function copyNarrativeText() { navigator.clipboard.writeText(document.getElementById('narrative_text').innerText).then(() => showToast("Сводка скопирована!")); }
 
   function renderFinal() {
