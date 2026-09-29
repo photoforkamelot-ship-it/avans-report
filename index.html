@@ -641,9 +641,10 @@
   </div>
 </div>
 
-<!-- МОДАЛКА ПРЕДЛОЖЕНИЯ ОТКРЫТЬ ЧЕРНОВИК ИЗ ОБЛАКА -->
+<!-- МОДАЛКА ПРЕДЛОЖЕНИЯ ОТКРЫТЬ ЧЕРНОВИК ИЗ ОБЛАКА С КНОПКОЙ «НАПОМНИТЬ ПОЗЖЕ» -->
 <div id="cloud_draft_modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.55); z-index:10001; align-items:center; justify-content:center; padding:16px;">
-  <div style="background:white; padding:20px; border-radius:16px; width:100%; max-width:380px; box-shadow:0 12px 36px rgba(0,0,0,0.3); text-align:center;">
+  <div style="background:white; padding:20px; border-radius:16px; width:100%; max-width:380px; box-shadow:0 12px 36px rgba(0,0,0,0.3); text-align:center; position:relative;">
+    <button type="button" onclick="dismissCloudDraftTemporarily()" style="position:absolute; top:12px; right:12px; background:none; border:none; font-size:18px; color:#8e8e93; cursor:pointer; padding:4px 8px;">✕</button>
     <div style="font-size:36px; margin-bottom:8px;">📝</div>
     <h3 style="margin:0 0 8px 0; font-size:17px; color:#1c1c1e;">Найден незавершённый черновик</h3>
     <div id="cloud_draft_modal_text" style="font-size:13px; color:#495057; margin-bottom:18px; line-height:1.5;">
@@ -651,7 +652,8 @@
     </div>
     <div style="display:flex; flex-direction:column; gap:8px;">
       <button type="button" class="btn btn-primary" onclick="confirmOpenCloudDraft()" style="height:42px; font-size:14px;">✏️ Продолжить заполнение</button>
-      <button type="button" class="btn btn-secondary" onclick="confirmDiscardCloudDraft()" style="height:38px; font-size:13px; color:#ff3b30;">🗑️ Начать с нуля (удалить черновик)</button>
+      <button type="button" class="btn btn-secondary" onclick="dismissCloudDraftTemporarily()" style="height:38px; font-size:13px; color:#475569;">🕒 Напомнить позже (закрыть сейчас)</button>
+      <button type="button" class="btn btn-secondary" onclick="confirmDiscardCloudDraft()" style="height:32px; font-size:12px; color:#ff3b30; background:transparent;">🗑️ Начать с нуля (удалить черновик)</button>
     </div>
   </div>
 </div>
@@ -716,6 +718,7 @@
   let autoSaveTimeout = null;
   let pendingEditExpenseId = null;
   let detectedDraftReport = null;
+  let isDraftPromptDismissedForSession = false;
 
   let globalAppData = { employees: [], currentUser: null, reports: [], trips: [], isAdmin: false };
   let store = {
@@ -728,7 +731,7 @@
   let datePickerExpense = null;
   let datePickerReqRange = null;
 
-  let currentReqTeamData = {}; // Выбранные сотрудники и их смета
+  let currentReqTeamData = {};
 
   const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
   if (tg) { try { tg.ready(); tg.expand(); } catch(e){} }
@@ -1193,7 +1196,6 @@
             </div>
           </div>
 
-          <!-- СВОРАЧИВАЕМЫЙ БЛОК -->
           <div id="trip_details_${idx}" style="display:none; width:100%; margin-top:8px; padding-top:8px; border-top:1px dashed #cbd5e1; font-size:12px;">
             <div style="background:#f8fafc; border-radius:8px; padding:8px; margin-bottom:8px;">
               <div>• Проезд: <b>${Number(est.sumTravel || 0).toLocaleString('ru-RU')} ₽</b></div>
@@ -1262,17 +1264,28 @@
 
   // --- УПРАВЛЕНИЕ ЧЕРНОВИКАМИ И ВКЛАДКАМИ ---
   function checkCloudDraftPopup(reports, userId, isAdmin) {
+    if (isDraftPromptDismissedForSession) return;
     if (!reports || reports.length === 0 || isViewingRemoteReport) return;
     const userDrafts = reports.filter(r => r.isDraft && (!userId || String(r.tgId).trim() === String(userId).trim()));
     if (userDrafts.length === 0) return;
 
     detectedDraftReport = userDrafts[0];
-    let desc = `Командировка: <b>${detectedDraftReport.city || '—'}</b><br>`;
+
+    let cityClean = (detectedDraftReport.city || '—').replace(/^г\.?\s*г\.?\s*/i, 'г. ');
+    if (!cityClean.startsWith('г.') && cityClean !== '—') cityClean = 'г. ' + cityClean;
+
+    let desc = `Командировка: <b>${cityClean}</b><br>`;
     if (detectedDraftReport.date) desc += `Период: ${detectedDraftReport.date}<br>`;
     desc += `Накоплено расходов: <b>${Number(detectedDraftReport.sum || 0).toLocaleString('ru-RU')} ₽</b>`;
 
     document.getElementById('cloud_draft_modal_text').innerHTML = desc;
     document.getElementById('cloud_draft_modal').style.display = 'flex';
+  }
+
+  function dismissCloudDraftTemporarily() {
+    isDraftPromptDismissedForSession = true;
+    document.getElementById('cloud_draft_modal').style.display = 'none';
+    showToast("Черновик сохранён. Вы можете вернуться к нему в любой момент.");
   }
 
   function confirmOpenCloudDraft() {
