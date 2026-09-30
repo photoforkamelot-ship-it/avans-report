@@ -176,6 +176,18 @@
     }
     .trip-emp-btn:hover { background: #e2e8f0; }
 
+    .emp-icon-badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 32px; height: 32px; border-radius: 8px; font-size: 15px;
+      border: 1px solid #cbd5e1; background: #fff; flex-shrink: 0;
+    }
+    .emp-icon-done {
+      background: #dcfce7; border-color: #86efac; color: #15803d; font-weight: 800; font-size: 16px;
+    }
+    .emp-icon-progress {
+      background: #fef3c7; border-color: #fde68a;
+    }
+
     .timeline-chain-box {
       margin-left: 10px; padding-left: 12px; border-left: 2px dashed #94a3b8;
       display: flex; flex-direction: column; gap: 8px; margin-top: 6px; margin-bottom: 10px;
@@ -214,6 +226,10 @@
     .emp-estimate-card { background: #fdfdfd; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px; margin-bottom: 8px; }
     .team-chip { display: inline-flex; align-items: center; gap: 6px; background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; margin: 3px; }
     .team-chip-del { cursor: pointer; color: #ef4444; font-weight: 700; margin-left: 2px; }
+
+    .red-comment-tag {
+      color: #dc2626; font-size: 11px; font-weight: 700; margin-bottom: 3px; display: block;
+    }
 
     #toast {
       position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
@@ -301,7 +317,7 @@
         </div>
         <div class="grid-2">
           <div class="field">
-            <label>Количество дней</label>
+            <label>Количество дней командировки</label>
             <input type="number" id="p_days" value="0" oninput="calcDaily(); triggerCloudAutoSave();">
           </div>
           <div class="field">
@@ -573,6 +589,39 @@
 
 </div>
 
+<!-- МОДАЛКА УТОЧНЕНИЯ РАЗНИЦЫ МЕЖДУ СРОКОМ И ДНЯМИ ПРОЖИВАНИЯ -->
+<div id="stay_days_prompt_modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:10035; align-items:center; justify-content:center; padding:16px;">
+  <div style="background:white; padding:20px; border-radius:16px; width:100%; max-width:400px; box-shadow:0 12px 36px rgba(0,0,0,0.3); text-align:center;">
+    <div style="font-size:34px; margin-bottom:8px;">🏨</div>
+    <h3 style="margin:0 0 8px 0; font-size:16px; color:#0f172a;">Уточнение дней проживания</h3>
+    <p id="stay_prompt_desc" style="font-size:13px; color:#334155; line-height:1.5; margin-bottom:14px;">
+      Дни нахождения в командировке (20 дн.) и количество суток проживания совпадают?
+    </p>
+
+    <!-- Поле ввода своих суток проживания (по умолчанию скрыто) -->
+    <div id="custom_stay_box" style="display:none; text-align:left; background:#f8fafc; border:1px solid #cbd5e1; border-radius:10px; padding:10px; margin-bottom:14px;">
+      <label style="font-size:12px; font-weight:700; color:#0f172a; margin-bottom:4px; display:block;">
+        Укажите фактическое количество суток проживания:
+      </label>
+      <input type="number" id="custom_stay_input" placeholder="Например: 18" style="height:38px; width:100%; font-size:14px; padding:0 8px; border:1px solid #94a3b8; border-radius:8px;">
+      <small style="color:#64748b; font-size:11px; margin-top:3px; display:block;">(Остальные дни командировки пойдут как дорога с начислением суточных)</small>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:8px;">
+      <!-- ПРИОРИТЕТНАЯ КНОПКА: НЕТ -->
+      <button type="button" id="btn_stay_no" class="btn btn-primary" style="background:#007aff; font-weight:700;" onclick="onStayDaysAnswerNo()">
+        ❌ НЕТ (ввести дни проживания)
+      </button>
+      <button type="button" id="btn_stay_confirm_custom" class="btn btn-green" style="display:none;" onclick="applyCustomStayDays()">
+        ✅ Применить указанные дни
+      </button>
+      <button type="button" id="btn_stay_yes" class="btn btn-secondary" onclick="onStayDaysAnswerYes()">
+        ДА (совпадают)
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- МОДАЛКА НАСТРОЕК УВЕДОМЛЕНИЙ TELEGRAM С РАСШИРЕННЫМИ ПУНКТАМИ РУКОВОДИТЕЛЯ -->
 <div id="notif_settings_modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:10030; align-items:center; justify-content:center; padding:16px;">
   <div style="background:white; padding:18px; border-radius:14px; width:100%; max-width:420px; box-shadow:0 12px 30px rgba(0,0,0,0.25); max-height:92vh; overflow-y:auto;">
@@ -598,7 +647,6 @@
       </div>
     </label>
 
-    <!-- Блок уведомлений руководителя -->
     <div id="lead_notif_section" style="display:none; border-top:1px dashed #cbd5e1; padding-top:10px; margin-top:6px;">
       <div style="font-size:12px; font-weight:700; color:#0369a1; margin-bottom:6px;">👑 Уведомления руководителя по команде:</div>
       <label class="checkbox-row" style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:10px; margin-bottom:8px;">
@@ -618,7 +666,6 @@
       </label>
     </div>
 
-    <!-- Кнопка очистки переписки бота за 48 часов -->
     <div id="bot_clear_history_section" style="display:none; border-top:1px dashed #cbd5e1; padding-top:10px; margin-top:8px;">
       <button type="button" class="btn btn-secondary" style="border:1px dashed var(--danger); color:var(--danger); font-size:12px;" onclick="triggerBotHistoryCleanup()">
         🗑️ Очистить недавнюю переписку с ботом (за 48 ч)
@@ -681,12 +728,15 @@
       <div class="field"><label>Жильё в сутки (₽)</label><input type="number" id="rvm_hotel_daily" oninput="recalcModalEstimate()"></div>
     </div>
     <div class="grid-2">
-      <div class="field"><label>Количество дней</label><input type="number" id="rvm_days" oninput="recalcModalEstimate()"></div>
-      <div class="field"><label>Итого жильё (₽)</label><input type="number" id="rvm_sum_hotel" readonly style="background:#f1f5f9;"></div>
+      <div class="field"><label>Дней командировки (суточные)</label><input type="number" id="rvm_days" oninput="recalcModalEstimate()"></div>
+      <div class="field"><label>Дней проживания</label><input type="number" id="rvm_stay_days" oninput="recalcModalEstimate()"></div>
     </div>
     <div class="grid-2">
-      <div class="field"><label>Суточные (₽)</label><input type="number" id="rvm_sum_daily" oninput="recalcModalEstimate()"></div>
-      <div class="field"><label><b>Итого заявка (₽)</b></label><input type="number" id="rvm_sum_total" readonly style="background:#e0f2fe; font-weight:700;"></div>
+      <div class="field"><label>Итого жильё (₽)</label><input type="number" id="rvm_sum_hotel" readonly style="background:#f1f5f9;"></div>
+      <div class="field"><label>Суточные (₽)</label><input type="number" id="rvm_sum_daily" readonly style="background:#f1f5f9;"></div>
+    </div>
+    <div class="field" style="margin-top:6px;">
+      <label><b>Итого заявка (₽)</b></label><input type="number" id="rvm_sum_total" readonly style="background:#e0f2fe; font-weight:700;">
     </div>
 
     <div style="margin:10px 0; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:10px;">
@@ -870,6 +920,7 @@
   let latestMailtoUrl = "";
   let modalMailtoUrl = "";
 
+  let currentPendingDays = 18;
   let globalAppData = { employees: [], currentUser: null, reports: [], trips: [], requestsArchive: [], isAdmin: false, isSuperAdmin: false, roleInfo: {} };
   let store = {
     passport: { fio:'', role:'', tab:'', city:'', dStart:'', dEnd:'', advance:0, days:0, rate:1500, dailyTotal:0, purpose:'', tripId:'' },
@@ -959,7 +1010,8 @@
           document.getElementById('req_date_start').value = formatFlatpickrToRu(selectedDates[0]);
           document.getElementById('req_date_end').value = formatFlatpickrToRu(selectedDates[1]);
           const diff = Math.ceil((selectedDates[1] - selectedDates[0]) / (1000 * 60 * 60 * 24)) + 1;
-          applyDatesToAllSelectedTeam(diff);
+          currentPendingDays = diff;
+          promptStayDaysDifference(diff);
         }
       }
     });
@@ -967,6 +1019,34 @@
     datePickerExpense = flatpickr("#e_date", { locale: "ru", dateFormat: "d.m.Y" });
     loadAppData();
   });
+
+  function promptStayDaysDifference(days) {
+    document.getElementById('stay_prompt_desc').innerText = `Дни нахождения в командировке (${days} дн.) и количество суток проживания совпадают?`;
+    document.getElementById('custom_stay_box').style.display = 'none';
+    document.getElementById('btn_stay_confirm_custom').style.display = 'none';
+    document.getElementById('btn_stay_no').style.display = 'block';
+    document.getElementById('stay_days_prompt_modal').style.display = 'flex';
+  }
+
+  function onStayDaysAnswerYes() {
+    document.getElementById('stay_days_prompt_modal').style.display = 'none';
+    applyDatesToAllSelectedTeam(currentPendingDays, currentPendingDays);
+  }
+
+  function onStayDaysAnswerNo() {
+    document.getElementById('custom_stay_box').style.display = 'block';
+    document.getElementById('custom_stay_input').value = currentPendingDays > 2 ? (currentPendingDays - 2) : currentPendingDays;
+    document.getElementById('btn_stay_no').style.display = 'none';
+    document.getElementById('btn_stay_confirm_custom').style.display = 'block';
+    document.getElementById('custom_stay_input').focus();
+  }
+
+  function applyCustomStayDays() {
+    const val = parseInt(document.getElementById('custom_stay_input').value);
+    const stayDays = (val && val > 0) ? val : currentPendingDays;
+    document.getElementById('stay_days_prompt_modal').style.display = 'none';
+    applyDatesToAllSelectedTeam(currentPendingDays, stayDays);
+  }
 
   function loadAppData() {
     const urlParams = new URLSearchParams(window.location.search);
@@ -1074,7 +1154,6 @@
       document.getElementById('chk_notif_ao').checked = (targetEmp.notifyAo !== undefined ? targetEmp.notifyAo : true);
     }
 
-    // Если модалку открывает руководитель/суперадмин — показываем блок команды и кнопку очистки
     const leadSec = document.getElementById('lead_notif_section');
     const clearSec = document.getElementById('bot_clear_history_section');
 
@@ -1281,13 +1360,18 @@
           String(r.status).toLowerCase() === 'готов' && 
           (r.tripId === tr.tripId || (tr.tab && r.tab === tr.tab))
         );
+        const isMemberDone = (relatedAo || tr.status === 'Завершена');
 
         html += `
-          <div style="display:flex; gap:4px; align-items:center; margin:4px 0;">
-            <button type="button" class="trip-emp-btn" style="margin:0;" onclick="toggleAccordion('${memberBoxId}')">
+          <div style="display:flex; gap:6px; align-items:center; margin:4px 0;">
+            <button type="button" class="trip-emp-btn" style="margin:0; flex:1;" onclick="toggleAccordion('${memberBoxId}')">
               <span>👤 ${shortFio} ${cleanEmpCity} (${daysCount || 18} дн)</span>
               <span style="font-size:11px; color:#007aff;">Цепочка документов ▾</span>
             </button>
+            <!-- Значок статуса по сотруднику: зеленая галочка или значок редактирования -->
+            <div class="emp-icon-badge ${isMemberDone ? 'emp-icon-done' : 'emp-icon-progress'}" title="${isMemberDone ? 'Отчёт сдан' : 'В процессе'}">
+              ${isMemberDone ? '✅' : '📝'}
+            </div>
             ${globalAppData.isAdmin ? `<button type="button" class="btn btn-danger" style="height:34px; width:34px; min-width:34px;" title="Удалить командировку сотрудника" onclick="deleteSingleMemberTrip('${tr.tripId}', '${personFio.replace(/'/g, "\\'")}')">🗑️</button>` : ''}
           </div>
 
@@ -1448,8 +1532,8 @@
 
     const travelSum = (est.sumTravel !== undefined) ? Number(est.sumTravel) : (isProlong ? 0 : 20000);
     const hotelDaily = (est.hotelDaily !== undefined) ? Number(est.hotelDaily) : 3100;
-    // Расчёт жилья строго по дням: дни × ставка
-    const sumHotel = (est.sumHotel !== undefined) ? Number(est.sumHotel) : (days * hotelDaily);
+    const stayDays = (est.stayDays !== undefined) ? Number(est.stayDays) : days;
+    const sumHotel = (est.sumHotel !== undefined) ? Number(est.sumHotel) : (stayDays * hotelDaily);
     const sumDaily = (est.sumDaily !== undefined) ? Number(est.sumDaily) : (days * 1500);
     const sumTotal = rq ? (rq.sum || (travelSum + sumHotel + sumDaily)) : (travelSum + sumHotel + sumDaily);
 
@@ -1457,6 +1541,7 @@
     document.getElementById('rvm_city').value = city;
     document.getElementById('rvm_dates').value = dates;
     document.getElementById('rvm_days').value = days;
+    document.getElementById('rvm_stay_days').value = stayDays;
     document.getElementById('rvm_purpose').value = purpose;
     document.getElementById('rvm_travel').value = travelSum;
     document.getElementById('rvm_hotel_daily').value = hotelDaily;
@@ -1484,11 +1569,11 @@
 
   function recalcModalEstimate() {
     const days = parseInt(document.getElementById('rvm_days').value) || 0;
+    const stayDays = parseInt(document.getElementById('rvm_stay_days').value) || days;
     const travel = parseFloat(document.getElementById('rvm_travel').value) || 0;
     const hotelDaily = parseFloat(document.getElementById('rvm_hotel_daily').value) || 0;
 
-    // Расчёт жилья строго по дням: дни × ставка
-    const sumHotel = days * hotelDaily;
+    const sumHotel = stayDays * hotelDaily;
     const sumDaily = days * 1500;
     const sumTotal = travel + sumHotel + sumDaily;
 
@@ -1553,6 +1638,7 @@
     const city = formatUniqueCities(document.getElementById('rvm_city').value.trim());
     const dates = document.getElementById('rvm_dates').value.trim();
     const days = parseInt(document.getElementById('rvm_days').value) || 0;
+    const stayDays = parseInt(document.getElementById('rvm_stay_days').value) || days;
     const purpose = document.getElementById('rvm_purpose').value.trim();
     const sumTravel = parseFloat(document.getElementById('rvm_travel').value) || 0;
     const hotelDaily = parseFloat(document.getElementById('rvm_hotel_daily').value) || 0;
@@ -1566,7 +1652,7 @@
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         action: "update_single_request",
-        reqId, city, dates, days, purpose,
+        reqId, city, dates, days, stayDays, purpose,
         sumTravel, hotelDaily, sumHotel, sumDaily, sumTotal
       })
     }).then(() => {
@@ -1848,15 +1934,15 @@
     }
 
     const hotelDaily = 3100;
-    // Расчёт жилья строго по дням: дни × ставка
-    const sumHotel = actualDays * hotelDaily;
+    const stayDays = actualDays;
+    const sumHotel = stayDays * hotelDaily;
     const sumDaily = actualDays * 1500;
     const sumTotal = travelSum + sumHotel + sumDaily;
 
     currentReqTeamData[emp.fio] = {
       fio: emp.fio, role: emp.role, tab: emp.tab, tgId: emp.tgId,
       bankInn: emp.bankInn || '', bankBik: emp.bankBik || '', bankAcc: emp.bankAcc || '',
-      days: actualDays, sumTravel: travelSum, hotelDaily: hotelDaily,
+      days: actualDays, stayDays: stayDays, sumTravel: travelSum, hotelDaily: hotelDaily,
       sumHotel: sumHotel, sumDaily: sumDaily, sumTotal: sumTotal
     };
 
@@ -1882,13 +1968,14 @@
     `).join('');
   }
 
-  function applyDatesToAllSelectedTeam(diffDays) {
+  function applyDatesToAllSelectedTeam(diffDays, stayDays = null) {
+    const actualStayDays = (stayDays !== null) ? stayDays : diffDays;
     Object.keys(currentReqTeamData).forEach(fio => {
       const it = currentReqTeamData[fio];
       it.days = diffDays;
+      it.stayDays = actualStayDays;
       it.sumDaily = diffDays * 1500;
-      // Расчёт жилья строго по дням: дни × ставка
-      it.sumHotel = diffDays * (it.hotelDaily || 3100);
+      it.sumHotel = actualStayDays * (it.hotelDaily || 3100);
       it.sumTotal = Number(it.sumTravel || 0) + Number(it.sumHotel || 0) + Number(it.sumDaily || 0);
     });
     renderTeamEstimateCards();
@@ -1907,6 +1994,8 @@
     box.innerHTML = fnames.map(fio => {
       const d = currentReqTeamData[fio];
       overall += Number(d.sumTotal || 0);
+      const isDiff = (d.days !== d.stayDays);
+
       return `
         <div class="emp-estimate-card">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
@@ -1918,12 +2007,18 @@
             <div class="field"><label>Жильё в сутки (₽)</label><input type="number" value="${d.hotelDaily}" oninput="updateTeamMemberVal('${fio}', 'hotelDaily', this.value)"></div>
           </div>
           <div class="grid-2">
-            <div class="field"><label>Дней</label><input type="number" value="${d.days}" oninput="updateTeamMemberVal('${fio}', 'days', this.value)"></div>
-            <div class="field"><label>Итого жилье (₽)</label><input type="number" value="${d.sumHotel}" readonly style="background:#f1f5f9;"></div>
+            <div class="field"><label>Дней командировки (суточные)</label><input type="number" value="${d.days}" oninput="updateTeamMemberVal('${fio}', 'days', this.value)"></div>
+            <div class="field"><label>Дней проживания (найм)</label><input type="number" value="${d.stayDays || d.days}" oninput="updateTeamMemberVal('${fio}', 'stayDays', this.value)"></div>
           </div>
+
+          ${isDiff ? `<span class="red-comment-tag">🔴 Проживание: ${d.stayDays} дн. × ${d.hotelDaily} ₽ (срок командировки ${d.days} дн.)</span>` : ''}
+
           <div class="grid-2">
-            <div class="field"><label>Суточные (₽)</label><input type="number" value="${d.sumDaily}" oninput="updateTeamMemberVal('${fio}', 'sumDaily', this.value)"></div>
-            <div class="field"><label><b>Итого (₽)</b></label><input type="number" value="${d.sumTotal}" readonly style="background:#e0f2fe; font-weight:700;"></div>
+            <div class="field"><label>Итого жилье (₽)</label><input type="number" value="${d.sumHotel}" readonly style="background:#f1f5f9;"></div>
+            <div class="field"><label>Суточные (₽)</label><input type="number" value="${d.sumDaily}" readonly style="background:#f1f5f9;"></div>
+          </div>
+          <div class="field" style="margin-top:4px;">
+            <label><b>Итого на сотрудника (₽)</b></label><input type="number" value="${d.sumTotal}" readonly style="background:#e0f2fe; font-weight:700;">
           </div>
         </div>
       `;
@@ -1935,9 +2030,12 @@
     const it = currentReqTeamData[fio];
     if (!it) return;
     it[key] = parseFloat(val) || 0;
-    if (key === 'hotelDaily' || key === 'days') {
-      it.sumHotel = it.days * (it.hotelDaily || 0);
+    if (key === 'days') {
       it.sumDaily = it.days * 1500;
+      if (!it.stayDays) it.stayDays = it.days;
+    }
+    if (key === 'stayDays' || key === 'hotelDaily') {
+      it.sumHotel = (it.stayDays || it.days) * (it.hotelDaily || 0);
     }
     it.sumTotal = Number(it.sumTravel || 0) + Number(it.sumHotel || 0) + Number(it.sumDaily || 0);
     renderTeamEstimateCards();
@@ -2811,6 +2909,7 @@
         transGroups[gKey].totalSum += Number(ex.sum || 0);
       } else if (cat === 'hotel' || /гостиниц|отель|аренда|проживан/i.test(ex.name || "")) {
         events.push({ date: ex.date, type: 'hotel', sum: Number(ex.sum || 0) });
+      } else if (cat === 'taxi' || /такси/i.test(ex.name || "")) {
       } else if (cat === 'misc' || (!isTrans && cat !== 'taxi')) {
         events.push({ date: ex.date, type: 'misc', name: ex.customName || String(ex.name || '').replace(/^Чек,\s*/i, ''), sum: Number(ex.sum || 0) });
       }
@@ -2827,13 +2926,13 @@
       const sumFormatted = Number(ev.sum || 0).toLocaleString('ru-RU');
 
       if (ev.type === 'transport') {
-        if (ev.cat === 'plane') list.push(`   • Самолёт: Чек + Маршрутная квитанция + Посадочные талоны <b>от ${dStr} на ${sumFormatted} руб.</b>`);
-        else if (ev.cat === 'train') list.push(`   • Поезд: Чек + Ж/Д билет <b>от ${dStr} на ${sumFormatted} руб.</b>`);
-        else if (ev.cat === 'bus') list.push(`   • Автобус: Чек + Билет <b>от ${dStr} на ${sumFormatted} руб.</b>`);
+        if (ev.cat === 'plane') list.push(`   • Самолёт: Чек + Маршрутная квитанция + Посадочные талоны от ${dStr} на ${sumFormatted} руб.`);
+        else if (ev.cat === 'train') list.push(`   • Поезд: Чек + Ж/Д билет от ${dStr} на ${sumFormatted} руб.`);
+        else if (ev.cat === 'bus') list.push(`   • Автобус: Чек + Билет от ${dStr} на ${sumFormatted} руб.`);
       } else if (ev.type === 'hotel') {
-        list.push(`   • Проживание: Договор/Акт + Чек с QR-кодом <b>от ${dStr} на ${sumFormatted} руб.</b>`);
+        list.push(`   • Проживание: Договор/Акт + Чек с QR-кодом от ${dStr} на ${sumFormatted} руб.`);
       } else if (ev.type === 'misc') {
-        list.push(`   • Прочие расходы (${ev.name}): Чек <b>от ${dStr} на ${sumFormatted} руб.</b>`);
+        list.push(`   • Прочие расходы (${ev.name}): Чек от ${dStr} на ${sumFormatted} руб.`);
       }
     });
 
