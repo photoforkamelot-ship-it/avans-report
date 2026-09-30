@@ -259,7 +259,7 @@
       <button type="button" id="tab_btn_emp" class="tab-btn" style="display:none;" onclick="switchMainTab('employees')">👥 База сотрудников</button>
     </div>
 
-    <!-- Колокол уведомлений с динамическим индикатором -->
+    <!-- Колокол настроек уведомлений Telegram -->
     <div class="tg-notif-btn" title="Настройки уведомлений Telegram" onclick="openNotificationSettingsModal()">
       <span>🔔</span>
       <span id="tg_header_badge" class="tg-badge-counter all-good">✓</span>
@@ -272,7 +272,7 @@
       <div id="banner_report_title" style="font-size:12px; color:#004085;">—</div>
     </div>
     <div class="review-banner-btns">
-      <button type="button" class="btn btn-primary" style="height:32px; min-height:32px; padding:0 10px; font-size:12px;" onclick="enableEditingCurrentReport()">✏️️ Изменить</button>
+      <button type="button" class="btn btn-primary" style="height:32px; min-height:32px; padding:0 10px; font-size:12px;" onclick="enableEditingCurrentReport()">✏ Изменить</button>
       <button type="button" class="btn btn-secondary" style="height:32px; min-height:32px; padding:0 10px; font-size:12px;" onclick="closeReviewMode()">✕ Закрыть</button>
     </div>
   </div>
@@ -539,7 +539,7 @@
       <h3 style="margin:12px 0 6px 0; font-size:13px;">Расчёт сметы по сотрудникам</h3>
       <div id="req_team_estimates"></div>
 
-      <div style="background:#e0f2fe; border:1px solid #bae6fd; border-radius:8px; padding:10px; margin:10px 0; font-size:13px; font-weight:700; color:#0369a1;">
+      <div style="background:#e0f2fe; border:1px solid #bae6fd; border-radius:8px; padding:10px; margin-bottom:10px; font-size:13px; font-weight:700; color:#0369a1;">
         Общая сумма по заявке: <span id="req_total_sum_display">0</span> ₽
       </div>
 
@@ -768,7 +768,7 @@
 <!-- МОДАЛКА ПЕРЕСЧЕТА ИЗ СТАТУСА -->
 <div id="recalc_modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:10010; align-items:center; justify-content:center; padding:16px;">
   <div style="background:white; padding:18px; border-radius:14px; width:100%; max-width:440px; box-shadow:0 12px 30px rgba(0,0,0,0.25);">
-    <h3 style="margin-top:0; color:#b45309; font-size:16px;">⚠️ Пересчёт данных командировки</h3>
+    <h3 style="margin-top:0; color:#b45309; font-size:16px;">⚠️️ Пересчёт данных командировки</h3>
     <div id="recalc_modal_content" style="font-size:13px; line-height:1.5; color:#334155; margin-bottom:14px;"></div>
     <div style="display:flex; flex-direction:column; gap:8px;">
       <button type="button" class="btn btn-primary" onclick="confirmRecalcAndApply()">✅ Применить пересчёт и перейти к АО-1</button>
@@ -786,7 +786,7 @@
     <h3 style="margin:0 0 8px 0; font-size:17px; color:#1c1c1e;">Найден незавершённый черновик</h3>
     <div id="cloud_draft_modal_text" style="font-size:13px; color:#495057; margin-bottom:18px; line-height:1.5;"></div>
     <div style="display:flex; flex-direction:column; gap:8px;">
-      <button type="button" class="btn btn-primary" onclick="confirmOpenCloudDraft()">✏️️ Продолжить заполнение</button>
+      <button type="button" class="btn btn-primary" onclick="confirmOpenCloudDraft()">✏️ Продолжить заполнение</button>
       <button type="button" class="btn btn-secondary" onclick="dismissCloudDraftTemporarily()">🕒 Напомнить позже</button>
       <button type="button" class="btn btn-secondary" onclick="confirmDiscardCloudDraft()" style="color:#ff3b30; background:transparent;">🗑 Начать с нуля</button>
     </div>
@@ -1347,7 +1347,7 @@
                   : `<span class="badge-status-tag badge-status-progress">✏️ В процессе</span>`}
               </div>
             </button>
-            ${globalAppData.isAdmin ? `<button type="button" class="btn btn-danger" title="Удалить всю командировку для всех сотрудников" onclick="deleteFullTripGroup('${grp.cities.replace(/'/g, "\\'")}', '${grp.dates.replace(/'/g, "\\'")}')">🗑️</button>` : ''}
+            ${globalAppData.isAdmin ? `<button type="button" class="btn btn-danger" title="Удалить всю командировку для всех сотрудников" onclick="deleteFullTripGroup('${grp.cities.replace(/'/g, "\\'")}', '${grp.dates.replace(/'/g, "\\'")}')">🗑️️</button>` : ''}
           </div>
 
           <div id="box_trip_${gIdx}" style="display:none; padding:6px 0 8px 6px;">
@@ -1411,6 +1411,7 @@
               <b>📊 Авансовый отчет АО-1</b> (Сумма: ${Number(relatedAo.sum).toLocaleString('ru-RU')} ₽)<br>
               <small>Статус: <b>Сдан</b> | Нажмите для открытия отчёта</small>
               ${relatedAo.url ? `<br><a href="${relatedAo.url}" target="_blank" style="color:var(--primary); font-size:11px;" onclick="event.stopPropagation();">Открыть файл Excel на Диске ➔</a>` : ''}
+              ${relatedAo.pdfUrl ? `<br><a href="${relatedAo.pdfUrl}" target="_blank" style="color:var(--success); font-size:11px; font-weight:700;" onclick="event.stopPropagation();">🖨️ Открыть PDF для печати ➔</a>` : ''}
             </div>
           `;
         } else {
@@ -1538,7 +1539,7 @@
 
     const travelSum = (est.sumTravel !== undefined) ? Number(est.sumTravel) : (isProlong ? 0 : 20000);
     const hotelDaily = (est.hotelDaily !== undefined) ? Number(est.hotelDaily) : 3100;
-    const stayDays = (est.stayDays !== undefined) ? Number(est.stayDays) : days;
+    const stayDays = (rq && rq.stayDays !== undefined) ? Number(rq.stayDays) : ((est.stayDays !== undefined) ? Number(est.stayDays) : days);
     const sumHotel = (est.sumHotel !== undefined) ? Number(est.sumHotel) : (stayDays * hotelDaily);
     const sumDaily = (est.sumDaily !== undefined) ? Number(est.sumDaily) : (days * 1500);
     const sumTotal = rq ? (rq.sum || (travelSum + sumHotel + sumDaily)) : (travelSum + sumHotel + sumDaily);
@@ -1556,11 +1557,14 @@
     document.getElementById('rvm_sum_total').value = sumTotal;
 
     const linkBox = document.getElementById('rvm_file_link_box');
+    let linksHtml = '';
     if (fileUrl) {
-      linkBox.innerHTML = `<a href="${fileUrl}" target="_blank" style="color:var(--primary); font-size:12px; font-weight:600; text-decoration:none;">📄 Открыть таблицу заявки на Диске ➔</a>`;
-    } else {
-      linkBox.innerHTML = `<small style="color:#94a3b8;">Ссылка на файл формируется</small>`;
+      linksHtml += `<a href="${fileUrl}" target="_blank" style="color:var(--primary); font-size:12px; font-weight:600; text-decoration:none;">📄 Открыть таблицу заявки на Диске ➔</a><br>`;
     }
+    if (rq && rq.pdfFileUrl) {
+      linksHtml += `<a href="${rq.pdfFileUrl}" target="_blank" style="color:var(--success); font-size:12px; font-weight:700; text-decoration:none; margin-top:4px; display:inline-block;">🖨️ Открыть заявку в PDF ➔</a>`;
+    }
+    linkBox.innerHTML = linksHtml || `<small style="color:#94a3b8;">Ссылка на файл формируется</small>`;
 
     if (rq && rq.savedEmailText) {
       document.getElementById('rvm_email_box').innerText = rq.savedEmailText;
