@@ -1090,7 +1090,7 @@
 
     const fio = rq ? rq.fio : (tr ? tr.team : '');
     const dates = rq ? rq.dates : (tr ? tr.dates : '');
-    const days = rq ? (rq.days || 18) : 18;
+    const days = rq ? (rq.days || 0) : 0;
     const purpose = rq ? rq.purpose : (tr ? tr.lastPurpose : 'Служебная поездка');
     const fileUrl = rq ? rq.fileUrl : (tr ? tr.url : '');
     const isProlong = (label || '').includes('Продление');
@@ -1299,7 +1299,7 @@
     document.getElementById('p_city').value = tr.cities || d.city || '';
     
     const dates = (tr.dates || '').split('—').map(s => s.trim());
-    let daysCount = 18;
+    let daysCount = 0;
     if (dates.length === 2) {
       document.getElementById('p_date_start').value = dates[0];
       document.getElementById('p_date_end').value = dates[1];
