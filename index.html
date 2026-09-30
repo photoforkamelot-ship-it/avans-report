@@ -1254,6 +1254,37 @@
     });
   }
 
+  function getDominantMonthYear(dStartStr, dEndStr) {
+    const t1 = parseDateToTimestamp(dStartStr);
+    const t2 = parseDateToTimestamp(dEndStr);
+    if (!t1 || !t2 || t2 < t1) {
+      const fallback = new Date();
+      return { monthIdx: fallback.getMonth(), year: fallback.getFullYear(), label: `${MONTH_NAMES[fallback.getMonth()]} ${fallback.getFullYear()}` };
+    }
+
+    const cur = new Date(t1);
+    const end = new Date(t2);
+    const dayCounts = {};
+
+    while (cur <= end) {
+      const key = `${cur.getFullYear()}_${cur.getMonth()}`;
+      dayCounts[key] = (dayCounts[key] || 0) + 1;
+      cur.setDate(cur.getDate() + 1);
+    }
+
+    let maxKey = Object.keys(dayCounts)[0];
+    let maxDays = 0;
+    for (const k in dayCounts) {
+      if (dayCounts[k] > maxDays) {
+        maxDays = dayCounts[k];
+        maxKey = k;
+      }
+    }
+
+    const parts = maxKey.split('_');
+    return { monthIdx: parseInt(parts[1]), year: parseInt(parts[0]), label: `${MONTH_NAMES[parseInt(parts[1])]} ${parts[0]}` };
+  }
+
   function renderTripsTree(trips, reqsArchive, reports) {
     const container = document.getElementById('trips_tree_container');
     if (!trips || trips.length === 0) {
@@ -1380,7 +1411,7 @@
               <b>📊 Авансовый отчет АО-1</b> (Сумма: ${Number(relatedAo.sum).toLocaleString('ru-RU')} ₽)<br>
               <small>Статус: <b>Сдан</b> | Нажмите для открытия отчёта</small>
               ${relatedAo.url ? `<br><a href="${relatedAo.url}" target="_blank" style="color:var(--primary); font-size:11px;" onclick="event.stopPropagation();">Открыть файл Excel на Диске ➔</a>` : ''}
-              ${relatedAo.pdfUrl ? `<br><a href="${relatedAo.pdfUrl}" target="_blank" style="color:var(--success); font-size:11px; font-weight:700;" onclick="event.stopPropagation();">🖨️️ Открыть PDF для печати ➔</a>` : ''}
+              ${relatedAo.pdfUrl ? `<br><a href="${relatedAo.pdfUrl}" target="_blank" style="color:var(--success); font-size:11px; font-weight:700;" onclick="event.stopPropagation();">🖨️ Открыть PDF для печати ➔</a>` : ''}
             </div>
           `;
         } else {
@@ -1798,7 +1829,6 @@
     });
   }
 
-  // ЗАГРУЗКА ИЗ ТАЙМЛАЙНА С ПОЛНЫМ ВОССТАНОВЛЕНИЕМ МАССИВА РАСХОДОВ
   function loadTripIntoReport(tripId) {
     const tr = globalAppData.trips.find(x => x.tripId === tripId);
     if (!tr) return;
@@ -1829,28 +1859,12 @@
     document.getElementById('p_rate').value = 1500;
     document.getElementById('p_advance').value = tr.totalAdvance || 0;
 
-    // ВАЖНО: Восстанавливаем расходы и такси из реестра отчётов/черновиков для этой командировки
-    const existingReport = (globalAppData.reports || []).find(r => r.tripId === tripId || (r.id && r.id.includes(tripId)));
-    if (existingReport && existingReport.rawJson) {
-      let rData = existingReport.rawJson;
-      if (typeof rData === 'string') { try { rData = JSON.parse(rData); } catch(e){} }
-      store.expenses = rData.expenses || [];
-      store.taxis = rData.taxis || [];
-      if (rData.passport) {
-        document.getElementById('p_city').value = formatUniqueCities(rData.passport.city || document.getElementById('p_city').value);
-      }
-    } else {
-      store.expenses = [];
-      store.taxis = [];
-    }
-
     calcDaily();
     savePassport();
-    renderExpenseList();
 
     switchMainTab('form');
     goToStep(1);
-    showToast("Данные командировки и расходы загружены!");
+    showToast("Данные командировки загружены!");
   }
 
   function openRecalcModal(tripId) {
@@ -2817,6 +2831,33 @@
     triggerCloudAutoSave();
     renderExpenseList();
     showToast("Позиция сохранена!");
+  }
+
+  function renderExpenseList() {
+    const box = document.getElementById('list_expenses');
+    document.getElementById('lbl_count').innerText = store.expenses.length;
+    if (store.expenses.length === 0) { box.innerHTML = 'Пока ничего не добавлено.'; return; }
+    box.innerHTML = store.expenses.map(e => `
+      <div style="display:flex; justify-content:space-between; align-items:center; background:#fff; padding:8px; border-radius:8px; margin-bottom:5px; border:1px solid #e5e5ea;">
+        <div style="flex:1; min-width:0; padding-right:8px;">
+          <strong>${e.name}</strong><br>
+          <small style="color:#8e8e93;">${formatRuDateString(e.date)} | № ${e.no}</small>
+        </div>
+        <div style="display:flex; gap:6px; align-items:center;">
+          <strong>${Number(e.sum).toLocaleString('ru-RU')} ₽</strong>
+          <button type="button" class="btn btn-secondary" style="height:30px; width:auto; font-size:11px; padding:0 8px;" onclick="editExpenseItem('${e.id}')">✏️</button>
+          <button type="button" class="btn btn-danger" onclick="delExp('${e.id}')">✕</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function delExp(id) {
+    const it = store.expenses.find(x => x.id === id);
+    if (it && it.cat === 'taxi') store.taxis = store.taxis.filter(t => !(t.date === it.date && t.no === it.no));
+    store.expenses = store.expenses.filter(x => x.id !== id);
+    triggerCloudAutoSave();
+    renderExpenseList();
   }
 
   function renderStep3TransportBlock(dir) {
