@@ -235,9 +235,9 @@
       <button type="button" id="tab_btn_emp" class="tab-btn" style="display:none;" onclick="switchMainTab('employees')">👥 База сотрудников</button>
     </div>
 
-    <!-- Интерактивный значок Telegram с динамическим счётчиком настроек -->
+    <!-- Колокол уведомлений с динамическим счётчиком -->
     <div class="tg-notif-btn" title="Настройки уведомлений Telegram" onclick="openNotificationSettingsModal()">
-      <span>✈️</span>
+      <span>🔔</span>
       <span id="tg_header_badge" class="tg-badge-counter all-good">✓</span>
     </div>
   </div>
@@ -328,7 +328,7 @@
         </div>
 
         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 10px;">
-          <button type="button" class="btn btn-secondary" onclick="openExpense('plane')">✈️️ Самолёт</button>
+          <button type="button" class="btn btn-secondary" onclick="openExpense('plane')">✈️ Самолёт</button>
           <button type="button" class="btn btn-secondary" onclick="openExpense('bus')">🚌 Автобус</button>
           <button type="button" class="btn btn-secondary" onclick="openExpense('train')">🚆 Поезд</button>
           <button type="button" class="btn btn-secondary" onclick="openExpense('taxi')">🚕 Такси</button>
@@ -409,7 +409,6 @@
 
     <!-- ШАГ 4: ГОТОВЫЙ ПАКЕТ АО-1 -->
     <div id="step-4" class="step-content">
-      <!-- Баннер-подсказка со стрелками -->
       <div class="tip-dashed-box" style="background:#e8f4fd; border-color:#0284c7; color:#0369a1;">
         <span style="font-size: 20px;">ℹ️</span>
         <div><b>Для завершения и сдачи отчёта:</b> нажмите на одну из следующих кнопок ниже (Excel или PDF) ⬇️</div>
@@ -530,7 +529,7 @@
           <h3 style="margin:0; color:#166534;">✉️ Готовое письмо на согласование</h3>
           <div style="display:flex; gap:6px;">
             <button type="button" class="btn btn-secondary" style="height:28px; width:auto; font-size:11px; padding:0 8px;" onclick="copyAdvanceEmailText()">📋 Скопировать</button>
-            <button type="button" class="btn btn-primary" style="height:28px; width:auto; font-size:11px; padding:0 10px;" onclick="triggerMailApp(latestMailtoUrl)">✉️ В Почту</button>
+            <button type="button" id="btn_mailto_link" class="btn btn-primary" style="height:28px; width:auto; font-size:11px; padding:0 10px;" onclick="triggerMailApp(latestMailtoUrl)">✉️ В Почту</button>
           </div>
         </div>
         <div id="email_preview_box" style="white-space:pre-wrap; font-size:12px; line-height:1.5; color:#1e293b; background:#fff; border:1px solid #bbf7d0; border-radius:8px; padding:10px; margin-bottom:8px;"></div>
@@ -574,13 +573,15 @@
 
 </div>
 
-<!-- МОДАЛКА НАСТРОЕК УВЕДОМЛЕНИЙ TELEGRAM -->
+<!-- МОДАЛКА НАСТРОЕК УВЕДОМЛЕНИЙ TELEGRAM С РАСШИРЕННЫМИ ПУНКТАМИ РУКОВОДИТЕЛЯ -->
 <div id="notif_settings_modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:10030; align-items:center; justify-content:center; padding:16px;">
-  <div style="background:white; padding:18px; border-radius:14px; width:100%; max-width:400px; box-shadow:0 12px 30px rgba(0,0,0,0.25);">
-    <h3 style="margin-top:0; color:#0369a1; font-size:16px;">✈️ Настройки уведомлений Telegram</h3>
-    <p id="notif_modal_subtitle" style="font-size:12px; color:#64748b; margin-bottom:12px;">Управление личными оповещениями бота:</p>
+  <div style="background:white; padding:18px; border-radius:14px; width:100%; max-width:420px; box-shadow:0 12px 30px rgba(0,0,0,0.25); max-height:92vh; overflow-y:auto;">
+    <h3 style="margin-top:0; color:#0369a1; font-size:16px;">🔔 Настройки уведомлений Telegram</h3>
+    <p id="notif_modal_subtitle" style="font-size:12px; color:#64748b; margin-bottom:12px;">Управление оповещениями бота:</p>
     <input type="hidden" id="notif_target_tab">
+    <input type="hidden" id="notif_target_tgid">
 
+    <div style="font-size:12px; font-weight:700; color:#1e293b; margin-bottom:6px;">Личные уведомления сотрудника:</div>
     <label class="checkbox-row" style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px; margin-bottom:8px;">
       <input type="checkbox" id="chk_notif_req">
       <div>
@@ -589,7 +590,7 @@
       </div>
     </label>
 
-    <label class="checkbox-row" style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px; margin-bottom:14px;">
+    <label class="checkbox-row" style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px; margin-bottom:12px;">
       <input type="checkbox" id="chk_notif_ao">
       <div>
         <b>Завершенные Авансовые отчёты</b><br>
@@ -597,7 +598,37 @@
       </div>
     </label>
 
-    <div style="display:flex; flex-direction:column; gap:6px;">
+    <!-- Блок уведомлений руководителя -->
+    <div id="lead_notif_section" style="display:none; border-top:1px dashed #cbd5e1; padding-top:10px; margin-top:6px;">
+      <div style="font-size:12px; font-weight:700; color:#0369a1; margin-bottom:6px;">👑 Уведомления руководителя по команде:</div>
+      <label class="checkbox-row" style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:10px; margin-bottom:8px;">
+        <input type="checkbox" id="chk_lead_notif_req">
+        <div>
+          <b>Новые заявки на ДС сотрудников</b><br>
+          <span style="font-size:11px; color:#1e40af;">Присылать уведомления о созданных заявках подотчётных сотрудников</span>
+        </div>
+      </label>
+
+      <label class="checkbox-row" style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:10px; margin-bottom:12px;">
+        <input type="checkbox" id="chk_lead_notif_ao">
+        <div>
+          <b>Завершенные Авансовые отчёты сотрудников</b><br>
+          <span style="font-size:11px; color:#1e40af;">Присылать уведомления о сданных отчётах подотчётных сотрудников</span>
+        </div>
+      </label>
+    </div>
+
+    <!-- Кнопка очистки переписки бота за 48 часов -->
+    <div id="bot_clear_history_section" style="display:none; border-top:1px dashed #cbd5e1; padding-top:10px; margin-top:8px;">
+      <button type="button" class="btn btn-secondary" style="border:1px dashed var(--danger); color:var(--danger); font-size:12px;" onclick="triggerBotHistoryCleanup()">
+        🗑️ Очистить недавнюю переписку с ботом (за 48 ч)
+      </button>
+      <div style="font-size:10px; color:#94a3b8; text-align:center; margin-top:4px;">
+        Удаляет отправленные ботом служебные сообщения за последние 48 часов
+      </div>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:6px; margin-top:12px;">
       <button type="button" class="btn btn-primary" onclick="saveNotificationSettings()">💾 Сохранить настройки</button>
       <button type="button" class="btn btn-secondary" onclick="closeNotificationSettingsModal()">Закрыть</button>
     </div>
@@ -757,7 +788,6 @@
   const DADATA_API_KEY = "74443bebf6f911f3792509fa4ad680d6977c3e14";
   const GOOGLE_SHEET_API = "https://script.google.com/macros/s/AKfycbwqfeeX8q61tkVz0Rhubm2hu14O7vOPhu40r9qx6IOR78adJUq_U3CNwGtx6CfF-3oItQ/exec";
 
-  // Надежная циклическая очистка городов на стороне клиента
   function formatUniqueCities(citiesInput) {
     if (!citiesInput) return "";
     let s = String(citiesInput).replace(/(командировка\s+в\s+|служебная\s+поездка\s+в\s+)/gi, "");
@@ -840,7 +870,7 @@
   let latestMailtoUrl = "";
   let modalMailtoUrl = "";
 
-  let globalAppData = { employees: [], currentUser: null, reports: [], trips: [], requestsArchive: [], isAdmin: false, isSuperAdmin: false };
+  let globalAppData = { employees: [], currentUser: null, reports: [], trips: [], requestsArchive: [], isAdmin: false, isSuperAdmin: false, roleInfo: {} };
   let store = {
     passport: { fio:'', role:'', tab:'', city:'', dStart:'', dEnd:'', advance:0, days:0, rate:1500, dailyTotal:0, purpose:'', tripId:'' },
     expenses: [], taxis: []
@@ -1022,22 +1052,43 @@
 
   function openNotificationSettingsModal(empTab = null) {
     let targetEmp = null;
+    const isLeadOrSuper = globalAppData.isAdmin || globalAppData.isSuperAdmin;
+
     if (empTab) {
       targetEmp = (globalAppData.employees || []).find(e => e.tab === empTab);
     } else {
-      targetEmp = globalAppData.currentUser;
+      targetEmp = globalAppData.currentUser || (globalAppData.employees || [])[0];
     }
 
-    if (!targetEmp) {
+    if (!targetEmp && !isLeadOrSuper) {
       showToast("Сотрудник не выбран");
       return;
     }
 
-    document.getElementById('notif_target_tab').value = targetEmp.tab;
-    document.getElementById('notif_modal_subtitle').innerText = `Настройки уведомлений: ${targetEmp.fio} (таб. ${targetEmp.tab})`;
+    document.getElementById('notif_target_tab').value = targetEmp ? targetEmp.tab : '';
+    document.getElementById('notif_target_tgid').value = targetEmp ? (targetEmp.tgId || '') : '';
+    
+    if (targetEmp) {
+      document.getElementById('notif_modal_subtitle').innerText = `Настройки уведомлений: ${targetEmp.fio} (таб. ${targetEmp.tab})`;
+      document.getElementById('chk_notif_req').checked = (targetEmp.notifyReq !== undefined ? targetEmp.notifyReq : true);
+      document.getElementById('chk_notif_ao').checked = (targetEmp.notifyAo !== undefined ? targetEmp.notifyAo : true);
+    }
 
-    document.getElementById('chk_notif_req').checked = (targetEmp.notifyReq !== undefined ? targetEmp.notifyReq : true);
-    document.getElementById('chk_notif_ao').checked = (targetEmp.notifyAo !== undefined ? targetEmp.notifyAo : true);
+    // Если модалку открывает руководитель/суперадмин — показываем блок команды и кнопку очистки
+    const leadSec = document.getElementById('lead_notif_section');
+    const clearSec = document.getElementById('bot_clear_history_section');
+
+    if (isLeadOrSuper) {
+      leadSec.style.display = 'block';
+      clearSec.style.display = 'block';
+
+      const roleInf = globalAppData.roleInfo || {};
+      document.getElementById('chk_lead_notif_req').checked = (roleInf.notifyTeamReq !== undefined ? roleInf.notifyTeamReq : true);
+      document.getElementById('chk_lead_notif_ao').checked = (roleInf.notifyTeamAo !== undefined ? roleInf.notifyTeamAo : true);
+    } else {
+      leadSec.style.display = 'none';
+      clearSec.style.display = 'none';
+    }
 
     document.getElementById('notif_settings_modal').style.display = 'flex';
   }
@@ -1050,12 +1101,24 @@
     const tab = document.getElementById('notif_target_tab').value;
     const notifyReq = document.getElementById('chk_notif_req').checked;
     const notifyAo = document.getElementById('chk_notif_ao').checked;
+    const isLeadOrSuper = globalAppData.isAdmin || globalAppData.isSuperAdmin;
+    const notifyTeamReq = document.getElementById('chk_lead_notif_req').checked;
+    const notifyTeamAo = document.getElementById('chk_lead_notif_ao').checked;
 
     showToast("Сохранение настроек...");
     fetch(GOOGLE_SHEET_API, {
       method: "POST", mode: "no-cors",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "update_notification_settings", tab, notifyReq, notifyAo })
+      body: JSON.stringify({ 
+        action: "update_notification_settings", 
+        tab, 
+        notifyReq, 
+        notifyAo,
+        sender_id: getTelegramUser().id,
+        isLeadMode: isLeadOrSuper,
+        notifyTeamReq: notifyTeamReq,
+        notifyTeamAo: notifyTeamAo
+      })
     }).then(() => {
       showToast("Настройки уведомлений обновлены!");
       closeNotificationSettingsModal();
@@ -1069,7 +1132,39 @@
         globalAppData.currentUser.notifyReq = notifyReq;
         globalAppData.currentUser.notifyAo = notifyAo;
       }
+      if (isLeadOrSuper && globalAppData.roleInfo) {
+        globalAppData.roleInfo.notifyTeamReq = notifyTeamReq;
+        globalAppData.roleInfo.notifyTeamAo = notifyTeamAo;
+      }
       updateHeaderNotificationBadge();
+    });
+  }
+
+  function triggerBotHistoryCleanup() {
+    const targetTgId = document.getElementById('notif_target_tgid').value.trim();
+    const isAll = !targetTgId || targetTgId === String(SUPER_ADMIN_ID).trim();
+    const confirmText = isAll 
+      ? "Удалить все служебные сообщения бота за последние 48 часов у ВСЕХ пользователей?" 
+      : "Удалить все служебные сообщения бота за последние 48 часов в чате с данным сотрудником?";
+
+    if (!confirm(confirmText)) return;
+    showToast("Очистка недавних сообщений...");
+
+    fetch(GOOGLE_SHEET_API, {
+      method: "POST",
+      body: JSON.stringify({
+        action: "clear_recent_bot_messages",
+        target_chat_id: isAll ? null : targetTgId
+      })
+    })
+    .then(r => r.json())
+    .then(res => {
+      showToast(`Очищено сообщений: ${res.deleted || 0}`);
+      closeNotificationSettingsModal();
+    })
+    .catch(() => {
+      showToast("Запрос на очистку отправлен боту");
+      closeNotificationSettingsModal();
     });
   }
 
@@ -1150,7 +1245,6 @@
       const hasAnyWarning = grp.members.some(m => m.hasPendingRecalc);
       const warnClass = hasAnyWarning ? 'warning-active' : '';
 
-      // Проверяем, закрыты ли все отчеты этой командировки
       const isGroupCompleted = grp.members.every(m => {
         const rep = (reports || []).find(r => !r.isDraft && String(r.status).toLowerCase() === 'готов' && (r.tripId === m.tripId || (m.tab && r.tab === m.tab)));
         return (rep || m.status === 'Завершена');
@@ -1487,7 +1581,6 @@
     btn.disabled = true;
     btn.innerText = "⏳ Формирование Excel...";
 
-    // Показываем полноэкранный лоадер
     document.getElementById('report_loader_modal').style.display = 'flex';
 
     savePassport();
@@ -1900,7 +1993,6 @@
         }
       }
 
-      // Открываем модальное окно успешного создания заявки
       document.getElementById('req_success_modal').style.display = 'flex';
       loadAppData();
     })
@@ -2185,7 +2277,7 @@
           <small style="color:#64748b;">${emp.role} | Таб: ${emp.tab} | TG: ${emp.tgId || '—'}</small>
         </div>
         <div style="display:flex; gap:6px; align-items:center;">
-          <button type="button" class="btn btn-secondary" style="height:32px; font-size:13px; width:34px; padding:0;" title="Настройки уведомлений Telegram" onclick="openNotificationSettingsModal('${emp.tab}')">✈️</button>
+          <button type="button" class="btn btn-secondary" style="height:32px; font-size:13px; width:34px; padding:0;" title="Настройки уведомлений Telegram" onclick="openNotificationSettingsModal('${emp.tab}')">🔔</button>
           <button type="button" class="btn btn-secondary" style="height:32px; font-size:11px; width:auto; padding:0 8px;" onclick="openEditEmployeeModal(${idx})">✏️ Изм.</button>
           <button type="button" class="btn btn-danger" onclick="deleteEmployee('${emp.tab}')">🗑️</button>
         </div>
@@ -2745,7 +2837,6 @@
       }
     });
 
-    // Детализация чеков такси в чеклисте
     if (store.taxis && store.taxis.length > 0) {
       store.taxis.forEach((t) => {
         list.push(`   • Чек такси от ${formatRuDateString(t.date)} на ${Number(t.sum || 0).toLocaleString('ru-RU')} руб. (${t.route || ''}).`);
