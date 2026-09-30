@@ -36,9 +36,26 @@
     }
     .wrapper { max-width: 680px; margin: 0 auto; }
     
-    .top-tabs { display: flex; gap: 6px; margin-bottom: 10px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .header-bar {
+      display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;
+    }
+    .top-tabs { display: flex; gap: 6px; overflow-x: auto; -webkit-overflow-scrolling: touch; flex: 1; margin-right: 8px; }
     .tab-btn { flex: 1; min-width: 80px; padding: 9px 6px; background: #e5e5ea; border: none; border-radius: 10px; font-weight: 600; font-size: 12px; cursor: pointer; color: var(--text); text-align: center; white-space: nowrap; }
     .tab-btn.active { background: var(--primary); color: white; }
+
+    .tg-notif-btn {
+      position: relative; background: #fff; border: 1.5px solid #cbd5e1; border-radius: 10px;
+      width: 38px; height: 38px; display: inline-flex; align-items: center; justify-content: center;
+      cursor: pointer; flex-shrink: 0; font-size: 18px;
+    }
+    .tg-badge-counter {
+      position: absolute; top: -4px; right: -4px; background: var(--danger); color: white;
+      font-size: 9px; font-weight: 800; min-width: 16px; height: 16px; border-radius: 8px;
+      display: inline-flex; align-items: center; justify-content: center; padding: 0 3px;
+    }
+    .tg-badge-counter.all-good {
+      background: var(--success); font-size: 10px;
+    }
 
     .review-banner {
       background: #e8f3ff; border: 1px solid #b8daff; border-radius: 12px;
@@ -139,11 +156,17 @@
     }
 
     .trip-status-col {
-      display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 2px;
+      display: flex; align-items: center; gap: 6px;
     }
-    .badge-done-tag {
-      background: #dcfce7; color: #15803d; border: 1px solid #86efac; border-radius: 6px;
-      padding: 2px 6px; font-size: 10px; font-weight: 700; display: inline-flex; align-items: center; gap: 3px;
+    .badge-status-tag {
+      border-radius: 6px; padding: 2px 7px; font-size: 10px; font-weight: 700;
+      display: inline-flex; align-items: center; gap: 3px;
+    }
+    .badge-status-done {
+      background: #dcfce7; color: #15803d; border: 1px solid #86efac;
+    }
+    .badge-status-progress {
+      background: #fef3c7; color: #b45309; border: 1px solid #fde68a;
     }
 
     .trip-emp-btn {
@@ -203,13 +226,20 @@
 
 <div class="wrapper">
   
-  <div id="top_tabs" class="top-tabs">
-    <!-- Кнопки Заполнение и Заявка на ДС скрыты с экрана -->
-    <button type="button" id="tab_btn_form" class="tab-btn" style="display:none;" onclick="switchMainTab('form')">📝 Заполнение</button>
-    <button type="button" id="tab_btn_trips" class="tab-btn active" onclick="switchMainTab('trips')">✈️ Командировки</button>
-    <button type="button" id="tab_btn_new_req" class="tab-btn" style="display:none;" onclick="switchMainTab('new_req')">💰 Заявка на ДС</button>
-    <button type="button" id="tab_btn_drafts" class="tab-btn" style="display:none;" onclick="switchMainTab('drafts')">💾 Черновики (<span id="draft_count_badge">0</span>)</button>
-    <button type="button" id="tab_btn_emp" class="tab-btn" style="display:none;" onclick="switchMainTab('employees')">👥 База сотрудников</button>
+  <div class="header-bar">
+    <div id="top_tabs" class="top-tabs">
+      <button type="button" id="tab_btn_form" class="tab-btn" style="display:none;" onclick="switchMainTab('form')">📝 Заполнение</button>
+      <button type="button" id="tab_btn_trips" class="tab-btn active" onclick="switchMainTab('trips')">✈️ Командировки</button>
+      <button type="button" id="tab_btn_new_req" class="tab-btn" style="display:none;" onclick="switchMainTab('new_req')">💰 Заявка на ДС</button>
+      <button type="button" id="tab_btn_drafts" class="tab-btn" style="display:none;" onclick="switchMainTab('drafts')">💾 Черновики (<span id="draft_count_badge">0</span>)</button>
+      <button type="button" id="tab_btn_emp" class="tab-btn" style="display:none;" onclick="switchMainTab('employees')">👥 База сотрудников</button>
+    </div>
+
+    <!-- Интерактивный значок Telegram с динамическим счётчиком настроек -->
+    <div class="tg-notif-btn" title="Настройки уведомлений Telegram" onclick="openNotificationSettingsModal()">
+      <span>✈️</span>
+      <span id="tg_header_badge" class="tg-badge-counter all-good">✓</span>
+    </div>
   </div>
 
   <div id="review_banner" class="review-banner">
@@ -298,7 +328,7 @@
         </div>
 
         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 10px;">
-          <button type="button" class="btn btn-secondary" onclick="openExpense('plane')">✈️ Самолёт</button>
+          <button type="button" class="btn btn-secondary" onclick="openExpense('plane')">✈️️ Самолёт</button>
           <button type="button" class="btn btn-secondary" onclick="openExpense('bus')">🚌 Автобус</button>
           <button type="button" class="btn btn-secondary" onclick="openExpense('train')">🚆 Поезд</button>
           <button type="button" class="btn btn-secondary" onclick="openExpense('taxi')">🚕 Такси</button>
@@ -379,6 +409,12 @@
 
     <!-- ШАГ 4: ГОТОВЫЙ ПАКЕТ АО-1 -->
     <div id="step-4" class="step-content">
+      <!-- Баннер-подсказка со стрелками -->
+      <div class="tip-dashed-box" style="background:#e8f4fd; border-color:#0284c7; color:#0369a1;">
+        <span style="font-size: 20px;">ℹ️</span>
+        <div><b>Для завершения и сдачи отчёта:</b> нажмите на одну из следующих кнопок ниже (Excel или PDF) ⬇️</div>
+      </div>
+
       <div class="nav-bar" style="margin-bottom:10px; display:flex; flex-direction:column; gap:8px;">
         <div style="display:flex; gap:6px; width:100%;">
           <button type="button" class="btn btn-secondary" style="flex:1;" onclick="goToStep(3)">← Назад</button>
@@ -421,7 +457,7 @@
         <button type="button" class="btn btn-primary" style="height:32px; width:auto; font-size:12px; padding:0 12px;" onclick="openNewPrimaryTripForm()">➕ Новая заявка на ДС</button>
       </div>
       <div style="font-size:12px; color:#64748b; margin-bottom:12px;">
-        Группировка по месяцам. Нажмите на командировку, затем на сотрудника для просмотра цепочки документов.
+        Группировка по месяцам. Нажмите на плашку командировки для раскрытия цепочки.
       </div>
       <div id="trips_tree_container">Загрузка командировок...</div>
     </div>
@@ -451,7 +487,7 @@
         <select id="req_purpose_select" onchange="onPurposeSelectChange()">
           <option value="Открытие нового магазина, контроль и внедрение рабочих процессов">Открытие нового магазина, контроль и внедрение рабочих процессов</option>
           <option value="Перезапуск и оптимизация рабочих процессов">Перезапуск и оптимизация рабочих процессов</option>
-          <option value="custom">✏ Свой вариант (ввести вручную...)</option>
+          <option value="custom">✏️ Свой вариант (ввести вручную...)</option>
         </select>
         <textarea id="req_purpose_custom" style="display:none; margin-top:6px;" placeholder="Введите индивидуальную цель командировки..."></textarea>
       </div>
@@ -485,7 +521,7 @@
       </div>
 
       <div style="display:flex; gap:8px;">
-        <button type="button" class="btn btn-primary" onclick="submitAdvanceRequest()">💾 Сформировать заявку и письмо</button>
+        <button type="button" id="btn_submit_req" class="btn btn-primary" onclick="submitAdvanceRequest()">💾 Сформировать заявку и письмо</button>
         <button type="button" class="btn btn-secondary" onclick="switchMainTab('trips')">Отмена</button>
       </div>
 
@@ -494,7 +530,7 @@
           <h3 style="margin:0; color:#166534;">✉️ Готовое письмо на согласование</h3>
           <div style="display:flex; gap:6px;">
             <button type="button" class="btn btn-secondary" style="height:28px; width:auto; font-size:11px; padding:0 8px;" onclick="copyAdvanceEmailText()">📋 Скопировать</button>
-            <button type="button" id="btn_mailto_link" class="btn btn-primary" style="height:28px; width:auto; font-size:11px; padding:0 10px;" onclick="triggerMailApp(latestMailtoUrl)">✉️ В Почту</button>
+            <button type="button" class="btn btn-primary" style="height:28px; width:auto; font-size:11px; padding:0 10px;" onclick="triggerMailApp(latestMailtoUrl)">✉️ В Почту</button>
           </div>
         </div>
         <div id="email_preview_box" style="white-space:pre-wrap; font-size:12px; line-height:1.5; color:#1e293b; background:#fff; border:1px solid #bbf7d0; border-radius:8px; padding:10px; margin-bottom:8px;"></div>
@@ -536,6 +572,62 @@
     </div>
   </div>
 
+</div>
+
+<!-- МОДАЛКА НАСТРОЕК УВЕДОМЛЕНИЙ TELEGRAM -->
+<div id="notif_settings_modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:10030; align-items:center; justify-content:center; padding:16px;">
+  <div style="background:white; padding:18px; border-radius:14px; width:100%; max-width:400px; box-shadow:0 12px 30px rgba(0,0,0,0.25);">
+    <h3 style="margin-top:0; color:#0369a1; font-size:16px;">✈️ Настройки уведомлений Telegram</h3>
+    <p id="notif_modal_subtitle" style="font-size:12px; color:#64748b; margin-bottom:12px;">Управление личными оповещениями бота:</p>
+    <input type="hidden" id="notif_target_tab">
+
+    <label class="checkbox-row" style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px; margin-bottom:8px;">
+      <input type="checkbox" id="chk_notif_req">
+      <div>
+        <b>Новые Заявки на ДС</b><br>
+        <span style="font-size:11px; color:#64748b;">Доставлять уведомления о созданных на моё имя Заявках ДС</span>
+      </div>
+    </label>
+
+    <label class="checkbox-row" style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px; margin-bottom:14px;">
+      <input type="checkbox" id="chk_notif_ao">
+      <div>
+        <b>Завершенные Авансовые отчёты</b><br>
+        <span style="font-size:11px; color:#64748b;">Доставлять уведомления о созданных на моё имя и сданных Авансовых отчётах</span>
+      </div>
+    </label>
+
+    <div style="display:flex; flex-direction:column; gap:6px;">
+      <button type="button" class="btn btn-primary" onclick="saveNotificationSettings()">💾 Сохранить настройки</button>
+      <button type="button" class="btn btn-secondary" onclick="closeNotificationSettingsModal()">Закрыть</button>
+    </div>
+  </div>
+</div>
+
+<!-- МОДАЛКА УСПЕШНОГО СОЗДАНИЯ ЗАЯВКИ С ПЕРЕХОДОМ В ТАЙМЛАЙН -->
+<div id="req_success_modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:10025; align-items:center; justify-content:center; padding:16px;">
+  <div style="background:white; padding:20px; border-radius:16px; width:100%; max-width:380px; box-shadow:0 12px 36px rgba(0,0,0,0.3); text-align:center;">
+    <div style="font-size:36px; margin-bottom:8px;">✅</div>
+    <h3 style="margin:0 0 8px 0; font-size:17px; color:#1c1c1e;">Заявка на ДС успешно создана!</h3>
+    <p id="req_success_text" style="font-size:12px; color:#475569; line-height:1.5; margin-bottom:16px;">
+      Бланки сохранены на Google Диске, а данные внесены в цепочку командировки.
+    </p>
+    <div style="display:flex; flex-direction:column; gap:8px;">
+      <button type="button" class="btn btn-primary" onclick="closeReqSuccessAndGoTimeline()">✈️ Перейти в командировки</button>
+      <button type="button" class="btn btn-secondary" onclick="closeReqSuccessModal()">Остаться здесь</button>
+    </div>
+  </div>
+</div>
+
+<!-- МОДАЛКА ЛОАДЕРА ВЫГРУЗКИ ОТЧЁТА -->
+<div id="report_loader_modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.7); z-index:10040; align-items:center; justify-content:center; padding:16px;">
+  <div style="background:white; padding:22px; border-radius:16px; width:100%; max-width:360px; box-shadow:0 14px 40px rgba(0,0,0,0.35); text-align:center;">
+    <div style="font-size:36px; margin-bottom:10px;">⏳</div>
+    <h3 style="margin:0 0 8px 0; font-size:16px; color:#0f172a;">Пожалуйста, подождите</h3>
+    <div style="font-size:12px; color:#64748b; line-height:1.5;">
+      Идёт формирование и отправка всех отчётов на Google Диск и руководству...
+    </div>
+  </div>
 </div>
 
 <!-- МОДАЛКА ПРОСМОТРА И РЕДАКТИРОВАНИЯ ЗАЯВКИ С ПОЛНОЙ СМЕТОЙ И РАЗДЕЛЬНЫМ ГОРОДОМ -->
@@ -665,7 +757,7 @@
   const DADATA_API_KEY = "74443bebf6f911f3792509fa4ad680d6977c3e14";
   const GOOGLE_SHEET_API = "https://script.google.com/macros/s/AKfycbwqfeeX8q61tkVz0Rhubm2hu14O7vOPhu40r9qx6IOR78adJUq_U3CNwGtx6CfF-3oItQ/exec";
 
-  // Надежная дедупликация городов на стороне клиента
+  // Надежная циклическая очистка городов на стороне клиента
   function formatUniqueCities(citiesInput) {
     if (!citiesInput) return "";
     let s = String(citiesInput).replace(/(командировка\s+в\s+|служебная\s+поездка\s+в\s+)/gi, "");
@@ -884,6 +976,7 @@
         }
 
         renderTripsTree(res.trips, res.requestsArchive, res.reports);
+        updateHeaderNotificationBadge();
 
         if (!document.getElementById('p_fio').value && !isViewingRemoteReport && !store.passport.fio) {
           if (res.currentUser) {
@@ -898,6 +991,86 @@
       .catch(() => {
         document.getElementById('trips_tree_container').innerHTML = '<div style="color:var(--danger); font-size:12px;">Ошибка загрузки командировок.</div>';
       });
+  }
+
+  function updateHeaderNotificationBadge() {
+    const cur = globalAppData.currentUser;
+    const badge = document.getElementById('tg_header_badge');
+    if (!badge) return;
+
+    if (!cur) {
+      badge.innerText = "✓";
+      badge.className = "tg-badge-counter all-good";
+      return;
+    }
+
+    const reqActive = cur.notifyReq !== undefined ? cur.notifyReq : true;
+    const aoActive = cur.notifyAo !== undefined ? cur.notifyAo : true;
+
+    let offCount = 0;
+    if (!reqActive) offCount++;
+    if (!aoActive) offCount++;
+
+    if (offCount === 0) {
+      badge.innerText = "✓";
+      badge.className = "tg-badge-counter all-good";
+    } else {
+      badge.innerText = offCount;
+      badge.className = "tg-badge-counter";
+    }
+  }
+
+  function openNotificationSettingsModal(empTab = null) {
+    let targetEmp = null;
+    if (empTab) {
+      targetEmp = (globalAppData.employees || []).find(e => e.tab === empTab);
+    } else {
+      targetEmp = globalAppData.currentUser;
+    }
+
+    if (!targetEmp) {
+      showToast("Сотрудник не выбран");
+      return;
+    }
+
+    document.getElementById('notif_target_tab').value = targetEmp.tab;
+    document.getElementById('notif_modal_subtitle').innerText = `Настройки уведомлений: ${targetEmp.fio} (таб. ${targetEmp.tab})`;
+
+    document.getElementById('chk_notif_req').checked = (targetEmp.notifyReq !== undefined ? targetEmp.notifyReq : true);
+    document.getElementById('chk_notif_ao').checked = (targetEmp.notifyAo !== undefined ? targetEmp.notifyAo : true);
+
+    document.getElementById('notif_settings_modal').style.display = 'flex';
+  }
+
+  function closeNotificationSettingsModal() {
+    document.getElementById('notif_settings_modal').style.display = 'none';
+  }
+
+  function saveNotificationSettings() {
+    const tab = document.getElementById('notif_target_tab').value;
+    const notifyReq = document.getElementById('chk_notif_req').checked;
+    const notifyAo = document.getElementById('chk_notif_ao').checked;
+
+    showToast("Сохранение настроек...");
+    fetch(GOOGLE_SHEET_API, {
+      method: "POST", mode: "no-cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "update_notification_settings", tab, notifyReq, notifyAo })
+    }).then(() => {
+      showToast("Настройки уведомлений обновлены!");
+      closeNotificationSettingsModal();
+      
+      const emp = (globalAppData.employees || []).find(e => e.tab === tab);
+      if (emp) {
+        emp.notifyReq = notifyReq;
+        emp.notifyAo = notifyAo;
+      }
+      if (globalAppData.currentUser && globalAppData.currentUser.tab === tab) {
+        globalAppData.currentUser.notifyReq = notifyReq;
+        globalAppData.currentUser.notifyAo = notifyAo;
+      }
+      updateHeaderNotificationBadge();
+    });
   }
 
   function getDominantMonthYear(dStartStr, dEndStr) {
@@ -989,8 +1162,9 @@
             <button type="button" class="trip-accordion-btn ${warnClass}" style="margin-bottom:0;" onclick="toggleAccordion('box_trip_${gIdx}')">
               <span>🧳 Командировка ${grp.cities} (${daysCount || 18} дн) <small style="font-weight:400; opacity:0.85;">(${grp.dates})</small></span>
               <div class="trip-status-col">
-                ${isGroupCompleted ? `<span class="badge-done-tag">✅ Сдан</span>` : ''}
-                <span style="font-size:11px; color:#64748b;">${hasAnyWarning ? '⚠️ Изменено ▾' : 'Раскрыть ▾'}</span>
+                ${isGroupCompleted 
+                  ? `<span class="badge-status-tag badge-status-done">✅ Сдан</span>` 
+                  : `<span class="badge-status-tag badge-status-progress">✏️ В процессе</span>`}
               </div>
             </button>
             ${globalAppData.isAdmin ? `<button type="button" class="btn btn-danger" title="Удалить всю командировку для всех сотрудников" onclick="deleteFullTripGroup('${grp.cities.replace(/'/g, "\\'")}', '${grp.dates.replace(/'/g, "\\'")}')">🗑️</button>` : ''}
@@ -1005,7 +1179,6 @@
         const memberBoxId = `box_mem_${gIdx}_${mIdx}`;
         const cleanEmpCity = formatUniqueCities(tr.cities);
         
-        // Отбираем заявки этого сотрудника и сортируем строго по порядку добавления
         const relatedReqs = (reqsArchive || []).filter(rq => rq.tripId === tr.tripId);
         relatedReqs.sort((a, b) => (a.seqNumber || 0) - (b.seqNumber || 0));
         
@@ -1314,6 +1487,9 @@
     btn.disabled = true;
     btn.innerText = "⏳ Формирование Excel...";
 
+    // Показываем полноэкранный лоадер
+    document.getElementById('report_loader_modal').style.display = 'flex';
+
     savePassport();
     const sortedExpenses = [...store.expenses].sort((a, b) => parseDateToTimestamp(a.date) - parseDateToTimestamp(b.date));
     const sortedTaxis = [...store.taxis].sort((a, b) => parseDateToTimestamp(a.date) - parseDateToTimestamp(b.date));
@@ -1334,6 +1510,8 @@
     })
     .then(r => r.json())
     .then(res => {
+      document.getElementById('report_loader_modal').style.display = 'none';
+
       if (res.excel_download_url) {
         const a = document.createElement("a");
         a.href = res.excel_download_url;
@@ -1348,6 +1526,7 @@
       loadAppData();
     })
     .catch(() => {
+      document.getElementById('report_loader_modal').style.display = 'none';
       showToast("Отчёт сохранён!");
       setTimeout(openChecklistModal, 800);
       loadAppData();
@@ -1362,6 +1541,8 @@
     btn.disabled = true;
     btn.innerText = "⏳ Генерация PDF...";
 
+    document.getElementById('report_loader_modal').style.display = 'flex';
+
     savePassport();
     const element = document.getElementById('printable_report');
     const p = store.passport;
@@ -1370,9 +1551,11 @@
 
     html2pdf().set(opt).from(element).toPdf().get('pdf').then(function(pdf) {
       pdf.save(fileName);
+      document.getElementById('report_loader_modal').style.display = 'none';
       showToast("✅ PDF готов и сохранен!");
       setTimeout(openChecklistModal, 800);
     }).finally(() => {
+      document.getElementById('report_loader_modal').style.display = 'none';
       setTimeout(() => { btn.disabled = false; btn.innerText = "📄 Сохранить в PDF"; }, 1500);
     });
   }
@@ -1660,7 +1843,6 @@
     if (!it) return;
     it[key] = parseFloat(val) || 0;
     if (key === 'hotelDaily' || key === 'days') {
-      // Строго дни × ставка
       it.sumHotel = it.days * (it.hotelDaily || 0);
       it.sumDaily = it.days * 1500;
     }
@@ -1683,6 +1865,10 @@
 
     if (targetTripId) teamArr.forEach(m => m.tripId = targetTripId);
 
+    const btn = document.getElementById("btn_submit_req");
+    btn.disabled = true;
+    btn.innerText = "⏳ Формирование...";
+
     const payload = {
       action: "save_advance_request",
       request_type: reqType,
@@ -1690,13 +1876,15 @@
       telegram_user: getTelegramUser()
     };
 
-    showToast("Формирование заявок...");
     fetch(GOOGLE_SHEET_API, {
       method: "POST",
       body: JSON.stringify(payload)
     })
     .then(r => r.json())
     .then(res => {
+      btn.disabled = false;
+      btn.innerText = "💾 Сформировать заявку и письмо";
+
       if (res.emailText) {
         document.getElementById('email_result_card').style.display = 'block';
         document.getElementById('email_preview_box').innerText = res.emailText;
@@ -1711,13 +1899,26 @@
           `).join('');
         }
       }
-      showToast("✅ Заявки сохранены на Google Диске!");
+
+      // Открываем модальное окно успешного создания заявки
+      document.getElementById('req_success_modal').style.display = 'flex';
       loadAppData();
     })
     .catch(() => {
+      btn.disabled = false;
+      btn.innerText = "💾 Сформировать заявку и письмо";
       showToast("Заявки переданы на сервер");
       setTimeout(loadAppData, 1500);
     });
+  }
+
+  function closeReqSuccessModal() {
+    document.getElementById('req_success_modal').style.display = 'none';
+  }
+
+  function closeReqSuccessAndGoTimeline() {
+    document.getElementById('req_success_modal').style.display = 'none';
+    switchMainTab('trips');
   }
 
   function copyAdvanceEmailText() {
@@ -1734,7 +1935,6 @@
     onRequestTypeChange();
     document.getElementById('req_city').value = formatUniqueCities(tr.cities || '');
 
-    // Блокируем в календаре даты, которые уже были заняты в прошлой заявке
     const dates = (tr.dates || '').split('—').map(s => s.trim());
     if (dates[1] && datePickerReqRange) {
       const parts = dates[1].split('.');
@@ -1984,7 +2184,8 @@
           <strong>${emp.fio}</strong><br>
           <small style="color:#64748b;">${emp.role} | Таб: ${emp.tab} | TG: ${emp.tgId || '—'}</small>
         </div>
-        <div style="display:flex; gap:6px;">
+        <div style="display:flex; gap:6px; align-items:center;">
+          <button type="button" class="btn btn-secondary" style="height:32px; font-size:13px; width:34px; padding:0;" title="Настройки уведомлений Telegram" onclick="openNotificationSettingsModal('${emp.tab}')">✈️</button>
           <button type="button" class="btn btn-secondary" style="height:32px; font-size:11px; width:auto; padding:0 8px;" onclick="openEditEmployeeModal(${idx})">✏️ Изм.</button>
           <button type="button" class="btn btn-danger" onclick="deleteEmployee('${emp.tab}')">🗑️</button>
         </div>
@@ -2500,7 +2701,7 @@
       "4. Документы расходов:"
     ];
 
-    if (store.taxis.length > 0) list.push("   • Детализация поездок на такси.");
+    if (store.taxis.length > 0) list.push("   • Детализация поездок на такси (бланк с маршрутами и целями).");
 
     const events = [];
     const transGroups = {};
@@ -2534,15 +2735,22 @@
       const sumFormatted = Number(ev.sum || 0).toLocaleString('ru-RU');
 
       if (ev.type === 'transport') {
-        if (ev.cat === 'plane') list.push(`   • Самолёт: Чек + Маршрутная квитанция + Посадочные талоны от ${dStr} на ${sumFormatted}.`);
-        else if (ev.cat === 'train') list.push(`   • Поезд: Чек + Ж/Д билет от ${dStr} на ${sumFormatted}.`);
-        else if (ev.cat === 'bus') list.push(`   • Автобус: Чек + Билет от ${dStr} на ${sumFormatted}.`);
+        if (ev.cat === 'plane') list.push(`   • Самолёт: Чек + Маршрутная квитанция + Посадочные талоны <b>от ${dStr} на ${sumFormatted} руб.</b>`);
+        else if (ev.cat === 'train') list.push(`   • Поезд: Чек + Ж/Д билет <b>от ${dStr} на ${sumFormatted} руб.</b>`);
+        else if (ev.cat === 'bus') list.push(`   • Автобус: Чек + Билет <b>от ${dStr} на ${sumFormatted} руб.</b>`);
       } else if (ev.type === 'hotel') {
-        list.push(`   • Проживание: Договор/Акт + Чек с QR-кодом от ${dStr} на ${sumFormatted}.`);
+        list.push(`   • Проживание: Договор/Акт + Чек с QR-кодом <b>от ${dStr} на ${sumFormatted} руб.</b>`);
       } else if (ev.type === 'misc') {
-        list.push(`   • Прочие расходы (${ev.name}): Чек от ${dStr} на ${sumFormatted}.`);
+        list.push(`   • Прочие расходы (${ev.name}): Чек <b>от ${dStr} на ${sumFormatted} руб.</b>`);
       }
     });
+
+    // Детализация чеков такси в чеклисте
+    if (store.taxis && store.taxis.length > 0) {
+      store.taxis.forEach((t) => {
+        list.push(`   • Чек такси от ${formatRuDateString(t.date)} на ${Number(t.sum || 0).toLocaleString('ru-RU')} руб. (${t.route || ''}).`);
+      });
+    }
 
     return list.join('\n');
   }
