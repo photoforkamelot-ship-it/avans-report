@@ -195,7 +195,7 @@
 
 <div class="wrapper">
   
-  <!-- ВЕРХНИЕ КНОПКИ (Заполнение и Заявка на ДС скрыты через style="display:none;", функции работают) -->
+  <!-- Кнопки «Заполнение» и «Заявка на ДС» скрыты через style="display:none;" -->
   <div id="top_tabs" class="top-tabs">
     <button type="button" class="tab-btn active" onclick="switchMainTab('form')" style="display:none;">📝 Заполнение</button>
     <button type="button" class="tab-btn" onclick="switchMainTab('trips')">✈️ Командировки</button>
@@ -405,7 +405,7 @@
   </div>
 
   <!-- ВКЛАДКА 2: ИЕРАРХИЧЕСКИЕ КОМАНДИРОВКИ (ТАЙМЛАЙН) -->
-  <div id="tab-trips" class="main-tab-content">
+  <div id="tab-trips" class="main-tab-content" style="display:none;">
     <div class="card">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
         <h2 style="margin:0;">✈️ Командировки</h2>
@@ -983,7 +983,7 @@
         if (tr.hasPendingRecalc) {
           html += `
             <div class="status-field-box status-warning">
-              <b>⚠️ Изменены данные командировки!</b><br>
+              <b>⚠️️ Изменены данные командировки!</b><br>
               Обнаружены новые или измененные заявки. Необходимо пересохранить АО-1.<br>
               <button type="button" class="btn btn-warning" style="height:32px; font-size:11px; margin-top:6px;" onclick="openRecalcModal('${tr.tripId}')">🔄 Произвести пересчёт и изменить Авансовый отчёт?</button>
             </div>
@@ -1118,7 +1118,7 @@
 
   function updateModalEmailLive() {
     const fio = document.getElementById('rvm_fio').value || 'Сотрудник';
-    const datesRaw = document.getElementById('rvm_dates').value || '';
+    const dates = document.getElementById('rvm_dates').value || '';
     const isProlong = document.getElementById('rvm_is_prolong').value === "1";
     const travel = parseFloat(document.getElementById('rvm_travel').value) || 0;
     const hotelDaily = parseFloat(document.getElementById('rvm_hotel_daily').value) || 0;
@@ -1126,34 +1126,25 @@
     const sumDaily = parseFloat(document.getElementById('rvm_sum_daily').value) || 0;
     const sumTotal = parseFloat(document.getElementById('rvm_sum_total').value) || 0;
 
-    let datesClean = datesRaw.replace(/\s*—\s*|\s*-\s*/g, '-').replace(/\s+/g, '');
-    if (datesClean && !datesClean.endsWith('гг')) datesClean += 'гг';
-
-    let city = (document.getElementById('req_city') ? document.getElementById('req_city').value.trim() : '') || 'г. Город';
-    let cleanCity = city.startsWith('г.') ? city : `г. ${city.replace(/^г\.?\s*/i, '')}`;
-
     const reasonStr = isProlong 
-      ? `в связи с продлением командировки в ${cleanCity} ${datesClean}`
-      : `в связи с командировкой в ${cleanCity} ${datesClean}`;
+      ? `в связи с продлением командировки ${dates ? dates + 'гг' : ''}`
+      : `в связи с командировкой ${dates ? dates + 'гг' : ''}`;
 
     let lines = [
+      "Коллеги, Добрый день!\n",
       "Екатерина, прошу согласовать ДС под отчет\n",
-      `${reasonStr}`,
-      "согласно заявкам (во вложении)\n",
+      `${reasonStr.trim()} согласно заявкам (во вложении)\n\n`,
       `${fio}:`
     ];
 
-    if (travel > 0) {
-      lines.push(`${travel.toLocaleString('ru-RU')} проезд`);
-    } else if (isProlong) {
-      lines.push('');
-    }
+    if (travel > 0) lines.push(`${travel.toLocaleString('ru-RU')} проезд`);
     if (sumHotel > 0) {
       const dailyRateStr = hotelDaily > 0 ? ` (${hotelDaily.toLocaleString('ru-RU')} сутки)` : "";
       lines.push(`${sumHotel.toLocaleString('ru-RU')} проживание${dailyRateStr}`);
     }
     if (sumDaily > 0) lines.push(`${sumDaily.toLocaleString('ru-RU')} суточные`);
-    lines.push(`Итого: ${sumTotal.toLocaleString('ru-RU')}`);
+    lines.push(`Итого: ${sumTotal.toLocaleString('ru-RU')}\n`);
+    lines.push(`С уважением, Илгин Александр Александрович`);
 
     document.getElementById('rvm_email_box').innerText = lines.join('\n');
   }
@@ -1444,28 +1435,10 @@
     const isProlong = (document.getElementById('req_type').value === 'prolong');
     const travelSum = isProlong ? 0 : 20000;
 
-    let actualDays = 18;
-    const dStartStr = document.getElementById('req_date_start').value;
-    const dEndStr = document.getElementById('req_date_end').value;
-    if (dStartStr && dEndStr) {
-      const t1 = parseDateToTimestamp(dStartStr);
-      const t2 = parseDateToTimestamp(dEndStr);
-      if (t2 >= t1 && t1 > 0) {
-        actualDays = Math.ceil((t2 - t1) / (1000 * 60 * 60 * 24)) + 1;
-      }
-    }
-
-    const hotelDaily = 3100;
-    const stayDays = actualDays > 1 ? (actualDays - 1) : 1;
-    const sumHotel = stayDays * hotelDaily;
-    const sumDaily = actualDays * 1500;
-    const sumTotal = travelSum + sumHotel + sumDaily;
-
     currentReqTeamData[emp.fio] = {
       fio: emp.fio, role: emp.role, tab: emp.tab, tgId: emp.tgId,
       bankInn: emp.bankInn || '', bankBik: emp.bankBik || '', bankAcc: emp.bankAcc || '',
-      days: actualDays, sumTravel: travelSum, hotelDaily: hotelDaily,
-      sumHotel: sumHotel, sumDaily: sumDaily, sumTotal: sumTotal
+      days: 18, sumTravel: travelSum, hotelDaily: 3100, sumHotel: 55800, sumDaily: 27000, sumTotal: travelSum + 55800 + 27000
     };
 
     renderSelectedTeamChips();
@@ -1750,6 +1723,99 @@
     }
   }
 
+  function openReportInReviewMode(reportId) {
+    const rep = globalAppData.reports.find(r => r.id === reportId);
+    if (!rep) { showToast("Отчёт не найден"); return; }
+
+    try {
+      isViewingRemoteReport = true;
+      if (rep.rawJson) {
+        let data = rep.rawJson;
+        if (typeof data === 'string') { try { data = JSON.parse(data); } catch(e){} }
+        store.passport = data.passport || {};
+        store.expenses = data.expenses || [];
+        store.taxis = data.taxis || [];
+      }
+      CURRENT_REPORT_UID = rep.id;
+
+      const p = store.passport;
+      document.getElementById('p_trip_id').value = p.tripId || rep.tripId || '';
+      document.getElementById('p_fio').value = p.fio || '';
+      document.getElementById('p_role').value = p.role || '';
+      document.getElementById('p_tab').value = p.tab || '';
+      document.getElementById('p_city').value = p.city || '';
+      document.getElementById('p_date_start').value = p.dStart || '';
+      document.getElementById('p_date_end').value = p.dEnd || '';
+      document.getElementById('p_advance').value = p.advance || '';
+      document.getElementById('p_days').value = p.days || 0;
+      document.getElementById('p_rate').value = p.rate || 1500;
+
+      if (datePickerRange && p.dStart && p.dEnd) datePickerRange.setDate([p.dStart, p.dEnd]);
+
+      calcDaily();
+      switchMainTab('form');
+      document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
+      document.getElementById('step-4').classList.add('active');
+      renderFinal();
+
+      document.getElementById('banner_report_title').innerText = `${store.passport.fio} (${store.passport.city})`;
+      document.getElementById('review_banner').style.display = 'flex';
+      window.scrollTo(0, 0);
+    } catch(e) {
+      showToast("Ошибка при открытии: " + e.message);
+    }
+  }
+
+  function enableEditingCurrentReport() {
+    isViewingRemoteReport = false;
+    document.getElementById('review_banner').style.display = 'none';
+    calcDaily();
+    renderExpenseList();
+    goToStep(1);
+    showToast("Отчёт готов к изменению!");
+  }
+
+  function closeReviewMode() {
+    isViewingRemoteReport = false;
+    document.getElementById('review_banner').style.display = 'none';
+    switchMainTab('trips');
+  }
+
+  function deleteReport(reportId) {
+    if (!confirm(`Удалить запись #${reportId}?`)) return;
+    fetch(GOOGLE_SHEET_API, {
+      method: "POST", mode: "no-cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "delete_report", reportId })
+    }).then(() => {
+      showToast("Удалено!");
+      setTimeout(loadAppData, 1200);
+    });
+  }
+
+  function saveLeadPermissions() {
+    const tgId = document.getElementById('role_lead_tg').value.trim();
+    const name = document.getElementById('role_lead_name').value.trim();
+    const tabs = document.getElementById('role_lead_tabs').value.trim();
+
+    if (!tgId || !name) { showToast("Укажите TG ID и ФИО"); return; }
+    fetch(GOOGLE_SHEET_API, {
+      method: "POST",
+      body: JSON.stringify({
+        action: "update_lead_permissions",
+        sender_id: getTelegramUser().id,
+        lead_tgid: tgId, lead_name: name, allowed_tabs: tabs || "ALL"
+      })
+    })
+    .then(r => r.json())
+    .then(() => {
+      showToast("Права руководителя обновлены!");
+      document.getElementById('role_lead_tg').value = '';
+      document.getElementById('role_lead_name').value = '';
+      document.getElementById('role_lead_tabs').value = '';
+    });
+  }
+
   function renderAdminEmployees() {
     const c = document.getElementById("admin_employees_container");
     if (!globalAppData.employees || globalAppData.employees.length === 0) {
@@ -1913,445 +1979,6 @@
     t.innerText = m; t.style.display = 'block';
     setTimeout(() => t.style.display = 'none', 2500);
   }
-
-  function goToStep(s) {
-    if (s === 2) {
-      if (!validateFields(['p_fio', 'p_role', 'p_city', 'p_date_range'])) { showToast('Заполните обязательные поля'); return; }
-      savePassport();
-      triggerCloudAutoSave();
-      renderExpenseList();
-    }
-    if (s === 3) {
-      savePassport();
-      triggerCloudAutoSave();
-      renderDetailedReview();
-    }
-    if (s === 4) {
-      try {
-        if (!isViewingRemoteReport) { savePassport(); triggerCloudAutoSave(); }
-        renderFinal();
-      } catch(err) {
-        console.error("renderFinal error: ", err);
-      }
-    }
-
-    document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
-    const target = document.getElementById('step-' + s);
-    if (target) {
-      target.classList.add('active');
-      window.scrollTo(0, 0);
-    }
-  }
-
-  function calcDaily() {
-    const days = parseInt(document.getElementById('p_days').value) || 0;
-    const rate = parseFloat(document.getElementById('p_rate').value) || 0;
-    document.getElementById('lbl_daily_total').innerText = (days * rate).toLocaleString('ru-RU');
-  }
-
-  function savePassport() {
-    if (isViewingRemoteReport) return;
-    const days = parseInt(document.getElementById('p_days').value) || 0;
-    const rate = parseFloat(document.getElementById('p_rate').value) || 0;
-    store.passport = {
-      fio: document.getElementById('p_fio').value.trim() || 'Сотрудник',
-      role: document.getElementById('p_role').value.trim() || 'Инженер',
-      tab: document.getElementById('p_tab').value.trim() || '—',
-      city: document.getElementById('p_city').value.trim() || 'Пермь',
-      dStart: formatRuDateString(document.getElementById('p_date_start').value),
-      dEnd: formatRuDateString(document.getElementById('p_date_end').value),
-      advance: parseFloat(document.getElementById('p_advance').value) || 0,
-      days: days, rate: rate, dailyTotal: days * rate,
-      purpose: store.passport.purpose || '',
-      tripId: document.getElementById('p_trip_id').value || store.passport.tripId || ''
-    };
-  }
-
-  function openExpense(c) {
-    curCategory = c;
-    document.getElementById('edit_item_id').value = '';
-    document.getElementById('edit_group_key').value = '';
-    document.getElementById('add-box').style.display = 'block';
-    ['box-transport','box-taxi','box-hotel','box-misc'].forEach(id => document.getElementById(id).style.display = 'none');
-    ['chk_fee','chk_bag','chk_ins'].forEach(id => document.getElementById(id).checked = false);
-    ['sub_fee','sub_bag','sub_ins'].forEach(id => document.getElementById(id).style.display = 'none');
-
-    if (datePickerExpense) datePickerExpense.clear();
-    document.getElementById('e_route').value = ''; document.getElementById('e_ticket_no').value = ''; document.getElementById('e_ticket_sum').value = '';
-    document.getElementById('e_fee_no').value = ''; document.getElementById('e_fee_sum').value = '';
-    document.getElementById('e_bag_no').value = ''; document.getElementById('e_bag_sum').value = '';
-    document.getElementById('e_ins_no').value = ''; document.getElementById('e_ins_sum').value = '';
-    document.getElementById('e_taxi_no').value = ''; document.getElementById('e_taxi_sum').value = '';
-    document.getElementById('e_taxi_from').value = ''; document.getElementById('e_taxi_obj_a').value = '';
-    document.getElementById('e_taxi_to').value = ''; document.getElementById('e_taxi_obj_b').value = '';
-    document.getElementById('e_taxi_purpose').value = '';
-    document.getElementById('e_hotel_no').value = ''; document.getElementById('e_hotel_sum').value = '';
-    document.getElementById('e_misc_no').value = ''; document.getElementById('e_misc_name').value = ''; document.getElementById('e_misc_sum').value = '';
-
-    if (['plane','bus','train'].includes(c)) {
-      document.getElementById('box-transport').style.display = 'block';
-      document.getElementById('add-title').innerText = c==='plane' ? '✈️ Самолёт' : (c==='bus' ? '🚌 Автобус' : '🚆 Поезд');
-    } else if (c==='taxi') {
-      document.getElementById('box-taxi').style.display = 'block';
-      document.getElementById('add-title').innerText = '🚕 Такси';
-    } else if (c==='hotel') {
-      document.getElementById('box-hotel').style.display = 'block';
-      document.getElementById('add-title').innerText = '🏨 Проживание';
-    } else {
-      document.getElementById('box-misc').style.display = 'block';
-      document.getElementById('add-title').innerText = '🛒 Прочее';
-    }
-  }
-
-  function closeExpense() {
-    document.getElementById('add-box').style.display = 'none';
-    document.getElementById('edit_item_id').value = '';
-    document.getElementById('edit_group_key').value = '';
-  }
-
-  function toggleBox(id) { const el = document.getElementById(id); el.style.display = el.style.display==='block'?'none':'block'; }
-
-  function parseTaxiPoint(str) {
-    if (!str) return { addr: '', obj: '' };
-    const match = String(str).trim().match(/^(.*?)\s*\((.*?)\)$/);
-    if (match) return { addr: match[1].trim(), obj: match[2].trim() };
-    return { addr: str, obj: '' };
-  }
-
-  function editExpenseItem(id) {
-    let item = store.expenses.find(x => x.id === id);
-    if (!item) item = store.expenses.find(x => x.groupKey === id) || store.expenses[0];
-    if (!item) return;
-
-    goToStep(2);
-    openExpense(item.cat);
-    document.getElementById('add-title').innerText = `✏️ Редактирование: ${item.name.split('(')[0].trim()}`;
-    document.getElementById('edit_item_id').value = item.id;
-    if (datePickerExpense) datePickerExpense.setDate(item.date);
-
-    if (['plane','bus','train'].includes(item.cat)) {
-      document.getElementById('edit_group_key').value = item.groupKey || '';
-      document.getElementById('e_dir').value = item.dir || 'there';
-      document.getElementById('e_route').value = item.route || '';
-      document.getElementById('e_ticket_no').value = item.no || '';
-      document.getElementById('e_ticket_sum').value = item.sum || '';
-    } else if (item.cat === 'taxi') {
-      const t = store.taxis.find(x => x.no === item.no && x.date === item.date) || store.taxis[0];
-      document.getElementById('e_taxi_no').value = item.no || '';
-      document.getElementById('e_taxi_sum').value = item.sum || '';
-      if (t) {
-        const parts = (t.route || '').split(' — ');
-        const ptA = parseTaxiPoint(parts[0] || '');
-        const ptB = parseTaxiPoint(parts[1] || '');
-        document.getElementById('e_taxi_from').value = ptA.addr;
-        document.getElementById('e_taxi_obj_a').value = ptA.obj;
-        document.getElementById('e_taxi_to').value = ptB.addr;
-        document.getElementById('e_taxi_obj_b').value = ptB.obj;
-        document.getElementById('e_taxi_purpose').value = t.purpose || '';
-      }
-    } else if (item.cat === 'hotel') {
-      document.getElementById('e_hotel_biz').value = item.bizType || 'self';
-      document.getElementById('e_hotel_no').value = item.no || '';
-      document.getElementById('e_hotel_sum').value = item.sum || '';
-    } else if (item.cat === 'misc') {
-      document.getElementById('e_misc_no').value = item.no || '';
-      document.getElementById('e_misc_name').value = item.customName || item.name.replace(/^Чек,\s*/i, '');
-      document.getElementById('e_misc_sum').value = item.sum || '';
-    }
-  }
-
-  function saveExpense() {
-    let reqFields = ['e_date'];
-    if (['plane','bus','train'].includes(curCategory)) reqFields.push('e_route', 'e_ticket_no', 'e_ticket_sum');
-    else if (curCategory === 'taxi') reqFields.push('e_taxi_no', 'e_taxi_sum', 'e_taxi_from', 'e_taxi_to', 'e_taxi_purpose');
-    else if (curCategory === 'hotel') reqFields.push('e_hotel_no', 'e_hotel_sum');
-    else if (curCategory === 'misc') reqFields.push('e_misc_no', 'e_misc_name', 'e_misc_sum');
-
-    if (!validateFields(reqFields)) { showToast('Заполните обязательные поля'); return; }
-
-    const date = formatRuDateString(document.getElementById('e_date').value);
-    const editId = document.getElementById('edit_item_id').value;
-    const oldGroupKey = document.getElementById('edit_group_key').value;
-
-    if (editId) {
-      if (oldGroupKey) store.expenses = store.expenses.filter(x => x.groupKey !== oldGroupKey);
-      else {
-        const oldIt = store.expenses.find(x => x.id === editId);
-        if (oldIt && oldIt.cat === 'taxi') store.taxis = store.taxis.filter(t => !(t.no === oldIt.no && t.date === oldIt.date));
-        store.expenses = store.expenses.filter(x => x.id !== editId);
-      }
-    }
-
-    if (['plane','bus','train'].includes(curCategory)) {
-      const no = document.getElementById('e_ticket_no').value.trim();
-      const sum = parseFloat(document.getElementById('e_ticket_sum').value) || 0;
-      const route = document.getElementById('e_route').value.trim();
-      const dir = document.getElementById('e_dir').value;
-      const groupKey = oldGroupKey || ('grp_' + Date.now());
-
-      let name = curCategory==='plane' ? 'Авиабилет' : (curCategory==='bus' ? 'Билет на автобус' : 'Ж/д билет');
-      if (route) name += ` (${route})`;
-      store.expenses.push({ id: Date.now()+'1', date, no, name, sum, dir, cat: curCategory, route, groupKey, isMainTicket: true });
-
-      if (document.getElementById('chk_fee').checked) {
-        const feeSum = parseFloat(document.getElementById('e_fee_sum').value) || 0;
-        if (feeSum > 0) store.expenses.push({ id: Date.now()+'fee', date, no: document.getElementById('e_fee_no').value.trim() || no, name: 'Сборы, комиссии', sum: feeSum, dir, cat: curCategory, groupKey });
-      }
-      if (document.getElementById('chk_bag').checked) {
-        const bagSum = parseFloat(document.getElementById('e_bag_sum').value) || 0;
-        if (bagSum > 0) store.expenses.push({ id: Date.now()+'bag', date, no: document.getElementById('e_bag_no').value.trim() || no, name: 'Багаж', sum: bagSum, dir, cat: curCategory, groupKey });
-      }
-      if (document.getElementById('chk_ins').checked) {
-        const insSum = parseFloat(document.getElementById('e_ins_sum').value) || 0;
-        if (insSum > 0) store.expenses.push({ id: Date.now()+'ins', date, no: document.getElementById('e_ins_no').value.trim() || no, name: 'Страховой полис', sum: insSum, dir, cat: curCategory, groupKey });
-      }
-    } else if (curCategory === 'taxi') {
-      const no = document.getElementById('e_taxi_no').value.trim();
-      const sum = parseFloat(document.getElementById('e_taxi_sum').value) || 0;
-      const addrA = document.getElementById('e_taxi_from').value.trim(), objA = document.getElementById('e_taxi_obj_a').value.trim();
-      const addrB = document.getElementById('e_taxi_to').value.trim(), objB = document.getElementById('e_taxi_obj_b').value.trim();
-      const purpose = document.getElementById('e_taxi_purpose').value.trim();
-      const route = `${objA ? addrA+' ('+objA+')' : addrA} — ${objB ? addrB+' ('+objB+')' : addrB}`;
-      store.expenses.push({ id: Date.now()+'t', date, no, name: 'Чек, такси', sum, cat: 'taxi' });
-      store.taxis.push({ date, no, sum, route, purpose: purpose || 'Служебная поездка' });
-    } else if (curCategory === 'hotel') {
-      const biz = document.getElementById('e_hotel_biz').value;
-      const no = document.getElementById('e_hotel_no').value.trim(), sum = parseFloat(document.getElementById('e_hotel_sum').value) || 0;
-      store.expenses.push({ id: Date.now()+'h', date, no, name: biz==='self'?'Аренда квартиры':'Гостиница', sum, cat: 'hotel', bizType: biz });
-    } else {
-      const no = document.getElementById('e_misc_no').value.trim(), name = document.getElementById('e_misc_name').value.trim(), sum = parseFloat(document.getElementById('e_misc_sum').value) || 0;
-      store.expenses.push({ id: Date.now()+'m', date, no, name: `Чек, ${name}`, customName: name, sum, cat: 'misc' });
-    }
-
-    closeExpense();
-    triggerCloudAutoSave();
-    renderExpenseList();
-    showToast("Позиция сохранена!");
-  }
-
-  function renderExpenseList() {
-    const box = document.getElementById('list_expenses');
-    document.getElementById('lbl_count').innerText = store.expenses.length;
-    if (store.expenses.length === 0) { box.innerHTML = 'Пока ничего не добавлено.'; return; }
-    box.innerHTML = store.expenses.map(e => `
-      <div style="display:flex; justify-content:space-between; align-items:center; background:#fff; padding:8px; border-radius:8px; margin-bottom:5px; border:1px solid #e5e5ea;">
-        <div style="flex:1; min-width:0; padding-right:8px;">
-          <strong>${e.name}</strong><br>
-          <small style="color:#8e8e93;">${formatRuDateString(e.date)} | № ${e.no}</small>
-        </div>
-        <div style="display:flex; gap:6px; align-items:center;">
-          <strong>${Number(e.sum).toLocaleString('ru-RU')} ₽</strong>
-          <button type="button" class="btn btn-secondary" style="height:30px; width:auto; font-size:11px; padding:0 8px;" onclick="editExpenseItem('${e.id}')">✏️</button>
-          <button type="button" class="btn btn-danger" onclick="delExp('${e.id}')">✕</button>
-        </div>
-      </div>
-    `).join('');
-  }
-
-  function delExp(id) {
-    const it = store.expenses.find(x => x.id === id);
-    if (it && it.cat === 'taxi') store.taxis = store.taxis.filter(t => !(t.date === it.date && t.no === it.no));
-    store.expenses = store.expenses.filter(x => x.id !== id);
-    triggerCloudAutoSave();
-    renderExpenseList();
-  }
-
-  function renderStep3TransportBlock(dir) {
-    const items = store.expenses.filter(e => e.dir === dir);
-    if (items.length === 0) return 'Нет расходов';
-
-    const groups = {};
-    items.forEach(it => {
-      const key = it.groupKey || (it.date + '_' + it.cat);
-      if (!groups[key]) groups[key] = { date: it.date, cat: it.cat, route: it.route || '', mainId: it.id, items: [] };
-      if (it.route && !groups[key].route) groups[key].route = it.route;
-      if (it.isMainTicket) groups[key].mainId = it.id;
-      groups[key].items.push(it);
-    });
-
-    const totalDirSum = items.reduce((s,e) => s + Number(e.sum || 0), 0);
-    let html = `<div style="font-size:14px; font-weight:700; margin-bottom:6px;">ИТОГО: ${totalDirSum.toLocaleString('ru-RU')} ₽</div>`;
-
-    Object.values(groups).sort((a,b) => parseDateToTimestamp(a.date) - parseDateToTimestamp(b.date)).forEach((g, idx) => {
-      const segTotal = g.items.reduce((s, x) => s + Number(x.sum || 0), 0);
-      let typeTitle = g.cat === 'plane' ? 'АВИАПЕРЕЛЕТ' : (g.cat === 'train' ? 'ПОЕЗДКА НА ПОЕЗДЕ' : 'ПОЕЗДКА НА АВТОБУСЕ');
-      const mainTitle = `${idx + 1}. ${typeTitle} (${g.route}) ${segTotal.toLocaleString('ru-RU')} ₽`;
-
-      html += `<div class="clickable-expense-row" onclick="editExpenseItem('${g.mainId}')"><div>`;
-      html += `<div style="font-weight:700; font-size:13px; color:#1c1c1e;">${mainTitle}:</div>`;
-      g.items.forEach(row => {
-        html += `<div style="padding-left:8px; font-size:12px; color:#3a3a3c;">• ${row.name} - ${Number(row.sum).toLocaleString('ru-RU')} ₽</div>`;
-      });
-      html += `</div></div>`;
-    });
-    return html;
-  }
-
-  function renderDetailedReview() {
-    const p = store.passport;
-    const box = document.getElementById('review_cards_container');
-    const hotelExp = store.expenses.filter(e => e.cat === 'hotel');
-    const hotelSum = hotelExp.reduce((s,e) => s + Number(e.sum || 0), 0);
-    const taxiSum = store.taxis.reduce((s,t) => s + Number(t.sum || 0), 0);
-    const miscExp = store.expenses.filter(e => e.cat === 'misc');
-    const miscSum = miscExp.reduce((s,e) => s + Number(e.sum || 0), 0);
-
-    box.innerHTML = `
-      <div class="card" style="padding:10px;">
-        <h3>1. Данные сотрудника и аванс</h3>
-        <div class="clickable-passport-box" onclick="goToStep(1)">
-          <div style="font-size:12px; line-height:1.45;">• Сотрудник: <b>${p.fio}</b> (${p.city}, ${p.days} дн.)<br>• Аванс: <b>${Number(p.advance || 0).toLocaleString('ru-RU')} ₽</b></div>
-        </div>
-      </div>
-      <div class="card" style="padding:10px;"><h3>2. Проезд «ТУДА»</h3><div style="font-size:12px;">${renderStep3TransportBlock('there')}</div></div>
-      <div class="card" style="padding:10px;"><h3>3. Проживание (ИТОГО: ${hotelSum.toLocaleString('ru-RU')} ₽)</h3>${hotelExp.map(e => `<div class="clickable-expense-row" onclick="editExpenseItem('${e.id}')"><div>${e.name}: <b>${Number(e.sum).toLocaleString('ru-RU')} ₽</b></div></div>`).join('')}</div>
-      <div class="card" style="padding:10px;"><h3>4. Такси (ИТОГО: ${taxiSum.toLocaleString('ru-RU')} ₽)</h3>${store.taxis.map(t => `<div class="clickable-expense-row"><div>${t.route}: <b>${Number(t.sum).toLocaleString('ru-RU')} ₽</b></div></div>`).join('')}</div>
-      <div class="card" style="padding:10px;"><h3>5. Проезд «ОБРАТНО»</h3><div style="font-size:12px;">${renderStep3TransportBlock('back')}</div></div>
-      <div class="card" style="padding:10px;"><h3>6. Прочее (ИТОГО: ${miscSum.toLocaleString('ru-RU')} ₽)</h3>${miscExp.map(e => `<div class="clickable-expense-row" onclick="editExpenseItem('${e.id}')"><div>${e.name}: <b>${Number(e.sum).toLocaleString('ru-RU')} ₽</b></div></div>`).join('')}</div>
-      <div class="card" style="padding:10px;"><h3>7. Суточные</h3><div style="font-size:12px;">• ${p.days} сут. × ${p.rate} ₽ = <b>${Number(p.dailyTotal || 0).toLocaleString('ru-RU')} ₽</b></div></div>
-    `;
-  }
-
-  function buildNarrativeSummary() {
-    const p = store.passport;
-    const total = store.expenses.reduce((s,e)=>s + Number(e.sum || 0), 0) + (Number(p.dailyTotal) || 0);
-    const diff = (Number(p.advance) || 0) - total;
-
-    let html = `<p><b>${formatRuDateString(p.dStart)}</b> Вы поехали в командировку в ${p.city || ''}.</p>`;
-
-    try {
-      const relatedReqs = (globalAppData.requestsArchive || []).filter(rq => rq.tripId && rq.tripId === (p.tripId || ''));
-      if (relatedReqs.length > 0) {
-        relatedReqs.forEach((rq, idx) => {
-          const title = idx === 0 ? "Заявка на ДС" : `Заявка на ДС (продление ${idx > 1 ? idx : ''})`.trim();
-          const datesClean = String(rq.dates || '').replace(/\s+/g, '');
-          html += `<p style="margin-top:6px;"><b>${cleanDateStr((rq.dates || '').split('—')[0] || p.dStart)}</b> ${title}<br>Командировка в ${rq.city || p.city} (${rq.days || p.days} дн) (с ${datesClean}) (${Number(rq.sum || 0).toLocaleString('ru-RU')} ₽)</p>`;
-        });
-      } else {
-        html += `<p style="margin-top:6px;"><b>${formatRuDateString(p.dStart)}</b> Заявка на ДС<br>Командировка в ${p.city || ''} (${p.days} дн) (${Number(p.advance || 0).toLocaleString('ru-RU')} ₽)</p>`;
-      }
-    } catch(e) {
-      html += `<p style="margin-top:6px;"><b>${formatRuDateString(p.dStart)}</b> Заявка на ДС (${Number(p.advance || 0).toLocaleString('ru-RU')} ₽)</p>`;
-    }
-
-    const thereItems = store.expenses.filter(e => e.dir === 'there');
-    if (thereItems.length > 0) {
-      const thereSum = thereItems.reduce((s, x) => s + Number(x.sum || 0), 0);
-      const mainThere = thereItems.find(x => x.isMainTicket) || thereItems[0];
-      let tName = mainThere.cat === 'plane' ? 'Самолёт' : (mainThere.cat === 'train' ? 'Поезд' : 'Автобус');
-      html += `<p style="margin-top:6px;"><b>${formatRuDateString(mainThere.date)}</b> ТУДА ${tName} (${Number(thereSum).toLocaleString('ru-RU')} ₽)</p>`;
-    }
-
-    const hotelItems = store.expenses.filter(e => e.cat === 'hotel');
-    if (hotelItems.length > 0) {
-      hotelItems.forEach(h => {
-        const typeName = h.bizType === 'self' ? 'арендованном жилье' : 'гостинице';
-        html += `<p style="margin-top:6px;"><b>${formatRuDateString(h.date)}</b> Вы оплатили жильё в ${typeName} (${Number(h.sum).toLocaleString('ru-RU')} ₽)</p>`;
-      });
-    }
-
-    if (store.taxis && store.taxis.length > 0) {
-      html += `<p style="margin-top:8px;">в командировке <b>${store.taxis.length}</b> ${store.taxis.length === 1 ? 'раз' : 'раза'} использовали такси:<ol>`;
-      store.taxis.forEach(t => {
-        html += `<li><b>${formatRuDateString(t.date)}</b> Такси (${t.route}) (${Number(t.sum).toLocaleString('ru-RU')} ₽)</li>`;
-      });
-      html += `</ol></p>`;
-    }
-
-    const miscItems = store.expenses.filter(e => e.cat === 'misc');
-    if (miscItems.length > 0) {
-      html += `<p style="margin-top:8px;">в командировке были дополнительные траты:<ul>`;
-      miscItems.forEach(m => {
-        const cleanName = m.customName || m.name.replace(/^Чек,\s*/i, '');
-        html += `<li><b>${formatRuDateString(m.date)}</b> ${cleanName} (${Number(m.sum).toLocaleString('ru-RU')} ₽)</li>`;
-      });
-      html += `</ul></p>`;
-    }
-
-    const backItems = store.expenses.filter(e => e.dir === 'back');
-    if (backItems.length > 0) {
-      const backSum = backItems.reduce((s, x) => s + Number(x.sum || 0), 0);
-      const mainBack = backItems.find(x => x.isMainTicket) || backItems[0];
-      let bName = mainBack.cat === 'plane' ? 'Самолёт' : (mainBack.cat === 'train' ? 'Поезд' : 'Автобус');
-      html += `<p style="margin-top:6px;"><b>${formatRuDateString(mainBack.date)}</b> ОБРАТНО ${bName} (${Number(backSum).toLocaleString('ru-RU')} ₽)</p>`;
-    }
-
-    html += `<p style="margin-top:8px;"><b>${formatRuDateString(p.dEnd)}</b> Вы вернулись из командировки.</p>`;
-    html += `<p style="margin-top:6px;">Начислены суточные за <b>${p.days}</b> дн.: <b>${Number(p.dailyTotal).toLocaleString('ru-RU')} ₽</b></p>`;
-
-    html += `<hr style="border:none; border-top:1px dashed #cbd5e1; margin:8px 0;">`;
-    html += `<p>• Всего подтвержденных расходов: <b>${total.toLocaleString('ru-RU')} ₽</b></p>`;
-    html += `<p>• Получено авансом: <b>${Number(p.advance || 0).toLocaleString('ru-RU')} ₽</b></p>`;
-
-    if (diff < 0) html += `<p style="color:var(--danger); font-weight:700;">🔴 Перерасход к выплате: ${Math.abs(diff).toLocaleString('ru-RU')} ₽</p>`;
-    else if (diff > 0) html += `<p style="color:var(--warning); font-weight:700;">🟡 Остаток к возврату: ${diff.toLocaleString('ru-RU')} ₽</p>`;
-    else html += `<p style="color:var(--success); font-weight:700;">🟢 Аванс израсходован точно под ноль</p>`;
-
-    return html;
-  }
-
-  function buildDocChecklistText() {
-    let list = [
-      "1. Авансовый отчёт на 2-х страницах",
-      "2. Заявки на ДС (все бланки) — НЕОБЯЗАТЕЛЬНО",
-      "3. Служебная записка на суточные",
-      "4. Документы расходов:"
-    ];
-
-    if (store.taxis.length > 0) list.push("   • Детализация поездок на такси.");
-
-    const events = [];
-    const transGroups = {};
-
-    (store.expenses || []).forEach(ex => {
-      const cat = ex.cat || "";
-      const isTrans = ['plane', 'bus', 'train'].includes(cat) || /авиа|самол|поезд|ж[\/\s-]?д|автобус/i.test(ex.name || "");
-
-      if (isTrans) {
-        const gKey = ex.groupKey || (`${ex.date}_${cat}_${ex.dir || 'dir'}`);
-        if (!transGroups[gKey]) {
-          transGroups[gKey] = { date: ex.date, cat: cat || 'plane', items: [], totalSum: 0 };
-        }
-        transGroups[gKey].items.push(ex);
-        transGroups[gKey].totalSum += Number(ex.sum || 0);
-      } else if (cat === 'hotel' || /гостиниц|отель|аренда|проживан/i.test(ex.name || "")) {
-        events.push({ date: ex.date, type: 'hotel', sum: Number(ex.sum || 0) });
-      } else if (cat === 'misc' || (!isTrans && cat !== 'taxi')) {
-        events.push({ date: ex.date, type: 'misc', name: ex.customName || String(ex.name || '').replace(/^Чек,\s*/i, ''), sum: Number(ex.sum || 0) });
-      }
-    });
-
-    Object.values(transGroups).forEach(tg => {
-      events.push({ date: tg.date, type: 'transport', cat: tg.cat, sum: tg.totalSum });
-    });
-
-    events.sort((a, b) => parseDateToTimestamp(a.date) - parseDateToTimestamp(b.date));
-
-    events.forEach(ev => {
-      const dStr = formatRuDateString(ev.date);
-      const sumFormatted = Number(ev.sum || 0).toLocaleString('ru-RU');
-
-      if (ev.type === 'transport') {
-        if (ev.cat === 'plane') list.push(`   • Самолёт: Чек + Маршрутная квитанция + Посадочные талоны <b>от ${dStr} на ${sumFormatted}</b>.`);
-        else if (ev.cat === 'train') list.push(`   • Поезд: Чек + Ж/Д билет <b>от ${dStr} на ${sumFormatted}</b>.`);
-        else if (ev.cat === 'bus') list.push(`   • Автобус: Чек + Билет <b>от ${dStr} на ${sumFormatted}</b>.`);
-      } else if (ev.type === 'hotel') {
-        list.push(`   • Проживание: Договор/Акт + Чек с QR-кодом <b>от ${dStr} на ${sumFormatted}</b>.`);
-      } else if (ev.type === 'misc') {
-        list.push(`   • Прочие расходы (${ev.name}): Чек <b>от ${dStr} на ${sumFormatted}</b>.`);
-      }
-    });
-
-    return list.join('\n');
-  }
-
-  function openChecklistModal() {
-    document.getElementById('checklist_content').innerHTML = buildDocChecklistText().replace(/\n/g, '<br>');
-    document.getElementById('checklist_modal').style.display = 'flex';
-  }
-  function closeChecklistModal() { document.getElementById('checklist_modal').style.display = 'none'; }
-  function copyChecklistText() { navigator.clipboard.writeText(buildDocChecklistText().replace(/<[^>]*>/g, '')).then(() => showToast("Список скопирован!")); }
-  function copyNarrativeText() { navigator.clipboard.writeText(document.getElementById('narrative_text').innerText).then(() => showToast("Сводка скопирована!")); }
 
   function renderFinal() {
     const p = store.passport;
