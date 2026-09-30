@@ -88,7 +88,7 @@
     .btn {
       height: 40px; display: inline-flex; align-items: center; justify-content: center;
       border-radius: 10px; font-size: 13px; font-weight: 600; border: none; cursor: pointer; width: 100%;
-      text-decoration: none; box-sizing: border-box; transition: background 0.2s;
+      text-decoration: none; box-sizing: border-box; transition: background 0.2s, opacity 0.2s;
     }
     .btn-primary { background: var(--primary); color: #fff; }
     .btn-secondary { background: #e5e5ea; color: #1c1c1e; }
@@ -96,6 +96,7 @@
     .btn-warning { background: var(--warning); color: white; }
     .btn-danger { background: #ffe5e5; color: var(--danger); height: 32px; font-size: 12px; border-radius: 8px; width: 32px; min-width: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
     .btn-danger-action { background: #ef4444 !important; color: white !important; font-weight: 700; }
+    .btn-disabled { opacity: 0.45; cursor: not-allowed !important; pointer-events: none; }
 
     .nav-bar { display: flex; gap: 8px; margin-top: 10px; width: 100%; }
     .step-content { display: none; }
@@ -271,7 +272,7 @@
       <div id="banner_report_title" style="font-size:12px; color:#004085;">—</div>
     </div>
     <div class="review-banner-btns">
-      <button type="button" class="btn btn-primary" style="height:32px; min-height:32px; padding:0 10px; font-size:12px;" onclick="enableEditingCurrentReport()">✏️ Изменить</button>
+      <button type="button" class="btn btn-primary" style="height:32px; min-height:32px; padding:0 10px; font-size:12px;" onclick="enableEditingCurrentReport()">✏️️ Изменить</button>
       <button type="button" class="btn btn-secondary" style="height:32px; min-height:32px; padding:0 10px; font-size:12px;" onclick="closeReviewMode()">✕ Закрыть</button>
     </div>
   </div>
@@ -442,7 +443,7 @@
           <button type="button" class="btn btn-secondary" style="flex:1;" onclick="handleBackFromStep4()">← Назад</button>
           <button type="button" id="btn_excel" class="btn btn-danger-action" style="flex:2;" onclick="downloadFullTemplateExcelAndNotify()">📥 Скачать Excel (.xlsx)</button>
         </div>
-        <button type="button" id="btn_pdf" class="btn btn-danger-action" onclick="generatePdfAndNotify()">📄 Сохранить в PDF</button>
+        <button type="button" id="btn_pdf" class="btn btn-secondary btn-disabled" onclick="generateFinalPrintPdfAndNotify()">📄 Сохранить в PDF</button>
         <button type="button" class="btn btn-secondary" style="border:1px dashed var(--primary); color:var(--primary); font-size:13px;" onclick="openChecklistModal()">📦 Список документов для бухгалтерии</button>
       </div>
 
@@ -785,7 +786,7 @@
     <h3 style="margin:0 0 8px 0; font-size:17px; color:#1c1c1e;">Найден незавершённый черновик</h3>
     <div id="cloud_draft_modal_text" style="font-size:13px; color:#495057; margin-bottom:18px; line-height:1.5;"></div>
     <div style="display:flex; flex-direction:column; gap:8px;">
-      <button type="button" class="btn btn-primary" onclick="confirmOpenCloudDraft()">✏️ Продолжить заполнение</button>
+      <button type="button" class="btn btn-primary" onclick="confirmOpenCloudDraft()">✏️️ Продолжить заполнение</button>
       <button type="button" class="btn btn-secondary" onclick="dismissCloudDraftTemporarily()">🕒 Напомнить позже</button>
       <button type="button" class="btn btn-secondary" onclick="confirmDiscardCloudDraft()" style="color:#ff3b30; background:transparent;">🗑 Начать с нуля</button>
     </div>
@@ -1374,7 +1375,6 @@
               <span>👤 ${shortFio} ${cleanEmpCity} (${daysCount || 18} дн)</span>
               <span style="font-size:11px; color:#007aff;">Цепочка документов ▾</span>
             </button>
-            <!-- Значок статуса по сотруднику: зеленая галочка или значок редактирования -->
             <div class="emp-icon-badge ${isMemberDone ? 'emp-icon-done' : 'emp-icon-progress'}" title="${isMemberDone ? 'Отчёт сдан' : 'В процессе'}">
               ${isMemberDone ? '✅' : '📝'}
             </div>
@@ -1677,8 +1677,8 @@
       b1.classList.add("btn-green");
     }
     if (b2) {
-      b2.classList.remove("btn-danger-action");
-      b2.classList.add("btn-green");
+      b2.classList.remove("btn-disabled", "btn-secondary");
+      b2.classList.add("btn-danger-action");
     }
   }
 
@@ -1691,8 +1691,8 @@
       b1.classList.add("btn-danger-action");
     }
     if (b2) {
-      b2.classList.remove("btn-green");
-      b2.classList.add("btn-danger-action");
+      b2.classList.remove("btn-danger-action", "btn-green");
+      b2.classList.add("btn-secondary", "btn-disabled");
     }
   }
 
@@ -1751,16 +1751,14 @@
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        showToast("✅ Excel скачан!");
+        showToast("✅ Excel скачан! Теперь доступно сохранение в PDF");
       }
-      setTimeout(openChecklistModal, 800);
       loadAppData();
     })
     .catch(() => {
       document.getElementById('report_loader_modal').style.display = 'none';
       markStep4ButtonsSaved();
-      showToast("Отчёт сохранён!");
-      setTimeout(openChecklistModal, 800);
+      showToast("Отчёт сохранён! Теперь доступно сохранение в PDF");
       loadAppData();
     })
     .finally(() => {
@@ -1768,29 +1766,61 @@
     });
   }
 
-  function generatePdfAndNotify() {
+  function generateFinalPrintPdfAndNotify() {
     const btn = document.getElementById("btn_pdf");
     btn.disabled = true;
-    btn.innerText = "⏳ Генерация PDF...";
+    btn.innerText = "⏳ Очистка строк и сборка PDF...";
 
-    document.getElementById('loader_modal_title').innerText = "Пожалуйста, подождите";
-    document.getElementById('loader_modal_desc').innerText = "Идёт сохранение отчёта и генерация PDF-документа...";
+    document.getElementById('loader_modal_title').innerText = "Подготовка печатной формы";
+    document.getElementById('loader_modal_desc').innerText = "Удаление пустых строк, условного форматирования и сборка многостраничного PDF...";
     document.getElementById('report_loader_modal').style.display = 'flex';
 
     savePassport();
-    const element = document.getElementById('printable_report');
-    const p = store.passport;
-    const fileName = `Авансовый_отчет_${(p.fio || 'сотрудника').replace(/\s+/g, '_')}.pdf`;
-    const opt = { margin: [10, 10, 10, 10], filename: fileName, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } };
+    const sortedExpenses = [...store.expenses].sort((a, b) => parseDateToTimestamp(a.date) - parseDateToTimestamp(b.date));
+    const sortedTaxis = [...store.taxis].sort((a, b) => parseDateToTimestamp(a.date) - parseDateToTimestamp(b.date));
 
-    html2pdf().set(opt).from(element).toPdf().get('pdf').then(function(pdf) {
-      pdf.save(fileName);
+    const payload = {
+      action: "generate_final_print_pdf",
+      report_uid: CURRENT_REPORT_UID,
+      passport: store.passport,
+      expenses: sortedExpenses,
+      taxis: sortedTaxis,
+      checklist_text: buildDocChecklistText(),
+      telegram_user: getTelegramUser()
+    };
+
+    fetch(GOOGLE_SHEET_API, {
+      method: "POST",
+      body: JSON.stringify(payload)
+    })
+    .then(r => r.json())
+    .then(res => {
       document.getElementById('report_loader_modal').style.display = 'none';
-      markStep4ButtonsSaved();
-      showToast("✅ PDF готов и сохранен!");
+
+      if (btn) {
+        btn.classList.remove("btn-danger-action");
+        btn.classList.add("btn-green");
+      }
+
+      if (res.pdf_download_url) {
+        const a = document.createElement("a");
+        a.href = res.pdf_download_url;
+        a.target = "_blank";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        showToast("✅ Финальный PDF готов и открыт!");
+      }
       setTimeout(openChecklistModal, 800);
-    }).finally(() => {
+      loadAppData();
+    })
+    .catch(() => {
       document.getElementById('report_loader_modal').style.display = 'none';
+      showToast("Файл передан на формирование");
+      setTimeout(openChecklistModal, 800);
+      loadAppData();
+    })
+    .finally(() => {
       setTimeout(() => { btn.disabled = false; btn.innerText = "📄 Сохранить в PDF"; }, 1500);
     });
   }
@@ -2086,7 +2116,6 @@
     document.getElementById('req_total_sum_display').innerText = overall.toLocaleString('ru-RU');
   }
 
-  // Плавный пересчет без сброса DOM-дерева и потери фокуса ввода
   function updateTeamMemberValDirect(fio, idx, key, val) {
     const it = currentReqTeamData[fio];
     if (!it) return;
@@ -2139,7 +2168,6 @@
 
     if (targetTripId) teamArr.forEach(m => m.tripId = targetTripId);
 
-    // Блокирующий лоадер ожидания
     document.getElementById('loader_modal_title').innerText = "Формирование заявки";
     document.getElementById('loader_modal_desc').innerText = "Пожалуйста, подождите. Идёт формирование файлов на Google Диске и уведомлений...";
     document.getElementById('report_loader_modal').style.display = 'flex';
@@ -2813,7 +2841,7 @@
         </div>
         <div style="display:flex; gap:6px; align-items:center;">
           <strong>${Number(e.sum).toLocaleString('ru-RU')} ₽</strong>
-          <button type="button" class="btn btn-secondary" style="height:30px; width:auto; font-size:11px; padding:0 8px;" onclick="editExpenseItem('${e.id}')">✏️️</button>
+          <button type="button" class="btn btn-secondary" style="height:30px; width:auto; font-size:11px; padding:0 8px;" onclick="editExpenseItem('${e.id}')">✏️</button>
           <button type="button" class="btn btn-danger" onclick="delExp('${e.id}')">✕</button>
         </div>
       </div>
