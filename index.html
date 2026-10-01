@@ -58,6 +58,18 @@
       background: var(--success); font-size: 10px;
     }
 
+
+    #splash { position:fixed; inset:0; z-index:20000; background:linear-gradient(160deg,#eaf3ff,#f6f0ff); display:none; flex-direction:column; align-items:center; justify-content:center; padding:24px; text-align:center; transition:opacity .35s; }
+    #splash.hide { opacity:0; pointer-events:none; }
+    #splash .sp-hello { font-size:24px; font-weight:800; color:#0b2a8a; margin-bottom:6px; }
+    #splash .sp-spin { width:54px; height:54px; border:5px solid #cfe0ff; border-top-color:#007aff; border-radius:50%; animation:spSpin 0.9s linear infinite; margin:18px 0; }
+    #splash .sp-line { font-size:15px; color:#475569; min-height:42px; max-width:300px; }
+    @keyframes spSpin { to { transform:rotate(360deg); } }
+    .md-item { display:flex; gap:10px; padding:10px; border:1px solid #e2e8f0; border-radius:12px; margin-bottom:8px; align-items:flex-start; }
+    .md-item .md-ico { font-size:22px; line-height:1.2; }
+    .md-item .md-t { font-weight:700; font-size:14px; }
+    .md-item .md-h { font-size:12px; color:#64748b; margin-top:2px; }
+    .md-item button { margin-top:6px; height:40px; font-size:14px; width:auto; padding:0 14px; }
     .status-strip {
       display: none; margin: 0 0 10px 0; padding: 9px 12px; border-radius: 12px;
       font-size: 13px; font-weight: 700; text-align: center; border: 1px solid transparent;
@@ -190,6 +202,7 @@
     }
     .trip-emp-btn:hover { background: #e2e8f0; }
 
+    .emp-pill-status { flex-shrink:0; font-size:15px; background:none !important; border:none !important; box-shadow:none !important; padding:0 !important; width:auto !important; height:auto !important; display:inline-flex; align-items:center; gap:4px; }
     .emp-icon-badge {
       display: inline-flex; align-items: center; justify-content: center;
       width: 32px; height: 32px; border-radius: 8px; font-size: 15px;
@@ -897,6 +910,21 @@
   </div>
 </div>
 
+
+<div id="splash">
+  <div class="sp-hello" id="sp_hello">Привет!</div>
+  <div class="sp-spin"></div>
+  <div class="sp-line" id="sp_line">Загружаю…</div>
+</div>
+
+<div id="missing_data_modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:10030; align-items:center; justify-content:center; padding:12px;">
+  <div style="background:#fff; border-radius:16px; width:100%; max-width:440px; max-height:92vh; overflow-y:auto; padding:16px;">
+    <h3 id="md_title" style="margin:0 0 4px 0; font-size:17px;">👋 Здравствуйте!</h3>
+    <div style="font-size:13px; color:#475569; margin-bottom:10px;">Чтобы заявки и отчёты формировались без остановок, не хватает ваших данных:</div>
+    <div id="md_list"></div>
+    <button type="button" class="btn btn-secondary" style="height:48px; font-size:15px; width:100%; margin-top:6px;" onclick="closeMissingData()">Понятно, напомните позже</button>
+  </div>
+</div>
 <div id="toast"></div>
 <div id="busy_notice" onclick="hideBusyNotice()"></div>
 
@@ -1097,6 +1125,7 @@
   function leaveReviewModeForEditing() {
     isViewingRemoteReport = false;
     setStrip('edit', '✏️ Вы начали редактирование');
+    logEvent('ao_edit_start', String((store.passport && store.passport.fio) || '') + ' ' + String((store.passport && store.passport.city) || ''));
     calcDaily();
     captureEditBaseline();
   }
@@ -1135,6 +1164,42 @@
     const urlParams = new URLSearchParams(window.location.search);
     return { id: urlParams.get('user_id') || "", first_name: store.passport.fio };
   }
+
+  // Ко всем запросам к серверу добавляем подпись Telegram (initData): по ней сервер проверяет, кто обращается
+  const _origFetch = window.fetch.bind(window);
+  window.fetch = function (url, opts) {
+    try {
+      const u = String(url);
+      if (u.indexOf(GOOGLE_SHEET_API) === 0 && tg && tg.initData) {
+        if (opts && opts.method === 'POST' && typeof opts.body === 'string') {
+          const o = JSON.parse(opts.body); o.init_data = tg.initData;
+          opts = Object.assign({}, opts, { body: JSON.stringify(o) });
+        } else if (!opts || !opts.method || opts.method === 'GET') {
+          url = u + (u.indexOf('?') >= 0 ? '&' : '?') + 'init_data=' + encodeURIComponent(tg.initData);
+        }
+      }
+    } catch (e) {}
+    return _origFetch(url, opts);
+  };
+
+  // Журнал действий: короткие события от приложения (открытие ссылок, кнопки писем, начало редактирования, ошибки)
+  function logEvent(kind, details) {
+    try {
+      fetch(GOOGLE_SHEET_API, {
+        method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'log_event', event: kind, details: details || '', telegram_user: getTelegramUser() })
+      });
+    } catch (e) {}
+  }
+  let _errLogged = 0;
+  window.addEventListener('error', (ev) => {
+    if (_errLogged >= 3) return; _errLogged++;
+    logEvent('client_error', String(ev.message || '').slice(0, 150) + ' @' + (ev.lineno || ''));
+  });
+  document.addEventListener('click', (ev) => {
+    const a = ev.target && ev.target.closest ? ev.target.closest('a[href]') : null;
+    if (a && /docs\.google|drive\.google|script\.google|mail\.html/.test(a.href)) logEvent('link_open', (a.innerText || '').trim().slice(0, 60));
+  }, true);
 
   // ===== Автосохранение черновика АО-1 в реестр =====
   let draftInFlight = false;
@@ -1374,9 +1439,10 @@
     }
   }
 
-  function openSignatureModal(tab) {
+  function openSignatureModal(tab, idx) {
     let emp = null;
-    if (tab) emp = (globalAppData.employees || []).find(e => String(e.tab) === String(tab));
+    if (idx !== undefined && idx !== null && (globalAppData.employees || [])[idx]) emp = globalAppData.employees[idx]; // по строке списка: у нескольких сотрудников табельный номер может совпадать
+    else if (tab) emp = (globalAppData.employees || []).find(e => String(e.tab) === String(tab));
     else emp = globalAppData.currentUser;
     if (!emp) {
       showToast('Сотрудник не определён. Руководитель может добавить подпись во вкладке «База сотрудников»');
@@ -1398,7 +1464,7 @@
     sigLockWindow(true);
 
     const uid = (getTelegramUser() && getTelegramUser().id) || '';
-    fetch(`${GOOGLE_SHEET_API}?action=get_signature&tab=${encodeURIComponent(emp.tab)}&user_id=${encodeURIComponent(uid)}&_=${Date.now()}`)
+    fetch(`${GOOGLE_SHEET_API}?action=get_signature&tab=${encodeURIComponent(emp.tab)}&fio=${encodeURIComponent(emp.fio)}&user_id=${encodeURIComponent(uid)}&_=${Date.now()}`)
       .then(r => r.json())
       .then(res => sigShowCurrent(res && res.ok ? res.b64 : null))
       .catch(() => sigShowCurrent(null));
@@ -1459,7 +1525,7 @@
     fetch(GOOGLE_SHEET_API, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ action: 'delete_signature', tab: sigTarget.tab, telegram_user: getTelegramUser() })
+      body: JSON.stringify({ action: 'delete_signature', tab: sigTarget.tab, fio: sigTarget.fio, telegram_user: getTelegramUser() })
     })
     .then(r => r.json())
     .then(res => {
@@ -1476,6 +1542,7 @@
     const json = JSON.stringify({ s: info.subject || '', b: info.body || '' });
     const b64 = btoa(unescape(encodeURIComponent(json))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
     const ids = (info.reqIds || []).filter(Boolean).join(',');
+    logEvent('mail_click', 'заявки: ' + (ids || '—'));
     const base = new URL('mail.html', window.location.href);
     const href = base.origin + base.pathname + (ids ? '?reqs=' + encodeURIComponent(ids) : '') + '#t=' + b64;
     triggerMailApp(href);
@@ -1589,10 +1656,95 @@
     applyDatesToAllSelectedTeam(currentPendingDays, stayDays);
   }
 
+
+  // ===== Заставка «Привет» и окно «не хватает данных» =====
+  const SPLASH_LINES = [
+    '🔍 Сверяю данные…', '🧳 Ищу ваши командировки…', '🧹 Подчищаю мусор…', '🧙 Бужу гномов в бухгалтерии…',
+    '📎 Пересчитываю скрепки…', '☕ Завариваю чай для сервера…', '🛫 Проверяю, не улетел ли самолёт без вас…',
+    '🧾 Разглаживаю чеки…', '🐌 Подгоняю улиток в таблицах…', '✨ Почти готово…'
+  ];
+  let splashTimer = null, splashShownAt = 0, splashHideTimer = null, splashIdx = 0;
+
+  function showSplash(name) {
+    const el = document.getElementById('splash');
+    if (!el) return;
+    document.getElementById('sp_hello').innerText = 'Привет' + (name ? ', ' + name : '') + '! 👋';
+    splashShownAt = Date.now();
+    el.classList.remove('hide');
+    el.style.display = 'flex';
+    splashIdx = Math.floor(Math.random() * SPLASH_LINES.length);
+    const line = document.getElementById('sp_line');
+    line.innerText = SPLASH_LINES[splashIdx];
+    clearInterval(splashTimer);
+    splashTimer = setInterval(() => {
+      splashIdx = (splashIdx + 1) % SPLASH_LINES.length;
+      line.innerText = SPLASH_LINES[splashIdx];
+    }, 1100);
+    clearTimeout(splashHideTimer);
+    splashHideTimer = setTimeout(hideSplash, 5000); // дольше пяти секунд не держим
+  }
+
+  function setSplashName(name) {
+    const h = document.getElementById('sp_hello');
+    if (h && name) h.innerText = 'Привет, ' + name + '! 👋';
+  }
+
+  function hideSplash(afterMin) {
+    const el = document.getElementById('splash');
+    if (!el || el.style.display === 'none') return;
+    const wait = afterMin ? Math.max(0, 2000 - (Date.now() - splashShownAt)) : 0; // не короче двух секунд
+    setTimeout(() => {
+      clearInterval(splashTimer); clearTimeout(splashHideTimer);
+      el.classList.add('hide');
+      setTimeout(() => { el.style.display = 'none'; }, 380);
+      showMissingDataIfNeeded();
+    }, wait);
+  }
+
+  function computeMissingData(emp) {
+    const miss = [];
+    if (!emp) return miss;
+    const digits = (v) => String(v || '').replace(/\D/g, '');
+    const tab = String(emp.tab || '').trim();
+    if (!tab || /^0+$/.test(tab)) miss.push({ ico: '🔢', t: 'Табельный номер', h: 'Табельный номер вносит руководитель во вкладке «База сотрудников» (кнопка 👥). Напишите руководителю, пожалуйста.', act: null });
+    if (!emp.hasSignature) miss.push({ ico: '✍️', t: 'Подпись', h: 'Нажмите кнопку ✍️ вверху: нарисуйте подпись пальцем или загрузите фото. Она ставится в заявки на ДС.', act: 'sig', btn: '✍️ Добавить подпись' });
+    const inn = digits(emp.bankInn), bik = digits(emp.bankBik), acc = digits(emp.bankAcc);
+    const bankLack = [];
+    if (!(inn.length === 10 || inn.length === 12)) bankLack.push('ИНН банка (10 цифр)');
+    if (bik.length !== 9) bankLack.push('БИК банка (9 цифр)');
+    if (acc.length !== 20) bankLack.push('расчётный счёт (20 цифр)');
+    if (bankLack.length) miss.push({ ico: '🏦', t: 'Банковские реквизиты для заявок на ДС', h: 'Не хватает: ' + bankLack.join(', ') + '. Все три значения есть в реквизитах вашей карты в приложении банка.', act: 'bank', btn: '🏦 Добавить реквизиты' });
+    return miss;
+  }
+
+  function showMissingDataIfNeeded() {
+    const cur = globalAppData.currentUser; // руководителям показываем только про них самих
+    const miss = computeMissingData(cur);
+    if (!cur || miss.length === 0) return;
+    // реквизиты сгруппированы: одна кнопка на все три пункта
+    let bankBtnShown = false;
+    document.getElementById('md_title').innerText = '👋 Здравствуйте, ' + (String(cur.fio || '').trim().split(/\s+/).slice(1, 2).join(' ') || cur.fio || '') + '!';
+    document.getElementById('md_list').innerHTML = miss.map(m => {
+      let btn = '';
+      if (m.act === 'sig') btn = `<br><button type="button" class="btn btn-primary" onclick="closeMissingData(); openSignatureModal();">${m.btn}</button>`;
+      if (m.act === 'bank' && !bankBtnShown) { bankBtnShown = true; btn = `<br><button type="button" class="btn btn-primary" onclick="closeMissingData(); promptBankDetailsModal(globalAppData.currentUser);">${m.btn}</button>`; }
+      return `<div class="md-item"><div class="md-ico">${m.ico}</div><div><div class="md-t">${m.t}</div><div class="md-h">${m.h}</div>${btn}</div></div>`;
+    }).join('');
+    document.getElementById('missing_data_modal').style.display = 'flex';
+    logEvent('missing_data_shown', miss.map(m => m.t).join(', '));
+  }
+
+  function closeMissingData() { document.getElementById('missing_data_modal').style.display = 'none'; }
+
   function loadAppData() {
     const urlParams = new URLSearchParams(window.location.search);
     let userId = urlParams.get('user_id');
     if (!userId && tg && tg.initDataUnsafe && tg.initDataUnsafe.user) userId = tg.initDataUnsafe.user.id;
+    if (!window.__splashDone) {
+      window.__splashDone = true;
+      const tu = tg && tg.initDataUnsafe && tg.initDataUnsafe.user;
+      showSplash(tu ? (tu.first_name || '') : '');
+    }
     if (!userId) {
       // Без Telegram пользователя нет: данные не загружаем (для проверки в браузере добавьте в адрес ?user_id=...)
       showToast("Откройте приложение через Telegram");
@@ -1602,6 +1754,7 @@
       .then(r => r.json())
       .then(res => {
         globalAppData = res;
+        if (res.currentUser && res.currentUser.fio) setSplashName(String(res.currentUser.fio).trim().split(/\s+/).slice(1, 2).join(' ') || res.currentUser.fio);
         applyRoleUiRestrictions();
 
         if (res.isAdmin) {
@@ -1642,8 +1795,10 @@
         }
 
         checkCloudDraftPopup(res.reports, userId, res.isAdmin);
+        hideSplash(true);
       })
       .catch(() => {
+        hideSplash(true);
         document.getElementById('trips_tree_container').innerHTML = '<div style="color:var(--danger); font-size:12px;">Ошибка загрузки командировок.</div>';
       });
   }
@@ -1675,11 +1830,13 @@
     }
   }
 
-  function openNotificationSettingsModal(empTab = null) {
+  function openNotificationSettingsModal(empTab = null, idx) {
     let targetEmp = null;
     const isLeadOrSuper = globalAppData.isAdmin || globalAppData.isSuperAdmin;
 
-    if (empTab) {
+    if (idx !== undefined && idx !== null && (globalAppData.employees || [])[idx]) {
+      targetEmp = globalAppData.employees[idx];
+    } else if (empTab) {
       targetEmp = (globalAppData.employees || []).find(e => e.tab === empTab);
     } else {
       targetEmp = globalAppData.currentUser || (globalAppData.employees || [])[0];
@@ -1691,6 +1848,7 @@
     }
 
     document.getElementById('notif_target_tab').value = targetEmp ? targetEmp.tab : '';
+    document.getElementById('notif_target_tab').dataset.fio = targetEmp ? targetEmp.fio : '';
     document.getElementById('notif_target_tgid').value = targetEmp ? (targetEmp.tgId || '') : '';
     
     if (targetEmp) {
@@ -1735,7 +1893,7 @@
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ 
         action: "update_notification_settings", 
-        tab, 
+        tab, fio: document.getElementById('notif_target_tab').dataset.fio || '',
         notifyReq, 
         notifyAo,
         sender_id: getTelegramUser().id,
@@ -1747,12 +1905,13 @@
       showToast("Настройки уведомлений обновлены!");
       closeNotificationSettingsModal();
       
-      const emp = (globalAppData.employees || []).find(e => e.tab === tab);
+      const nFio = document.getElementById('notif_target_tab').dataset.fio || '';
+      const emp = (globalAppData.employees || []).find(e => e.tab === tab && (!nFio || e.fio === nFio));
       if (emp) {
         emp.notifyReq = notifyReq;
         emp.notifyAo = notifyAo;
       }
-      if (globalAppData.currentUser && globalAppData.currentUser.tab === tab) {
+      if (globalAppData.currentUser && globalAppData.currentUser.tab === tab && (!nFio || globalAppData.currentUser.fio === nFio)) {
         globalAppData.currentUser.notifyReq = notifyReq;
         globalAppData.currentUser.notifyAo = notifyAo;
       }
@@ -1920,13 +2079,10 @@
         html += `
           <div style="display:flex; gap:6px; align-items:center; margin:4px 0;">
             <button type="button" class="trip-emp-btn" style="margin:0; flex:1;" onclick="toggleAccordion('${memberBoxId}')">
-              <span>👤 ${shortFio} ${cleanEmpCity} (${daysCount || 18} дн)</span>
-              <span style="font-size:11px; color:#007aff;">Цепочка документов ▾</span>
+              <span>👤 ${shortFio}${(cleanEmpCity && cleanEmpCity !== grp.cities) ? ' ' + cleanEmpCity : ''} <small style="opacity:.8;">(${daysCount || 18} дн)</small></span>
+              <span class="emp-pill-status ${isMemberDone ? 'emp-icon-done' : 'emp-icon-progress'}" title="${isMemberDone ? 'Отчёт сдан' : (draftAo ? 'Есть несданные правки' : 'В процессе')}">${isMemberDone ? '✅' : '📝'} <span style="font-size:11px; color:#007aff;">▾</span></span>
             </button>
-            <div class="emp-icon-badge ${isMemberDone ? 'emp-icon-done' : 'emp-icon-progress'}" title="${isMemberDone ? 'Отчёт сдан' : (draftAo ? 'Есть несданные правки' : 'В процессе')}">
-              ${isMemberDone ? '✅' : '📝'}
-            </div>
-            ${globalAppData.isAdmin ? `<button type="button" class="btn btn-danger" style="height:34px; width:34px; min-width:34px;" title="Удалить командировку сотрудника" onclick="deleteSingleMemberTrip('${tr.tripId}', '${personFio.replace(/'/g, "\\'")}')">🗑️</button>` : ''}
+            ${globalAppData.isAdmin ? `<button type="button" class="btn btn-danger" title="Удалить командировку сотрудника" onclick="deleteSingleMemberTrip('${tr.tripId}', '${personFio.replace(/'/g, "\\'")}')">🗑️</button>` : ''}
           </div>
 
           <div id="${memberBoxId}" class="timeline-chain-box" style="display:none;">
@@ -3090,6 +3246,7 @@
       document.getElementById('step-4').classList.add('active');
       renderFinal();
 
+      logEvent('ao_view', String(store.passport.fio || '') + ' ' + formatUniqueCities(store.passport.city || ''));
       setStrip('view', `👁️ Просмотр: ${store.passport.fio} (${formatUniqueCities(store.passport.city)})`);
       window.scrollTo(0, 0);
     } catch(e) {
@@ -3159,10 +3316,10 @@
           <small style="color:#64748b;">${emp.role} | Таб: ${emp.tab} | TG: ${emp.tgId || '—'}</small>
         </div>
         <div style="display:flex; gap:6px; align-items:center;">
-          <button type="button" class="btn btn-secondary" style="height:32px; font-size:12px; width:auto; padding:0 8px;" title="Подпись сотрудника" onclick="openSignatureModal('${emp.tab}')">✍️${emp.hasSignature ? '✅' : '➕'}</button>
-          <button type="button" class="btn btn-secondary" style="height:32px; font-size:13px; width:34px; padding:0;" title="Настройки уведомлений Telegram" onclick="openNotificationSettingsModal('${emp.tab}')">🔔</button>
+          <button type="button" class="btn btn-secondary" style="height:32px; font-size:12px; width:auto; padding:0 8px;" title="Подпись сотрудника" onclick="openSignatureModal('${emp.tab}', ${idx})">✍️${emp.hasSignature ? '✅' : '➕'}</button>
+          <button type="button" class="btn btn-secondary" style="height:32px; font-size:13px; width:34px; padding:0;" title="Настройки уведомлений Telegram" onclick="openNotificationSettingsModal('${emp.tab}', ${idx})">🔔</button>
           <button type="button" class="btn btn-secondary" style="height:32px; font-size:11px; width:auto; padding:0 8px;" onclick="openEditEmployeeModal(${idx})">✏️ Изм.</button>
-          <button type="button" class="btn btn-danger" onclick="deleteEmployee('${emp.tab}')">🗑️</button>
+          <button type="button" class="btn btn-danger" onclick="deleteEmployee('${emp.tab}', ${idx})">🗑️</button>
         </div>
       </div>
     `).join('');
@@ -3182,6 +3339,7 @@
     const emp = globalAppData.employees[idx];
     document.getElementById("modal_title").innerText = "Редактировать сотрудника";
     document.getElementById("modal_old_tab").value = emp.tab;
+    document.getElementById("modal_old_tab").dataset.fio = emp.fio;
     document.getElementById("modal_fio").value = emp.fio;
     document.getElementById("modal_role").value = emp.role;
     document.getElementById("modal_tab").value = emp.tab;
@@ -3202,7 +3360,7 @@
     fetch(GOOGLE_SHEET_API, {
       method: "POST", mode: "no-cors",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: oldTab ? "update" : "add", fio, role, tab, tgid, oldTab, sender_id: getTelegramUser().id })
+      body: JSON.stringify({ action: oldTab ? "update" : "add", fio, role, tab, tgid, oldTab, oldFio: oldTab ? (document.getElementById("modal_old_tab").dataset.fio || '') : '', sender_id: getTelegramUser().id })
     }).then(() => {
       showToast("Сохранено!");
       closeEmpModal();
@@ -3210,12 +3368,13 @@
     });
   }
 
-  function deleteEmployee(tab) {
-    if (!confirm("Удалить сотрудника?")) return;
+  function deleteEmployee(tab, idx) {
+    const delEmp = (idx !== undefined && globalAppData.employees) ? globalAppData.employees[idx] : null;
+    if (!confirm("Удалить сотрудника" + (delEmp ? " «" + delEmp.fio + "»" : "") + "?")) return;
     fetch(GOOGLE_SHEET_API, {
       method: "POST", mode: "no-cors",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "delete", tab, sender_id: getTelegramUser().id })
+      body: JSON.stringify({ action: "delete", tab, fio: delEmp ? delEmp.fio : '', sender_id: getTelegramUser().id })
     }).then(() => {
       showToast("Удалено!");
       setTimeout(loadAppData, 1200);
@@ -3244,12 +3403,14 @@
     if (!inn || !bik || !acc) { showToast("Заполните ИНН, БИК и счет"); return; }
     const emp = globalAppData.employees.find(e => e.fio === fio);
     if (emp) { emp.bankInn = inn; emp.bankBik = bik; emp.bankAcc = acc; emp.homeCity = city; }
+    const cu = globalAppData.currentUser;
+    if (cu && cu.fio === fio) { cu.bankInn = inn; cu.bankBik = bik; cu.bankAcc = acc; cu.homeCity = city; }
     if (currentReqTeamData[fio]) { currentReqTeamData[fio].bankInn = inn; currentReqTeamData[fio].bankBik = bik; currentReqTeamData[fio].bankAcc = acc; }
 
     fetch(GOOGLE_SHEET_API, {
       method: "POST", mode: "no-cors",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "update_bank_details", employee: { fio, bankInn: inn, bankBik: bik, bankAcc: acc, homeCity: city } })
+      body: JSON.stringify({ action: "update_bank_details", telegram_user: getTelegramUser(), employee: { fio, tab: emp ? emp.tab : '', bankInn: inn, bankBik: bik, bankAcc: acc, homeCity: city } })
     });
     closeBankDetailsModal();
     showToast("Реквизиты сохранены!");
