@@ -286,10 +286,13 @@
       <button type="button" id="tab_btn_emp" class="tab-btn" style="display:none;" onclick="switchMainTab('employees')">👥 База сотрудников</button>
     </div>
 
-    <!-- Колокол настроек уведомлений Telegram -->
-    <div class="tg-notif-btn" title="Настройки уведомлений Telegram" onclick="openNotificationSettingsModal()">
-      <span>🔔</span>
-      <span id="tg_header_badge" class="tg-badge-counter all-good">✓</span>
+    <!-- Подпись и колокол настроек уведомлений Telegram -->
+    <div style="display:flex; gap:6px; flex-shrink:0;">
+      <div class="tg-notif-btn" title="Моя подпись" onclick="openSignatureModal()"><span>✍️</span></div>
+      <div class="tg-notif-btn" title="Настройки уведомлений Telegram" onclick="openNotificationSettingsModal()">
+        <span>🔔</span>
+        <span id="tg_header_badge" class="tg-badge-counter all-good">✓</span>
+      </div>
     </div>
   </div>
 
@@ -865,6 +868,47 @@
   </div>
 </div>
 
+<div id="signature_modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:10040; align-items:center; justify-content:center; padding:12px;">
+  <div style="background:#fff; border-radius:16px; width:100%; max-width:440px; max-height:92vh; overflow-y:auto; padding:16px;">
+    <h3 style="margin:0 0 4px 0;">✍️ Подпись</h3>
+    <div id="sig_subtitle" style="font-size:12px; color:#64748b; margin-bottom:10px;"></div>
+
+    <div style="font-size:12px; color:#64748b; margin-bottom:4px;">Сохранённая подпись:</div>
+    <div id="sig_current_box" style="border:1px solid #e2e8f0; border-radius:10px; min-height:54px; display:flex; align-items:center; justify-content:center; margin-bottom:12px; background:#fff;">
+      <span id="sig_current_text" style="font-size:12px; color:#94a3b8;">Загружаю…</span>
+      <img id="sig_current_img" alt="" style="display:none; max-width:100%; max-height:80px;">
+    </div>
+
+    <div style="display:flex; gap:6px; margin-bottom:10px;">
+      <button type="button" id="sig_mode_draw" class="btn btn-primary" style="height:34px; font-size:13px;" onclick="sigSetMode('draw')">✍️ Нарисовать</button>
+      <button type="button" id="sig_mode_photo" class="btn btn-secondary" style="height:34px; font-size:13px;" onclick="sigSetMode('photo')">📷 Из фото</button>
+    </div>
+
+    <div id="sig_pane_draw">
+      <canvas id="sig_canvas" width="600" height="200" style="width:100%; height:auto; border:1.5px dashed #94a3b8; border-radius:10px; background:#fff; touch-action:none;"></canvas>
+      <div style="font-size:11px; color:#94a3b8; margin:4px 0 8px 0;">Распишитесь пальцем или мышью в рамке.</div>
+      <button type="button" class="btn btn-secondary" style="height:32px; font-size:12px; width:auto; padding:0 12px;" onclick="sigClearDraw()">🧹 Очистить</button>
+    </div>
+
+    <div id="sig_pane_photo" style="display:none;">
+      <input type="file" id="sig_file" accept="image/*" onchange="sigOnFile(this)" style="width:100%; margin-bottom:8px; font-size:13px;">
+      <canvas id="sig_photo_canvas" width="300" height="100" style="width:100%; height:auto; border:1.5px dashed #94a3b8; border-radius:10px; background-color:#fff; background-image:linear-gradient(45deg,#eef2f7 25%,transparent 25%,transparent 75%,#eef2f7 75%),linear-gradient(45deg,#eef2f7 25%,transparent 25%,transparent 75%,#eef2f7 75%); background-size:16px 16px; background-position:0 0,8px 8px;"></canvas>
+      <div style="display:flex; align-items:center; gap:8px; margin-top:8px; font-size:12px; color:#475569;">
+        <span>Удаление фона:</span>
+        <input type="range" id="sig_thr" min="0" max="100" value="50" oninput="sigRenderPhoto()" style="flex:1;">
+      </div>
+      <div style="font-size:11px; color:#94a3b8; margin-top:4px;">Подпись ручкой на белом листе при ровном свете. Если остались пятна или подпись «тает», подвигайте ползунок.</div>
+    </div>
+
+    <div id="sig_status" style="font-size:13px; min-height:18px; margin:10px 0 6px 0;"></div>
+    <div style="display:flex; gap:6px;">
+      <button type="button" class="btn btn-primary" onclick="saveSignature()">💾 Сохранить подпись</button>
+      <button type="button" class="btn btn-secondary" onclick="closeSignatureModal()">Закрыть</button>
+    </div>
+    <button type="button" id="sig_delete_btn" class="btn btn-danger" style="margin-top:8px; height:30px; font-size:12px; display:none;" onclick="deleteSignature()">🗑️ Удалить сохранённую подпись</button>
+  </div>
+</div>
+
 <div id="toast"></div>
 <div id="draft_status"></div>
 <div id="busy_notice" onclick="hideBusyNotice()"></div>
@@ -1177,6 +1221,247 @@
   }
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushCloudDraftNow(); });
   window.addEventListener('pagehide', flushCloudDraftNow);
+
+  // ===== Подпись: рисование и фото, сохранение на сервере =====
+  let sigTarget = { tab: '', fio: '' };
+  let sigMode = 'draw';
+  let sigDrawing = false;
+  let sigHasInk = false;
+  let sigBound = false;
+  let sigPhotoSource = null;
+
+  function sigSetStatus(text, isErr) {
+    const el = document.getElementById('sig_status');
+    el.innerText = text || '';
+    el.style.color = isErr ? '#c62828' : '#1f8a4c';
+  }
+
+  function sigSetMode(mode) {
+    sigMode = mode;
+    document.getElementById('sig_pane_draw').style.display = (mode === 'draw') ? 'block' : 'none';
+    document.getElementById('sig_pane_photo').style.display = (mode === 'photo') ? 'block' : 'none';
+    document.getElementById('sig_mode_draw').className = 'btn ' + (mode === 'draw' ? 'btn-primary' : 'btn-secondary');
+    document.getElementById('sig_mode_photo').className = 'btn ' + (mode === 'photo' ? 'btn-primary' : 'btn-secondary');
+    sigSetStatus('');
+  }
+
+  function sigBindCanvas() {
+    if (sigBound) return;
+    sigBound = true;
+    const cv = document.getElementById('sig_canvas');
+    const ctx = cv.getContext('2d');
+    const pos = (ev) => {
+      const r = cv.getBoundingClientRect();
+      return { x: (ev.clientX - r.left) * cv.width / r.width, y: (ev.clientY - r.top) * cv.height / r.height };
+    };
+    cv.addEventListener('pointerdown', (ev) => {
+      ev.preventDefault();
+      sigDrawing = true;
+      try { cv.setPointerCapture(ev.pointerId); } catch (e) {}
+      const p = pos(ev);
+      ctx.lineWidth = 5; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#0b2a8a';
+      ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + 0.01, p.y + 0.01); ctx.stroke();
+      sigHasInk = true;
+    });
+    cv.addEventListener('pointermove', (ev) => {
+      if (!sigDrawing) return;
+      ev.preventDefault();
+      const p = pos(ev);
+      ctx.lineTo(p.x, p.y); ctx.stroke();
+    });
+    const end = () => { sigDrawing = false; };
+    cv.addEventListener('pointerup', end);
+    cv.addEventListener('pointercancel', end);
+  }
+
+  function sigClearDraw() {
+    const cv = document.getElementById('sig_canvas');
+    cv.getContext('2d').clearRect(0, 0, cv.width, cv.height);
+    sigHasInk = false;
+  }
+
+  // Обрезаем пустые поля и приводим к PNG 900×270 (10:3) с прозрачным фоном
+  function sigCanvasToPng(src) {
+    const w = src.width, h = src.height;
+    const d = src.getContext('2d').getImageData(0, 0, w, h).data;
+    let minX = w, minY = h, maxX = -1, maxY = -1;
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        if (d[(y * w + x) * 4 + 3] > 20) {
+          if (x < minX) minX = x; if (x > maxX) maxX = x;
+          if (y < minY) minY = y; if (y > maxY) maxY = y;
+        }
+      }
+    }
+    if (maxX < 0) return null;
+    const pad = 6;
+    minX = Math.max(0, minX - pad); minY = Math.max(0, minY - pad);
+    maxX = Math.min(w - 1, maxX + pad); maxY = Math.min(h - 1, maxY + pad);
+    const cw = maxX - minX + 1, ch = maxY - minY + 1;
+    const OUT_W = 900, OUT_H = 270;
+    const scale = Math.min(OUT_W / cw, OUT_H / ch);
+    const dw = cw * scale, dh = ch * scale;
+    const out = document.createElement('canvas');
+    out.width = OUT_W; out.height = OUT_H;
+    const octx = out.getContext('2d');
+    octx.imageSmoothingQuality = 'high';
+    octx.drawImage(src, minX, minY, cw, ch, (OUT_W - dw) / 2, (OUT_H - dh) / 2, dw, dh);
+    return out.toDataURL('image/png');
+  }
+
+  function sigOnFile(input) {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const sc = Math.min(1, 1200 / img.width);
+      const c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(img.width * sc));
+      c.height = Math.max(1, Math.round(img.height * sc));
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      sigPhotoSource = c;
+      sigRenderPhoto();
+    };
+    img.onerror = () => { sigSetStatus('Не удалось открыть изображение', true); };
+    img.src = url;
+  }
+
+  // Фото -> подпись: убираем светлый фон бумаги, чернила красим в тёмно-синий
+  function sigRenderPhoto() {
+    if (!sigPhotoSource) return;
+    const w = sigPhotoSource.width, h = sigPhotoSource.height;
+    const src = sigPhotoSource.getContext('2d').getImageData(0, 0, w, h);
+    const out = document.getElementById('sig_photo_canvas');
+    out.width = w; out.height = h;
+    const octx = out.getContext('2d');
+    const dst = octx.createImageData(w, h);
+
+    const lum = new Uint8ClampedArray(w * h);
+    const hist = new Array(256).fill(0);
+    for (let i = 0; i < w * h; i++) {
+      const l = Math.round(0.299 * src.data[i * 4] + 0.587 * src.data[i * 4 + 1] + 0.114 * src.data[i * 4 + 2]);
+      lum[i] = l; hist[l]++;
+    }
+    // яркость бумаги = 90-й процентиль (чтобы тёмное или тёплое фото не портило результат)
+    let acc = 0, paper = 255;
+    const target = w * h * 0.9;
+    for (let v = 0; v < 256; v++) { acc += hist[v]; if (acc >= target) { paper = v; break; } }
+    paper = Math.max(paper, 80);
+    const k = Number(document.getElementById('sig_thr').value) / 100;
+    const hi = paper * (0.55 + 0.4 * k);
+    const lo = hi * 0.6;
+    for (let i = 0; i < w * h; i++) {
+      const l = lum[i];
+      let a = 0;
+      if (l <= lo) a = 255; else if (l < hi) a = Math.round(255 * (hi - l) / (hi - lo));
+      dst.data[i * 4] = 11; dst.data[i * 4 + 1] = 42; dst.data[i * 4 + 2] = 138; dst.data[i * 4 + 3] = a;
+    }
+    octx.putImageData(dst, 0, 0);
+  }
+
+  function sigMarkHas(has) {
+    (globalAppData.employees || []).forEach(e => { if (String(e.tab) === String(sigTarget.tab)) e.hasSignature = has; });
+    if (globalAppData.currentUser && String(globalAppData.currentUser.tab) === String(sigTarget.tab)) globalAppData.currentUser.hasSignature = has;
+    try { renderAdminEmployees(); } catch (e) {}
+  }
+
+  function sigShowCurrent(b64) {
+    const img = document.getElementById('sig_current_img');
+    const txt = document.getElementById('sig_current_text');
+    const del = document.getElementById('sig_delete_btn');
+    if (b64) {
+      img.src = 'data:image/png;base64,' + b64;
+      img.style.display = 'block'; txt.style.display = 'none'; del.style.display = 'block';
+    } else {
+      img.style.display = 'none'; txt.style.display = 'inline'; txt.innerText = 'Подпись не загружена'; del.style.display = 'none';
+    }
+  }
+
+  function openSignatureModal(tab) {
+    let emp = null;
+    if (tab) emp = (globalAppData.employees || []).find(e => String(e.tab) === String(tab));
+    else emp = globalAppData.currentUser;
+    if (!emp) {
+      showToast('Сотрудник не определён. Руководитель может добавить подпись во вкладке «База сотрудников»');
+      return;
+    }
+    sigTarget = { tab: emp.tab, fio: emp.fio };
+    sigBindCanvas();
+    sigClearDraw();
+    sigPhotoSource = null;
+    document.getElementById('sig_file').value = '';
+    const pc = document.getElementById('sig_photo_canvas'); pc.width = 300; pc.height = 100;
+    document.getElementById('sig_subtitle').innerText = emp.fio + ' (таб. ' + emp.tab + ')';
+    document.getElementById('sig_current_text').innerText = 'Загружаю…';
+    document.getElementById('sig_current_text').style.display = 'inline';
+    document.getElementById('sig_current_img').style.display = 'none';
+    document.getElementById('sig_delete_btn').style.display = 'none';
+    sigSetMode('draw');
+    document.getElementById('signature_modal').style.display = 'flex';
+
+    const uid = (getTelegramUser() && getTelegramUser().id) || '';
+    fetch(`${GOOGLE_SHEET_API}?action=get_signature&tab=${encodeURIComponent(emp.tab)}&user_id=${encodeURIComponent(uid)}&_=${Date.now()}`)
+      .then(r => r.json())
+      .then(res => sigShowCurrent(res && res.ok ? res.b64 : null))
+      .catch(() => sigShowCurrent(null));
+  }
+
+  function closeSignatureModal() {
+    document.getElementById('signature_modal').style.display = 'none';
+  }
+
+  function saveSignature() {
+    let src = null;
+    if (sigMode === 'draw') {
+      if (!sigHasInk) { sigSetStatus('Сначала нарисуйте подпись', true); return; }
+      src = document.getElementById('sig_canvas');
+    } else {
+      if (!sigPhotoSource) { sigSetStatus('Сначала выберите фото', true); return; }
+      src = document.getElementById('sig_photo_canvas');
+    }
+    const dataUrl = sigCanvasToPng(src);
+    if (!dataUrl) { sigSetStatus('На картинке не найдена подпись', true); return; }
+
+    sigSetStatus('Сохраняю…');
+    fetch(GOOGLE_SHEET_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({
+        action: 'save_signature', tab: sigTarget.tab, fio: sigTarget.fio,
+        image_b64: dataUrl.split(',')[1], telegram_user: getTelegramUser()
+      })
+    })
+    .then(r => r.json())
+    .then(res => {
+      if (res && res.status === 'success') {
+        sigMarkHas(true);
+        sigShowCurrent(dataUrl.split(',')[1]);
+        sigSetStatus('✅ Подпись сохранена: она будет в новых заявках');
+        showToast('Подпись сохранена');
+      } else {
+        sigSetStatus((res && res.message) || 'Не удалось сохранить', true);
+      }
+    })
+    .catch(() => sigSetStatus('Нет связи с сервером. Попробуйте ещё раз', true));
+  }
+
+  function deleteSignature() {
+    if (!confirm('Удалить сохранённую подпись?')) return;
+    sigSetStatus('Удаляю…');
+    fetch(GOOGLE_SHEET_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'delete_signature', tab: sigTarget.tab, telegram_user: getTelegramUser() })
+    })
+    .then(r => r.json())
+    .then(res => {
+      if (res && res.status === 'success') { sigMarkHas(false); sigShowCurrent(null); sigSetStatus('Подпись удалена'); }
+      else sigSetStatus((res && res.message) || 'Не удалось удалить', true);
+    })
+    .catch(() => sigSetStatus('Нет связи с сервером', true));
+  }
 
   // Открывает страницу mail.html (на GitHub Pages) с готовым письмом и вложениями-заявками.
   // Тема и текст передаются в «хвосте» ссылки (#t=...), номера заявок для вложений в ?reqs=...
@@ -2843,6 +3128,7 @@
           <small style="color:#64748b;">${emp.role} | Таб: ${emp.tab} | TG: ${emp.tgId || '—'}</small>
         </div>
         <div style="display:flex; gap:6px; align-items:center;">
+          <button type="button" class="btn btn-secondary" style="height:32px; font-size:12px; width:auto; padding:0 8px;" title="Подпись сотрудника" onclick="openSignatureModal('${emp.tab}')">✍️${emp.hasSignature ? '✅' : '➕'}</button>
           <button type="button" class="btn btn-secondary" style="height:32px; font-size:13px; width:34px; padding:0;" title="Настройки уведомлений Telegram" onclick="openNotificationSettingsModal('${emp.tab}')">🔔</button>
           <button type="button" class="btn btn-secondary" style="height:32px; font-size:11px; width:auto; padding:0 8px;" onclick="openEditEmployeeModal(${idx})">✏️ Изм.</button>
           <button type="button" class="btn btn-danger" onclick="deleteEmployee('${emp.tab}')">🗑️</button>
