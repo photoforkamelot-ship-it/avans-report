@@ -239,6 +239,24 @@
       color: #dc2626; font-size: 11px; font-weight: 700; margin-bottom: 4px; display: block;
     }
 
+    /* Занятые даты в календаре заявки */
+    .flatpickr-day.busy-day, .flatpickr-day.busy-day.flatpickr-disabled,
+    .flatpickr-day.busy-day.prevMonthDay, .flatpickr-day.busy-day.nextMonthDay {
+      background: #fee2e2 !important; border-color: #fca5a5 !important; color: #b91c1c !important;
+      text-decoration: line-through; cursor: not-allowed !important;
+    }
+    #busy_notice {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.45);
+      display: none; align-items: center; justify-content: center; padding: 16px; z-index: 100002;
+    }
+    .busy-notice-card {
+      background: #fff; border-radius: 16px; padding: 18px; width: 100%; max-width: 380px;
+      box-shadow: 0 12px 36px rgba(0,0,0,0.3); text-align: center;
+    }
+    .busy-notice-title { font-size: 17px; font-weight: 800; margin-bottom: 10px; color: #b91c1c; }
+    .busy-notice-line { font-size: 14px; line-height: 1.4; margin-bottom: 8px; color: #1c1c1e; }
+    .busy-notice-hint { font-size: 12px; color: #6c6c70; margin-top: 4px; }
+
     #toast {
       position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
       background: rgba(0,0,0,0.85); color: white; padding: 8px 16px; border-radius: 18px;
@@ -839,6 +857,7 @@
 </div>
 
 <div id="toast"></div>
+<div id="busy_notice" onclick="hideBusyNotice()"></div>
 
 <script>
   const DADATA_API_KEY = "74443bebf6f911f3792509fa4ad680d6977c3e14";
@@ -872,6 +891,90 @@
     const parts = dStr.split('.');
     if (parts.length === 3) return new Date(parts[2], parts[1] - 1, parts[0]).getTime();
     return new Date(dStr).getTime() || 0;
+  }
+
+  // ===== Занятые даты: проверка пересечения командировок сотрудника =====
+  let calendarBusyPeriods = [];
+  let busyNoticeTimer = null;
+
+  function dmyToDayNum(str) {
+    const m = String(str || '').match(/(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+    if (!m) return NaN;
+    return Math.floor(Date.UTC(Number(m[3]), Number(m[2]) - 1, Number(m[1])) / 86400000);
+  }
+  function dateToDayNum(d) {
+    return Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000);
+  }
+  function dayNumToRu(n) {
+    const d = new Date(n * 86400000);
+    const dd = String(d.getUTCDate()).padStart(2, '0');
+    const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+    return dd + '.' + mm + '.' + d.getUTCFullYear();
+  }
+  function busyEsc(t) {
+    return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+  function shortPersonName(fio) {
+    const parts = String(fio || '').trim().split(/\s+/);
+    return (parts[0] || '') + (parts[1] ? ' ' + parts[1][0] + '.' : '');
+  }
+
+  // Периоды, в которые сотрудник уже в командировках (кроме excludeTripId: при продлении это сама продлеваемая поездка)
+  function getBusyPeriodsForEmployee(fio, tab, excludeTripId) {
+    const cleanTab = String(tab || '').replace(/'/g, '').trim();
+    const hasTab = cleanTab && cleanTab !== '—';
+    const res = [];
+    (globalAppData.trips || []).forEach(tr => {
+      if (excludeTripId && tr.tripId === excludeTripId) return;
+      const trTab = String(tr.tab || '').replace(/'/g, '').trim();
+      const same = hasTab ? (trTab === cleanTab) : (String(tr.team || '').trim() === String(fio || '').trim());
+      if (!same) return;
+      const parts = String(tr.dates || '').split('—').map(x => x.trim());
+      if (parts.length !== 2) return;
+      const sN = dmyToDayNum(parts[0]), eN = dmyToDayNum(parts[1]);
+      if (isNaN(sN) || isNaN(eN) || eN < sN) return;
+      res.push({ fio: fio, tripId: tr.tripId, city: formatUniqueCities(tr.cities || ''), s: sN, e: eN, days: eN - sN + 1 });
+    });
+    return res;
+  }
+
+  function currentExcludeTripId() {
+    const isProlong = (document.getElementById('req_type').value === 'prolong');
+    return isProlong ? (document.getElementById('req_target_trip_id').value || '') : '';
+  }
+
+  function describeBusyPeriod(p) {
+    return '<b>' + busyEsc(shortPersonName(p.fio)) + '</b> в эти даты уже в командировке: ' +
+      busyEsc(p.city || 'город не указан') + ', ' + dayNumToRu(p.s) + ' — ' + dayNumToRu(p.e) + ' (' + p.days + ' дн.)';
+  }
+
+  function refreshBusyDatesCalendar() {
+    const exclude = currentExcludeTripId();
+    calendarBusyPeriods = [];
+    Object.keys(currentReqTeamData || {}).forEach(fio => {
+      const it = currentReqTeamData[fio];
+      getBusyPeriodsForEmployee(fio, it && it.tab, exclude).forEach(p => calendarBusyPeriods.push(p));
+    });
+    if (datePickerReqRange) { try { datePickerReqRange.redraw(); } catch (e) {} }
+  }
+
+  function busyPeriodsForDay(dayNum) {
+    return calendarBusyPeriods.filter(p => p.s <= dayNum && p.e >= dayNum);
+  }
+
+  function showBusyNotice(lines) {
+    const box = document.getElementById('busy_notice');
+    const list = (Array.isArray(lines) ? lines : [lines]).slice(0, 4);
+    box.innerHTML = '<div class="busy-notice-card"><div class="busy-notice-title">⛔ Даты уже заняты</div>' +
+      list.map(l => '<div class="busy-notice-line">' + l + '</div>').join('') +
+      '<div class="busy-notice-hint">Выберите другие даты или скорректируйте предыдущую командировку.</div></div>';
+    box.style.display = 'flex';
+    clearTimeout(busyNoticeTimer);
+    busyNoticeTimer = setTimeout(hideBusyNotice, 4500);
+  }
+  function hideBusyNotice() {
+    const box = document.getElementById('busy_notice');
+    if (box) box.style.display = 'none';
   }
 
   function formatRuDateString(dStr) {
@@ -1013,8 +1116,28 @@
 
     datePickerReqRange = flatpickr("#req_date_range", {
       mode: "range", locale: "ru", dateFormat: "d.m.Y", showMonths: 1, disableMobile: true,
+      // даты, занятые другой командировкой выбранных сотрудников, недоступны и подсвечены красным
+      disable: [ function(date) { return busyPeriodsForDay(dateToDayNum(date)).length > 0; } ],
+      onDayCreate: function(dObj, dStr, fp, dayElem) {
+        const hits = busyPeriodsForDay(dateToDayNum(dayElem.dateObj));
+        if (hits.length) {
+          dayElem.classList.add('busy-day');
+          dayElem.title = 'Занято: ' + hits.map(p => shortPersonName(p.fio) + ', ' + p.city).join('; ');
+          dayElem.addEventListener('click', function() { showBusyNotice(hits.map(describeBusyPeriod)); });
+        }
+      },
       onChange: function(selectedDates, dateStr, instance) {
         if (selectedDates.length === 2) {
+          // период не должен накрывать занятые даты (в том числе «через» занятый отрезок)
+          const sDay = dateToDayNum(selectedDates[0]), eDay = dateToDayNum(selectedDates[1]);
+          const clash = calendarBusyPeriods.filter(p => p.s <= eDay && p.e >= sDay);
+          if (clash.length) {
+            instance.clear();
+            document.getElementById('req_date_start').value = '';
+            document.getElementById('req_date_end').value = '';
+            showBusyNotice(clash.map(describeBusyPeriod));
+            return;
+          }
           document.getElementById('req_date_start').value = formatFlatpickrToRu(selectedDates[0]);
           document.getElementById('req_date_end').value = formatFlatpickrToRu(selectedDates[1]);
           const diff = Math.ceil((selectedDates[1] - selectedDates[0]) / (1000 * 60 * 60 * 24)) + 1;
@@ -1960,6 +2083,7 @@
   }
 
   function onRequestTypeChange() {
+    refreshBusyDatesCalendar();
     const t = document.getElementById('req_type').value;
     const isProlong = (t === 'prolong');
 
@@ -2029,6 +2153,14 @@
 
   function addTeamMemberToEstimate(emp) {
     if (currentReqTeamData[emp.fio]) { showToast("Сотрудник уже добавлен"); return; }
+
+    // Если даты уже выбраны, сотрудник не должен быть в другой командировке в этот период
+    const chkStart = dmyToDayNum(document.getElementById('req_date_start').value);
+    const chkEnd = dmyToDayNum(document.getElementById('req_date_end').value);
+    if (!isNaN(chkStart) && !isNaN(chkEnd)) {
+      const clashes = getBusyPeriodsForEmployee(emp.fio, emp.tab, currentExcludeTripId()).filter(p => p.s <= chkEnd && p.e >= chkStart);
+      if (clashes.length) { showBusyNotice(clashes.map(describeBusyPeriod)); return; }
+    }
     if (!emp.bankInn || !emp.bankBik || !emp.bankAcc) promptBankDetailsModal(emp);
 
     const isProlong = (document.getElementById('req_type').value === 'prolong');
@@ -2069,6 +2201,7 @@
   }
 
   function renderSelectedTeamChips() {
+    refreshBusyDatesCalendar();
     const box = document.getElementById('selected_team_chips');
     const fnames = Object.keys(currentReqTeamData);
     if (fnames.length === 0) {
