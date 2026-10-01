@@ -268,7 +268,7 @@
 
   <div id="review_banner" class="review-banner">
     <div>
-      <div style="font-weight:700; color:#004085; font-size:13px;">👁️️ Просмотр отчёта:</div>
+      <div style="font-weight:700; color:#004085; font-size:13px;">👁️ Просмотр отчёта:</div>
       <div id="banner_report_title" style="font-size:12px; color:#004085;">—</div>
     </div>
     <div class="review-banner-btns">
@@ -339,7 +339,6 @@
       </div>
       <div class="nav-bar">
         <button type="button" class="btn btn-secondary" onclick="switchMainTab('trips')">← К командировкам</button>
-        <button type="button" class="btn btn-secondary" style="width:auto; padding:0 12px;" onclick="saveManualDraftAndNotify()">💾 Сохранить черновик</button>
         <button type="button" class="btn btn-primary" onclick="goToStep(2)">Далее: Ввод расходов →</button>
       </div>
     </div>
@@ -415,7 +414,6 @@
 
       <div class="nav-bar">
         <button type="button" class="btn btn-secondary" onclick="goToStep(1)">← Назад</button>
-        <button type="button" class="btn btn-secondary" style="width:auto; padding:0 12px;" onclick="saveManualDraftAndNotify()">💾 Сохранить черновик</button>
         <button type="button" class="btn btn-green" onclick="goToStep(3)">Самопроверка →</button>
       </div>
     </div>
@@ -429,7 +427,6 @@
       </div>
       <div class="nav-bar">
         <button type="button" class="btn btn-secondary" onclick="goToStep(2)">← Назад</button>
-        <button type="button" class="btn btn-secondary" style="width:auto; padding:0 12px;" onclick="saveManualDraftAndNotify()">💾 Сохранить черновик</button>
         <button type="button" class="btn btn-primary" onclick="goToStep(4)">Сформировать отчет 🚀</button>
       </div>
     </div>
@@ -601,7 +598,7 @@
 </div>
 
 <!-- МОДАЛКА УТОЧНЕНИЯ РАЗНИЦЫ МЕЖДУ СРОКОМ И ДНЯМИ ПРОЖИВАНИЯ -->
-<div id="stay_days_prompt_modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:10035; align-items:center; justify-content:center; padding:16px;">
+<div id="stay_days_prompt_modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:100000; align-items:center; justify-content:center; padding:16px;">
   <div style="background:white; padding:20px; border-radius:16px; width:100%; max-width:400px; box-shadow:0 12px 36px rgba(0,0,0,0.3); text-align:center;">
     <div style="font-size:34px; margin-bottom:8px;">🏨</div>
     <h3 style="margin:0 0 8px 0; font-size:16px; color:#0f172a;">Уточнение дней проживания</h3>
@@ -771,7 +768,7 @@
 <!-- МОДАЛКА ПЕРЕСЧЕТА ИЗ СТАТУСА -->
 <div id="recalc_modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:10010; align-items:center; justify-content:center; padding:16px;">
   <div style="background:white; padding:18px; border-radius:14px; width:100%; max-width:440px; box-shadow:0 12px 30px rgba(0,0,0,0.25);">
-    <h3 style="margin-top:0; color:#b45309; font-size:16px;">⚠️ Пересчёт данных командировки</h3>
+    <h3 style="margin-top:0; color:#b45309; font-size:16px;">⚠️️ Пересчёт данных командировки</h3>
     <div id="recalc_modal_content" style="font-size:13px; line-height:1.5; color:#334155; margin-bottom:14px;"></div>
     <div style="display:flex; flex-direction:column; gap:8px;">
       <button type="button" class="btn btn-primary" onclick="confirmRecalcAndApply()">✅ Применить пересчёт и перейти к АО-1</button>
@@ -930,6 +927,7 @@
   let modalMailtoUrl = "";
 
   let currentPendingDays = 18;
+  let currentCustomStayDays = null; // своё число суток проживания, выбранное в модалке (null = совпадает с днями командировки)
   let isReportSavedDone = false;
   let globalAppData = { employees: [], currentUser: null, reports: [], trips: [], requestsArchive: [], isAdmin: false, isSuperAdmin: false, roleInfo: {} };
   let store = {
@@ -982,26 +980,6 @@
     }, 1000);
   }
 
-  function saveManualDraftAndNotify() {
-    savePassport();
-    let tgUser = getTelegramUser();
-    showToast("💾 Сохранение черновика...");
-    fetch(GOOGLE_SHEET_API, {
-      method: "POST", mode: "no-cors",
-      headers: { "Content-Type": "text/plain" },
-      body: JSON.stringify({
-        action: "save_cloud_draft",
-        report_uid: CURRENT_REPORT_UID,
-        passport: store.passport,
-        expenses: store.expenses,
-        taxis: store.taxis,
-        telegram_user: tgUser
-      })
-    }).then(() => {
-      showToast("Черновик успешно сохранён!");
-    });
-  }
-
   function triggerMailApp(url) {
     if (!url) return;
     try {
@@ -1034,14 +1012,16 @@
     });
 
     datePickerReqRange = flatpickr("#req_date_range", {
-      mode: "range", locale: "ru", dateFormat: "d.m.Y", showMonths: 1,
-      onChange: function(selectedDates) {
+      mode: "range", locale: "ru", dateFormat: "d.m.Y", showMonths: 1, disableMobile: true,
+      onChange: function(selectedDates, dateStr, instance) {
         if (selectedDates.length === 2) {
           document.getElementById('req_date_start').value = formatFlatpickrToRu(selectedDates[0]);
           document.getElementById('req_date_end').value = formatFlatpickrToRu(selectedDates[1]);
           const diff = Math.ceil((selectedDates[1] - selectedDates[0]) / (1000 * 60 * 60 * 24)) + 1;
           currentPendingDays = diff;
-          promptStayDaysDifference(diff);
+          currentCustomStayDays = null; // новые даты: прежний ответ про проживание больше не действует
+          instance.close();             // сначала закрываем календарь, чтобы он не перекрывал модальное окно
+          setTimeout(function () { promptStayDaysDifference(diff); }, 300);
         }
       }
     });
@@ -1060,6 +1040,7 @@
 
   function onStayDaysAnswerYes() {
     document.getElementById('stay_days_prompt_modal').style.display = 'none';
+    currentCustomStayDays = null;
     applyDatesToAllSelectedTeam(currentPendingDays, currentPendingDays);
   }
 
@@ -1074,6 +1055,7 @@
   function applyCustomStayDays() {
     const val = parseInt(document.getElementById('custom_stay_input').value);
     const stayDays = (val && val > 0) ? val : currentPendingDays;
+    currentCustomStayDays = (val && val > 0) ? val : null; // запоминаем, чтобы подставлять сотрудникам, добавленным позже
     document.getElementById('stay_days_prompt_modal').style.display = 'none';
     applyDatesToAllSelectedTeam(currentPendingDays, stayDays);
   }
@@ -1370,7 +1352,7 @@
                   : `<span class="badge-status-tag badge-status-progress">✏️ В процессе</span>`}
               </div>
             </button>
-            ${globalAppData.isAdmin ? `<button type="button" class="btn btn-danger" title="Удалить всю командировку для всех сотрудников" onclick="deleteFullTripGroup('${grp.cities.replace(/'/g, "\\'")}', '${grp.dates.replace(/'/g, "\\'")}')">🗑</button>` : ''}
+            ${globalAppData.isAdmin ? `<button type="button" class="btn btn-danger" title="Удалить всю командировку для всех сотрудников" onclick="deleteFullTripGroup('${grp.cities.replace(/'/g, "\\'")}', '${grp.dates.replace(/'/g, "\\'")}')">🗑️️</button>` : ''}
           </div>
 
           <div id="box_trip_${gIdx}" style="display:none; padding:6px 0 8px 6px;">
@@ -1423,7 +1405,6 @@
               <div class="timeline-node-field" onclick="openReqDetailsModal('${rq.reqId}', '${label}')">
                 <b>${label}</b>: ${Number(rq.sum).toLocaleString('ru-RU')} ₽ ✏️<br>
                 <small>Даты: ${rq.dates} (${rq.days} дн.) | ${cityReq} | Цель: ${rq.purpose}</small>
-                ${rq.pdfFileUrl ? `<br><a href="${rq.pdfFileUrl}" target="_blank" style="color:var(--primary); font-size:11px;" onclick="event.stopPropagation();">📄 Открыть заявку в PDF ➔</a>` : ''}
               </div>
             `;
           });
@@ -1528,6 +1509,7 @@
       datePickerReqRange.clear();
     }
     currentReqTeamData = {};
+    currentCustomStayDays = null;
     renderSelectedTeamChips();
     renderTeamEstimateCards();
     document.getElementById('email_result_card').style.display = 'none';
@@ -1853,7 +1835,6 @@
     });
   }
 
-  // ЗАГРУЗКА ИЗ ТАЙМЛАЙНА С ПОЛНЫМ ВОССТАНОВЛЕНИЕМ МАССИВА РАСХОДОВ
   function loadTripIntoReport(tripId) {
     const tr = globalAppData.trips.find(x => x.tripId === tripId);
     if (!tr) return;
@@ -1884,28 +1865,12 @@
     document.getElementById('p_rate').value = 1500;
     document.getElementById('p_advance').value = tr.totalAdvance || 0;
 
-    // Восстанавливаем расходы и такси из реестра отчётов/черновиков для этой командировки
-    const existingReport = (globalAppData.reports || []).find(r => r.tripId === tripId || (r.id && r.id.includes(tripId)));
-    if (existingReport && existingReport.rawJson) {
-      let rData = existingReport.rawJson;
-      if (typeof rData === 'string') { try { rData = JSON.parse(rData); } catch(e){} }
-      store.expenses = rData.expenses || [];
-      store.taxis = rData.taxis || [];
-      if (rData.passport) {
-        document.getElementById('p_city').value = formatUniqueCities(rData.passport.city || document.getElementById('p_city').value);
-      }
-    } else {
-      store.expenses = [];
-      store.taxis = [];
-    }
-
     calcDaily();
     savePassport();
-    renderExpenseList();
 
     switchMainTab('form');
     goToStep(1);
-    showToast("Данные командировки и расходы загружены!");
+    showToast("Данные командировки загружены!");
   }
 
   function openRecalcModal(tripId) {
@@ -2067,7 +2032,7 @@
     }
 
     const hotelDaily = 3100;
-    const stayDays = actualDays;
+    const stayDays = (currentCustomStayDays !== null && currentCustomStayDays > 0) ? currentCustomStayDays : actualDays;
     const sumHotel = stayDays * hotelDaily;
     const sumDaily = actualDays * 1500;
     const sumTotal = travelSum + sumHotel + sumDaily;
@@ -2240,16 +2205,9 @@
         const filesBox = document.getElementById('generated_files_links');
         if (res.files && res.files.length > 0) {
           filesBox.innerHTML = res.files.map(f => `
-            <div style="display:flex; flex-direction:column; gap:2px; margin-bottom:4px;">
-              <a href="${f.url}" target="_blank" class="btn btn-secondary" style="height:30px; font-size:11px; justify-content:flex-start; text-decoration:none; padding:0 8px; background:#fff; border:1px solid #cbd5e1;">
-                📄 <b>${f.fio}</b> (${Number(f.sum).toLocaleString('ru-RU')} ₽) — Открыть бланк Excel ➔
-              </a>
-              ${f.pdfUrl ? `
-                <a href="${f.pdfUrl}" target="_blank" class="btn btn-secondary" style="height:26px; font-size:11px; justify-content:flex-start; text-decoration:none; padding:0 8px; background:#f0fdf4; border:1px solid #86efac; color:#166534;">
-                  🖨️ ${f.fio} — Открыть бланк заявки в PDF ➔
-                </a>
-              ` : ''}
-            </div>
+            <a href="${f.url}" target="_blank" class="btn btn-secondary" style="height:32px; font-size:12px; justify-content:flex-start; text-decoration:none; padding:0 10px; background:#fff; border:1px solid #cbd5e1;">
+              📄 <b>${f.fio}</b> (${Number(f.sum).toLocaleString('ru-RU')} ₽) — Открыть бланк заявки ➔
+            </a>
           `).join('');
         }
       }
@@ -2299,6 +2257,7 @@
     }
 
     currentReqTeamData = {};
+    currentCustomStayDays = null;
     const emp = (globalAppData.employees || []).find(e => e.fio === tr.team);
     if (emp) addTeamMemberToEstimate(emp);
     showToast("Оформление продления для: " + tr.team);
