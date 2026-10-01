@@ -1904,8 +1904,10 @@
     btn.disabled = true;
     btn.innerText = "⏳ Очистка строк и сборка PDF...";
 
-    document.getElementById('loader_modal_title').innerText = "Подготовка печатной формы";
-    document.getElementById('loader_modal_desc').innerText = "Удаление пустых строк, условного форматирования и сборка многостраничного PDF...";
+    const loaderTitle = "Подготовка печатной формы";
+    const loaderDesc = "Удаление пустых строк, условного форматирования и сборка многостраничного PDF...";
+    document.getElementById('loader_modal_title').innerText = loaderTitle;
+    document.getElementById('loader_modal_desc').innerText = loaderDesc;
     document.getElementById('report_loader_modal').style.display = 'flex';
 
     savePassport();
@@ -1922,22 +1924,31 @@
       telegram_user: getTelegramUser()
     };
 
-    fetch(GOOGLE_SHEET_API, {
-      method: "POST",
-      body: JSON.stringify(payload)
-    })
-    .then(r => r.json())
-    .then(res => {
+    // PDF собирается 30-60 секунд. На iPhone один такой запрос может «зависнуть» до сворачивания окна,
+    // поэтому, кроме основного запроса, раз в несколько секунд проверяем реестр: как только там появился
+    // новый PDF по этой командировке, завершаем ожидание сами.
+    const tripIdForPdf = store.passport.tripId || '';
+    const prevPdfUrl = ((globalAppData.reports || []).find(r => r.tripId === tripIdForPdf && !r.isDraft) || {}).pdfUrl || '';
+    const startedAt = Date.now();
+    let finished = false;
+    let tickTimer = null, pollTimer = null, guardTimer = null;
+
+    const stopWaiting = () => {
+      clearInterval(tickTimer); clearInterval(pollTimer); clearTimeout(guardTimer);
       document.getElementById('report_loader_modal').style.display = 'none';
+      document.getElementById('loader_modal_desc').innerText = loaderDesc;
+      setTimeout(() => { btn.disabled = false; btn.innerText = "📄 Сохранить в PDF"; }, 1500);
+    };
 
-      if (btn) {
-        btn.classList.remove("btn-danger-action");
-        btn.classList.add("btn-green");
-      }
-
-      if (res.pdf_download_url) {
+    const finishOk = (pdfUrl) => {
+      if (finished) return;
+      finished = true;
+      stopWaiting();
+      btn.classList.remove("btn-danger-action");
+      btn.classList.add("btn-green");
+      if (pdfUrl) {
         const a = document.createElement("a");
-        a.href = res.pdf_download_url;
+        a.href = pdfUrl;
         a.target = "_blank";
         document.body.appendChild(a);
         a.click();
@@ -1946,16 +1957,44 @@
       }
       setTimeout(openChecklistModal, 800);
       loadAppData();
-    })
-    .catch(() => {
-      document.getElementById('report_loader_modal').style.display = 'none';
-      showToast("Файл передан на формирование");
-      setTimeout(openChecklistModal, 800);
+    };
+
+    // Счётчик секунд в окне: показывает, что процесс идёт, и не даёт окну «замереть»
+    tickTimer = setInterval(() => {
+      const sec = Math.round((Date.now() - startedAt) / 1000);
+      document.getElementById('loader_modal_desc').innerText = loaderDesc + " (" + sec + " с)";
+    }, 1000);
+
+    // Страховочный опрос реестра
+    pollTimer = setInterval(() => {
+      if (finished) return;
+      const uid = (getTelegramUser() && getTelegramUser().id) || "446642559";
+      fetch(`${GOOGLE_SHEET_API}?user_id=${uid}&_=${Date.now()}`)
+        .then(r => r.json())
+        .then(res => {
+          if (finished || !res || !Array.isArray(res.reports)) return;
+          const rep = res.reports.find(r => r.tripId === tripIdForPdf && !r.isDraft && r.pdfUrl && r.pdfUrl !== prevPdfUrl);
+          if (rep) finishOk(rep.pdfUrl);
+        })
+        .catch(() => {});
+    }, 6000);
+
+    // Предохранитель: если за 4 минуты ничего не пришло
+    guardTimer = setTimeout(() => {
+      if (finished) return;
+      finished = true;
+      stopWaiting();
+      showToast("Формирование идёт дольше обычного. Ссылка на PDF придёт в Telegram");
       loadAppData();
+    }, 240000);
+
+    fetch(GOOGLE_SHEET_API, {
+      method: "POST",
+      body: JSON.stringify(payload)
     })
-    .finally(() => {
-      setTimeout(() => { btn.disabled = false; btn.innerText = "📄 Сохранить в PDF"; }, 1500);
-    });
+    .then(r => r.json())
+    .then(res => { finishOk(res.pdf_download_url); })
+    .catch(() => { /* связь могла оборваться: ждём результат через опрос реестра */ });
   }
 
   function loadTripIntoReport(tripId) {
