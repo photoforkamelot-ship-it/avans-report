@@ -580,7 +580,7 @@
           <h3 style="margin:0; color:#166534;">✉️ Готовое письмо на согласование</h3>
           <div style="display:flex; gap:6px;">
             <button type="button" class="btn btn-secondary" style="height:28px; width:auto; font-size:11px; padding:0 8px;" onclick="copyAdvanceEmailText()">📋 Скопировать</button>
-            <button type="button" id="btn_mailto_link" class="btn btn-primary" style="height:28px; width:auto; font-size:11px; padding:0 10px;" onclick="triggerMailApp(latestMailtoUrl)">✉️ В Почту</button>
+            <button type="button" id="btn_mailto_link" class="btn btn-primary" style="height:28px; width:auto; font-size:11px; padding:0 10px;" onclick="openMailBridge(latestMailBridge)">✉️ В Почту</button>
           </div>
         </div>
         <div id="email_preview_box" style="white-space:pre-wrap; font-size:12px; line-height:1.5; color:#1e293b; background:#fff; border:1px solid #bbf7d0; border-radius:8px; padding:10px; margin-bottom:8px;"></div>
@@ -777,7 +777,7 @@
         <b style="font-size:12px; color:#166534;">✉️ Текст письма на согласование:</b>
         <div style="display:flex; gap:4px;">
           <button type="button" class="btn btn-secondary" style="height:24px; font-size:11px; width:auto; padding:0 8px;" onclick="copyModalReqEmail()">📋 Копировать</button>
-          <button type="button" class="btn btn-primary" style="height:24px; font-size:11px; width:auto; padding:0 8px;" onclick="triggerMailApp(modalMailtoUrl)">✉️ В Почту</button>
+          <button type="button" class="btn btn-primary" style="height:24px; font-size:11px; width:auto; padding:0 8px;" onclick="openMailBridge(modalMailBridge)">✉️ В Почту</button>
         </div>
       </div>
       <div id="rvm_email_box" style="white-space:pre-wrap; font-size:11px; max-height:110px; overflow-y:auto; color:#1e293b; line-height:1.45;"></div>
@@ -1077,6 +1077,8 @@
   let activeRecalcTripId = null;
   let latestMailtoUrl = "";
   let modalMailtoUrl = "";
+  let latestMailBridge = null; // письмо после создания заявок: {subject, body, reqIds}
+  let modalMailBridge = null;  // письмо из окна просмотра заявки
 
   let currentPendingDays = 18;
   let currentCustomStayDays = null; // своё число суток проживания, выбранное в модалке (null = совпадает с днями командировки)
@@ -1175,6 +1177,26 @@
   }
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushCloudDraftNow(); });
   window.addEventListener('pagehide', flushCloudDraftNow);
+
+  // Открывает страницу mail.html (на GitHub Pages) с готовым письмом и вложениями-заявками.
+  // Тема и текст передаются в «хвосте» ссылки (#t=...), номера заявок для вложений в ?reqs=...
+  function openMailBridge(info) {
+    if (!info || !info.body) { showToast('Письмо ещё не сформировано'); return; }
+    const json = JSON.stringify({ s: info.subject || '', b: info.body || '' });
+    const b64 = btoa(unescape(encodeURIComponent(json))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    const ids = (info.reqIds || []).filter(Boolean).join(',');
+    const base = new URL('mail.html', window.location.href);
+    const href = base.origin + base.pathname + (ids ? '?reqs=' + encodeURIComponent(ids) : '') + '#t=' + b64;
+    triggerMailApp(href);
+  }
+
+  // Заявки одного письма: те же текст и тип (при создании на нескольких сотрудников у каждого своя запись)
+  function findSiblingReqIds(rq) {
+    if (!rq) return [];
+    const all = globalAppData.requestsArchive || [];
+    const ids = all.filter(x => x.savedEmailText && x.savedEmailText === rq.savedEmailText && String(x.seqNumber || 1) === String(rq.seqNumber || 1)).map(x => x.reqId);
+    return ids.length ? ids : [rq.reqId];
+  }
 
   function triggerMailApp(url) {
     if (!url) return;
@@ -1506,6 +1528,14 @@
     return { monthIdx: parseInt(parts[1]), year: parseInt(parts[0]), label: `${MONTH_NAMES[parseInt(parts[1])]} ${parts[0]}` };
   }
 
+  // Черновик «с содержимым»: есть хотя бы один расход или такси. Пустой черновик создаётся вместе с заявкой и правками не считается.
+  function draftHasContent(r) {
+    try {
+      const d = (typeof r.rawJson === 'string') ? JSON.parse(r.rawJson) : (r.rawJson || {});
+      return ((d.expenses || []).length > 0) || ((d.taxis || []).length > 0);
+    } catch (e) { return false; }
+  }
+
   function renderTripsTree(trips, reqsArchive, reports) {
     const container = document.getElementById('trips_tree_container');
     if (!trips || trips.length === 0) {
@@ -1554,7 +1584,7 @@
 
       const isGroupCompleted = grp.members.every(m => {
         const rep = (reports || []).find(r => !r.isDraft && String(r.status).toLowerCase() === 'готов' && (r.tripId === m.tripId));
-        const hasDraft = (reports || []).some(r => r.isDraft && r.tripId === m.tripId);
+        const hasDraft = (reports || []).some(r => r.isDraft && r.tripId === m.tripId && draftHasContent(r));
         return (rep || m.status === 'Завершена') && !hasDraft;
       });
 
@@ -1589,7 +1619,7 @@
           String(r.status).toLowerCase() === 'готов' && 
           (r.tripId === tr.tripId)
         );
-        const draftAo = (reports || []).find(r => r.isDraft && r.tripId === tr.tripId);
+        const draftAo = (reports || []).find(r => r.isDraft && r.tripId === tr.tripId && draftHasContent(r));
         const isMemberDone = (relatedAo || tr.status === 'Завершена') && !draftAo;
 
         html += `
@@ -1808,6 +1838,7 @@
       document.getElementById('rvm_email_box').innerText = rq.savedEmailText;
       const subj = `${headerTitle}. Командировка в ${city} ${dates}гг`;
       modalMailtoUrl = `mailto:?subject=${encodeURIComponent(subj)}&body=${encodeURIComponent(rq.savedEmailText)}`;
+      modalMailBridge = { subject: subj, body: rq.savedEmailText, reqIds: findSiblingReqIds(rq) };
     } else {
       updateModalEmailLive();
     }
@@ -1871,6 +1902,8 @@
     const fullBody = lines.join('\n');
     document.getElementById('rvm_email_box').innerText = fullBody;
     modalMailtoUrl = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(fullBody)}`;
+    const rqLive = (globalAppData.requestsArchive || []).find(r => r.reqId === document.getElementById('rvm_req_id').value);
+    modalMailBridge = { subject: subject, body: fullBody, reqIds: rqLive ? findSiblingReqIds(rqLive) : [] };
   }
 
   function closeReqViewModal() {
@@ -2506,13 +2539,18 @@
         document.getElementById('email_result_card').style.display = 'block';
         document.getElementById('email_preview_box').innerText = res.emailText;
         latestMailtoUrl = res.mailtoUrl;
+        latestMailBridge = { subject: res.emailSubject || '', body: res.emailText, reqIds: (res.files || []).map(f => f.reqId).filter(Boolean) };
 
         const filesBox = document.getElementById('generated_files_links');
         if (res.files && res.files.length > 0) {
           filesBox.innerHTML = res.files.map(f => `
-            <a href="${f.url}" target="_blank" class="btn btn-secondary" style="height:32px; font-size:12px; justify-content:flex-start; text-decoration:none; padding:0 10px; background:#fff; border:1px solid #cbd5e1;">
-              📄 <b>${f.fio}</b> (${Number(f.sum).toLocaleString('ru-RU')} ₽) — Открыть бланк заявки ➔
-            </a>
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:6px 10px; background:#fff; border:1px solid #cbd5e1; border-radius:10px; font-size:12px;">
+              <span>📄 <b>${f.fio}</b> (${Number(f.sum).toLocaleString('ru-RU')} ₽)</span>
+              <span style="white-space:nowrap;">
+                ${f.pdfUrl ? `<a href="${f.pdfUrl}" target="_blank" style="color:var(--success); font-weight:700; text-decoration:none;">🖨️ PDF</a> &nbsp;` : ''}
+                <a href="${f.url}" target="_blank" style="color:var(--primary); font-weight:600; text-decoration:none;">Таблица ➔</a>
+              </span>
+            </div>
           `).join('');
         }
       }
