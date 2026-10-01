@@ -2919,7 +2919,7 @@
           <small style="color:#64748b;">${d.date || ''} | Накоплено: <b>${Number(d.sum || 0).toLocaleString('ru-RU')} ₽</b></small>
         </div>
         <div style="display:flex; gap:6px;">
-          <button type="button" class="btn btn-primary" style="height:32px; font-size:12px; width:auto; padding:0 10px;" onclick="openReportInReviewMode('${d.id}')">Продолжить</button>
+          <button type="button" class="btn btn-primary" style="height:32px; font-size:12px; width:auto; padding:0 10px;" onclick="openDraftForEditing('${d.id}')">Продолжить</button>
           <button type="button" class="btn btn-danger" onclick="deleteReport('${d.id}')">🗑️</button>
         </div>
       </div>
@@ -2948,9 +2948,18 @@
     document.getElementById('cloud_draft_modal').style.display = 'none';
   }
 
+  function openDraftForEditing(reportId) {
+    const rep = (globalAppData.reports || []).find(r => r.id === reportId);
+    if (!rep) { showToast("Черновик не найден"); return; }
+    detectedDraftReport = rep;
+    confirmOpenCloudDraft();
+  }
+
   function confirmOpenCloudDraft() {
     if (!detectedDraftReport) return;
     document.getElementById('cloud_draft_modal').style.display = 'none';
+    isViewingRemoteReport = false;
+    const rb = document.getElementById('review_banner'); if (rb) rb.style.display = 'none';
     CURRENT_REPORT_UID = detectedDraftReport.id;
 
     if (detectedDraftReport.rawJson) {
