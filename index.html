@@ -40,7 +40,7 @@
       display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;
     }
     .top-tabs { display: flex; gap: 6px; overflow-x: auto; -webkit-overflow-scrolling: touch; flex: 1; margin-right: 8px; }
-    .tab-btn { flex: 1; min-width: 80px; padding: 9px 6px; background: #e5e5ea; border: none; border-radius: 10px; font-weight: 600; font-size: 12px; cursor: pointer; color: var(--text); text-align: center; white-space: nowrap; }
+    .tab-btn { flex: 1; min-width: 80px; height: 38px; display: inline-flex; align-items: center; justify-content: center; padding: 0 6px; background: #e5e5ea; border: none; border-radius: 10px; font-weight: 600; font-size: 12px; cursor: pointer; color: var(--text); text-align: center; white-space: nowrap; }
     .tab-btn.active { background: var(--primary); color: white; }
 
     .tg-notif-btn.active { box-shadow: 0 0 0 2px var(--primary, #007aff); }
@@ -96,6 +96,10 @@
     .emp-card.open .emp-sub { display:none; }
     .emp-details { font-size:12px; color:#64748b; margin:6px 0 10px 0; line-height:1.5; }
     .emp-actions { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    .emp-bank-btn { width:100%; min-height:50px; border:none; border-radius:12px; font-size:15px; font-weight:800; color:#fff; cursor:pointer; background:#ef4444; }
+    .emp-bank-btn.ok { background:#34c759; }
+    .emp-bank-hint { font-size:11px; margin-top:4px; text-align:center; color:#c62828; }
+    .emp-bank-hint.ok { color:#1f8a4c; }
     .emp-act { background:#f1f5f9; border:1.5px solid #cbd5e1; border-radius:12px; min-height:48px; display:flex; align-items:center; justify-content:center; gap:8px; padding:6px 8px; font-size:13px; font-weight:700; color:#1c1c1e; cursor:pointer; }
     .emp-act .ea-i { font-size:18px; display:inline-flex; }
     .emp-act-danger { background:#fff0f0; border-color:#f3b8b8; color:#c62828; }
@@ -894,6 +898,20 @@
     <div class="field"><label>Должность</label><input type="text" id="modal_role"></div>
     <div class="field"><label>Табельный номер</label><input type="text" id="modal_tab"></div>
     <div class="field"><label>Telegram ID</label><input type="text" id="modal_tgid"></div>
+
+    <div id="emp_bank_edit" style="display:none; margin-top:6px;">
+      <button type="button" id="emp_bank_btn" class="emp-bank-btn" onclick="editEmpBank()">🏦 Банковские реквизиты</button>
+      <div id="emp_bank_hint" class="emp-bank-hint"></div>
+    </div>
+    <div id="emp_bank_add" style="display:none; margin-top:6px; padding:10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px;">
+      <div style="font-weight:700; font-size:13px; margin-bottom:6px;">🏦 Банковские реквизиты <span style="font-weight:400; color:#64748b;">(можно позже)</span></div>
+      <div style="font-size:11px; color:#c62828; margin-bottom:6px;">Без реквизитов заявку на ДС на сотрудника создать не получится: при добавлении в заявку приложение попросит их ввести.</div>
+      <div class="field"><label>ИНН банка</label><input type="text" id="modal_inn" inputmode="numeric" placeholder="10 или 12 цифр"></div>
+      <div class="field"><label>БИК банка</label><input type="text" id="modal_bik" inputmode="numeric" placeholder="9 цифр"></div>
+      <div class="field"><label>Счёт (20 цифр)</label><input type="text" id="modal_acc" inputmode="numeric" maxlength="20" placeholder="20 цифр"></div>
+      <div class="field"><label>Домашний город (выезд)</label><input type="text" id="modal_hcity" placeholder="г. Томск"></div>
+    </div>
+
     <div style="display:flex; gap:6px; margin-top:12px;">
       <button type="button" class="btn btn-primary" onclick="saveModalEmployee()">Сохранить</button>
       <button type="button" class="btn btn-secondary" onclick="closeEmpModal()">Отмена</button>
@@ -3004,6 +3022,13 @@
 
     if (!city || !dStart || !dEnd) { showToast("Укажите город и период"); return; }
     if (teamArr.length === 0) { showToast("Выберите сотрудников"); return; }
+    const noBank = teamArr.filter(m => !bankComplete(m));
+    if (noBank.length) {
+      const first = (globalAppData.employees || []).find(e => e.fio === noBank[0].fio) || noBank[0];
+      showToast('Нет реквизитов: ' + noBank.map(m => String(m.fio).split(' ').slice(0, 2).join(' ')).join(', ') + '. Заявку без реквизитов создать нельзя');
+      promptBankDetailsModal(first);
+      return;
+    }
 
     if (targetTripId) teamArr.forEach(m => m.tripId = targetTripId);
 
@@ -3025,6 +3050,7 @@
     .then(r => r.json())
     .then(res => {
       document.getElementById('report_loader_modal').style.display = 'none';
+      if (res && res.status === 'error') { showToast(res.message || 'Заявка не создана'); return; }
 
       if (res.emailText) {
         document.getElementById('email_result_card').style.display = 'block';
@@ -3454,6 +3480,10 @@
   }
 
   function openAddEmployeeModal() {
+    empModalIdx = -1;
+    document.getElementById('emp_bank_edit').style.display = 'none';
+    document.getElementById('emp_bank_add').style.display = 'block';
+    ['modal_inn', 'modal_bik', 'modal_acc', 'modal_hcity'].forEach(id => document.getElementById(id).value = '');
     document.getElementById("modal_title").innerText = "Добавить сотрудника";
     document.getElementById("modal_old_tab").value = "";
     document.getElementById("modal_fio").value = "";
@@ -3463,7 +3493,30 @@
     document.getElementById("emp_modal").style.display = "flex";
   }
 
+  function bankComplete(e) {
+    const d = (v) => String(v || '').replace(/\D/g, '');
+    const inn = d(e && e.bankInn), bik = d(e && e.bankBik), acc = d(e && e.bankAcc);
+    return (inn.length === 10 || inn.length === 12) && bik.length === 9 && acc.length === 20;
+  }
+  let empModalIdx = -1;
+  function refreshEmpBankStatus() {
+    const e = globalAppData.employees[empModalIdx];
+    const ok = e && bankComplete(e);
+    const btn = document.getElementById('emp_bank_btn'), hint = document.getElementById('emp_bank_hint');
+    if (!btn) return;
+    btn.className = 'emp-bank-btn' + (ok ? ' ok' : '');
+    hint.className = 'emp-bank-hint' + (ok ? ' ok' : '');
+    hint.innerText = ok ? 'Данные заполнены' : 'Требуется заполнить';
+  }
+  function editEmpBank() {
+    const e = globalAppData.employees[empModalIdx];
+    if (e) promptBankDetailsModal(e);
+  }
+
   function openEditEmployeeModal(idx) {
+    empModalIdx = idx;
+    document.getElementById('emp_bank_edit').style.display = 'block';
+    document.getElementById('emp_bank_add').style.display = 'none';
     const emp = globalAppData.employees[idx];
     document.getElementById("modal_title").innerText = "Редактировать сотрудника";
     document.getElementById("modal_old_tab").value = emp.tab;
@@ -3473,6 +3526,7 @@
     document.getElementById("modal_tab").value = emp.tab;
     document.getElementById("modal_tgid").value = emp.tgId || "";
     document.getElementById("emp_modal").style.display = "flex";
+    refreshEmpBankStatus();
   }
 
   function closeEmpModal() { document.getElementById("emp_modal").style.display = "none"; }
@@ -3484,11 +3538,22 @@
     const tgid = document.getElementById("modal_tgid").value.trim();
     const oldTab = document.getElementById("modal_old_tab").value.trim();
     if (!fio || !role || !tab) { showToast("Заполните обязательные поля"); return; }
+    const bankPart = {};
+    if (!oldTab) {
+      const d = (v) => String(v || '').replace(/\D/g, '');
+      const inn = d(document.getElementById('modal_inn').value), bik = d(document.getElementById('modal_bik').value), acc = d(document.getElementById('modal_acc').value);
+      const any = inn || bik || acc;
+      if (any) {
+        if (!(inn.length === 10 || inn.length === 12) || bik.length !== 9 || acc.length !== 20) { showToast('Реквизиты: ИНН 10 или 12 цифр, БИК 9, счёт 20 цифр. Либо оставьте все три поля пустыми'); return; }
+        bankPart.bankInn = inn; bankPart.bankBik = bik; bankPart.bankAcc = acc;
+        bankPart.homeCity = document.getElementById('modal_hcity').value.trim() || 'г. Томск';
+      }
+    }
 
     fetch(GOOGLE_SHEET_API, {
       method: "POST", mode: "no-cors",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: oldTab ? "update" : "add", fio, role, tab, tgid, oldTab, oldFio: oldTab ? (document.getElementById("modal_old_tab").dataset.fio || '') : '', sender_id: getTelegramUser().id })
+      body: JSON.stringify(Object.assign({ action: oldTab ? "update" : "add", fio, role, tab, tgid, oldTab, oldFio: oldTab ? (document.getElementById("modal_old_tab").dataset.fio || '') : '', sender_id: getTelegramUser().id }, bankPart))
     }).then(() => {
       showToast("Сохранено!");
       closeEmpModal();
@@ -3528,7 +3593,10 @@
     const acc = document.getElementById('bm_acc').value.trim();
     const city = document.getElementById('bm_city').value.trim();
 
-    if (!inn || !bik || !acc) { showToast("Заполните ИНН, БИК и счет"); return; }
+    const dg = (v) => String(v || '').replace(/\D/g, '');
+    if (!(dg(inn).length === 10 || dg(inn).length === 12)) { showToast('ИНН банка: 10 или 12 цифр'); return; }
+    if (dg(bik).length !== 9) { showToast('БИК банка: 9 цифр'); return; }
+    if (dg(acc).length !== 20) { showToast('Счёт: ровно 20 цифр'); return; }
     const emp = globalAppData.employees.find(e => e.fio === fio);
     if (emp) { emp.bankInn = inn; emp.bankBik = bik; emp.bankAcc = acc; emp.homeCity = city; }
     const cu = globalAppData.currentUser;
@@ -3541,6 +3609,8 @@
       body: JSON.stringify({ action: "update_bank_details", telegram_user: getTelegramUser(), employee: { fio, tab: emp ? emp.tab : '', bankInn: inn, bankBik: bik, bankAcc: acc, homeCity: city } })
     });
     closeBankDetailsModal();
+    if (document.getElementById('emp_modal').style.display === 'flex') refreshEmpBankStatus();
+    if (document.getElementById('tab-employees').style.display !== 'none') renderAdminEmployees();
     showToast("Реквизиты сохранены!");
   }
 
