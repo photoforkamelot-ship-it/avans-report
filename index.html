@@ -2196,7 +2196,7 @@
     else { clearEditBaseline(); markStep4ButtonsUnsaved(); }
 
     switchMainTab('form');
-    goToStep(1);
+    openAoEditingStep();
     showToast(savedData ? "Данные командировки и сохранённые расходы загружены!" : "Данные командировки загружены!");
   }
 
@@ -2681,7 +2681,7 @@
     calcDaily();
     renderExpenseList();
     switchMainTab('form');
-    goToStep(1);
+    openAoEditingStep();
     showToast("Черновик открыт!");
   }
 
@@ -2784,7 +2784,7 @@
   function enableEditingCurrentReport() {
     leaveReviewModeForEditing();
     renderExpenseList();
-    goToStep(1);
+    openAoEditingStep();
     showToast("Отчёт открыт для правок. Пока вы ничего не измените, он остаётся сданным");
   }
 
@@ -2993,6 +2993,13 @@
     const t = document.getElementById('toast');
     t.innerText = m; t.style.display = 'block';
     setTimeout(() => t.style.display = 'none', 2500);
+  }
+
+  // Редактирование АО-1 по умолчанию открывается на шаге 2 (расходы). Если обязательные поля шага 1 не заполнены, остаёмся на шаге 1.
+  function openAoEditingStep() {
+    goToStep(2);
+    const step2 = document.getElementById('step-2');
+    if (!step2 || !step2.classList.contains('active')) goToStep(1);
   }
 
   function goToStep(s) {
