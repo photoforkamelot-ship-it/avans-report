@@ -885,7 +885,7 @@
     </div>
 
     <div id="sig_pane_draw">
-      <canvas id="sig_canvas" width="600" height="200" style="width:100%; height:auto; border:1.5px dashed #94a3b8; border-radius:10px; background:#fff; touch-action:none;"></canvas>
+      <canvas id="sig_canvas" width="1200" height="400" style="width:100%; height:auto; border:1.5px dashed #94a3b8; border-radius:10px; background:#fff; touch-action:none;"></canvas>
       <div style="font-size:11px; color:#94a3b8; margin:4px 0 8px 0;">Распишитесь пальцем или мышью в рамке.</div>
       <button type="button" class="btn btn-secondary" style="height:32px; font-size:12px; width:auto; padding:0 12px;" onclick="sigClearDraw()">🧹 Очистить</button>
     </div>
@@ -1259,7 +1259,7 @@
       sigDrawing = true;
       try { cv.setPointerCapture(ev.pointerId); } catch (e) {}
       const p = pos(ev);
-      ctx.lineWidth = 5; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#0b2a8a';
+      ctx.lineWidth = 9; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#0b2a8a';
       ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + 0.01, p.y + 0.01); ctx.stroke();
       sigHasInk = true;
     });
@@ -1280,7 +1280,8 @@
     sigHasInk = false;
   }
 
-  // Обрезаем пустые поля и приводим к PNG 900×270 (10:3) с прозрачным фоном
+  // Обрезаем пустые поля по краям подписи и сохраняем PNG с прозрачным фоном в исходных пропорциях
+  // (длинная сторона не больше 900 px). Пропорции важны: по ним сервер подбирает размер подписи в заявке.
   function sigCanvasToPng(src) {
     const w = src.width, h = src.height;
     const d = src.getContext('2d').getImageData(0, 0, w, h).data;
@@ -1294,18 +1295,17 @@
       }
     }
     if (maxX < 0) return null;
-    const pad = 6;
+    const pad = 3;
     minX = Math.max(0, minX - pad); minY = Math.max(0, minY - pad);
     maxX = Math.min(w - 1, maxX + pad); maxY = Math.min(h - 1, maxY + pad);
     const cw = maxX - minX + 1, ch = maxY - minY + 1;
-    const OUT_W = 900, OUT_H = 270;
-    const scale = Math.min(OUT_W / cw, OUT_H / ch);
-    const dw = cw * scale, dh = ch * scale;
+    const scale = Math.min(1, 900 / Math.max(cw, ch));
     const out = document.createElement('canvas');
-    out.width = OUT_W; out.height = OUT_H;
+    out.width = Math.max(1, Math.round(cw * scale));
+    out.height = Math.max(1, Math.round(ch * scale));
     const octx = out.getContext('2d');
     octx.imageSmoothingQuality = 'high';
-    octx.drawImage(src, minX, minY, cw, ch, (OUT_W - dw) / 2, (OUT_H - dh) / 2, dw, dh);
+    octx.drawImage(src, minX, minY, cw, ch, 0, 0, out.width, out.height);
     return out.toDataURL('image/png');
   }
 
