@@ -257,6 +257,15 @@
     .busy-notice-line { font-size: 14px; line-height: 1.4; margin-bottom: 8px; color: #1c1c1e; }
     .busy-notice-hint { font-size: 12px; color: #6c6c70; margin-top: 4px; }
 
+    #draft_status {
+      position: fixed; top: 6px; right: 8px; z-index: 9000; display: none; pointer-events: none;
+      font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 10px;
+      background: rgba(255,255,255,0.92); box-shadow: 0 1px 4px rgba(0,0,0,0.18);
+    }
+    #draft_status.ok { color: #1f8a4c; }
+    #draft_status.pending { color: #8e6a00; }
+    #draft_status.err { color: #c62828; }
+
     #toast {
       position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
       background: rgba(0,0,0,0.85); color: white; padding: 8px 16px; border-radius: 18px;
@@ -857,6 +866,7 @@
 </div>
 
 <div id="toast"></div>
+<div id="draft_status"></div>
 <div id="busy_notice" onclick="hideBusyNotice()"></div>
 
 <script>
@@ -1023,6 +1033,7 @@
   let CURRENT_REPORT_UID = Math.random().toString(36).substring(2, 8);
   let isViewingRemoteReport = false;
   let autoSaveTimeout = null;
+  let storeTouched = false; // true, если в этой сессии расходы загружены из сохранённого или добавлялись/удалялись пользователем
   let detectedDraftReport = null;
   let isDraftPromptDismissedForSession = false;
   let activeRecalcTripId = null;
@@ -1055,33 +1066,69 @@
     return { id: urlParams.get('user_id') || "446642559", first_name: store.passport.fio };
   }
 
+  // ===== Автосохранение черновика АО-1 в реестр =====
+  let draftInFlight = false;
+  let draftDirty = false;
+
+  function setDraftStatus(state) {
+    const el = document.getElementById('draft_status');
+    if (!el) return;
+    const hhmm = new Date().toTimeString().slice(0, 5);
+    if (state === 'pending') { el.innerText = '✎ Есть несохранённые правки'; el.className = 'pending'; }
+    else if (state === 'saving') { el.innerText = '💾 Сохраняю…'; el.className = 'pending'; }
+    else if (state === 'saved') { el.innerText = '💾 Черновик сохранён ' + hhmm; el.className = 'ok'; }
+    else { el.innerText = '⚠️ Не сохранено: проверьте связь'; el.className = 'err'; }
+    el.style.display = 'block';
+  }
+
+  function sendDraftNow(isFinalFlush) {
+    if (isViewingRemoteReport) return;
+    // Одновременно в пути только одно сохранение: свежие правки уйдут сразу после него (чтобы старая версия не затёрла новую)
+    if (draftInFlight && !isFinalFlush) { draftDirty = true; return; }
+    draftInFlight = true;
+    draftDirty = false;
+    savePassport();
+    setDraftStatus('saving');
+    fetch(GOOGLE_SHEET_API, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain" },
+      keepalive: !!isFinalFlush,
+      body: JSON.stringify({
+        action: "save_cloud_draft",
+        report_uid: CURRENT_REPORT_UID,
+        passport: store.passport,
+        expenses: store.expenses,
+        taxis: store.taxis,
+        store_touched: storeTouched,
+        telegram_user: getTelegramUser()
+      })
+    })
+    .then(r => r.json())
+    .then(res => { setDraftStatus(res && (res.status === 'success' || res.status === 'ok') ? 'saved' : 'error'); })
+    .catch(() => { setDraftStatus('error'); })
+    .finally(() => {
+      draftInFlight = false;
+      if (draftDirty) { draftDirty = false; sendDraftNow(false); }
+    });
+  }
+
   function triggerCloudAutoSave() {
     if (isViewingRemoteReport) return;
     clearTimeout(autoSaveTimeout);
-    autoSaveTimeout = setTimeout(() => {
-      savePassport();
-      let tgUser = getTelegramUser();
-      fetch(GOOGLE_SHEET_API, {
-        method: "POST", mode: "no-cors",
-        headers: { "Content-Type": "text/plain" },
-        body: JSON.stringify({
-          action: "save_cloud_draft",
-          report_uid: CURRENT_REPORT_UID,
-          passport: store.passport,
-          expenses: store.expenses,
-          taxis: store.taxis,
-          telegram_user: tgUser
-        })
-      });
-      if (store.passport.tripId) {
-        fetch(GOOGLE_SHEET_API, {
-          method: "POST", mode: "no-cors",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "mark_trip_warning", tripId: store.passport.tripId })
-        });
-      }
-    }, 1000);
+    setDraftStatus('pending');
+    autoSaveTimeout = setTimeout(() => { autoSaveTimeout = null; sendDraftNow(false); }, 1000);
   }
+
+  // При сворачивании или закрытии окна немедленно отправляем всё, что ещё не успело уйти
+  function flushCloudDraftNow() {
+    if (autoSaveTimeout) {
+      clearTimeout(autoSaveTimeout);
+      autoSaveTimeout = null;
+      sendDraftNow(true);
+    }
+  }
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushCloudDraftNow(); });
+  window.addEventListener('pagehide', flushCloudDraftNow);
 
   function triggerMailApp(url) {
     if (!url) return;
@@ -2019,6 +2066,7 @@
     store.taxis = (savedData && Array.isArray(savedData.taxis)) ? savedData.taxis : [];
     store.passport.purpose = (savedData && savedData.passport && savedData.passport.purpose) ? savedData.passport.purpose : '';
     if (savedRep && savedRep.isDraft) CURRENT_REPORT_UID = savedRep.id;
+    storeTouched = !!savedData; // если сохранённых данных нет, пустое автосохранение не должно ничего перезаписывать
 
     document.getElementById('p_trip_id').value = tripId;
     document.getElementById('p_fio').value = tr.team || d.fio || '';
@@ -2117,6 +2165,7 @@
     ];
 
     renderExpenseList();
+    storeTouched = true;
     triggerCloudAutoSave();
     showToast("⚡ ДЕМО-расходы добавлены!");
   }
@@ -2471,7 +2520,7 @@
 
   function checkCloudDraftPopup(reports, userId, isAdmin) {
     if (isDraftPromptDismissedForSession || isViewingRemoteReport) return;
-    const userDrafts = (reports || []).filter(r => r.isDraft && String(r.status).toLowerCase() === 'черновик' && (!userId || String(r.tgId).trim() === String(userId).trim()));
+    const userDrafts = (reports || []).filter(r => r.isDraft && String(r.status).toLowerCase() === 'черновик' && (!userId || String(r.tgId).trim() === String(userId).trim() || String(r.authorTgId).trim() === String(userId).trim()));
     if (userDrafts.length === 0) return;
 
     detectedDraftReport = userDrafts[0];
@@ -2502,6 +2551,8 @@
       store.expenses = data.expenses || [];
       store.taxis = data.taxis || [];
     }
+
+    storeTouched = true; // данные подняты из сохранённого черновика
 
     const p = store.passport;
     document.getElementById('p_trip_id').value = p.tripId || '';
@@ -3021,6 +3072,7 @@
     }
 
     closeExpense();
+    storeTouched = true;
     triggerCloudAutoSave();
     renderExpenseList();
     showToast("Позиция сохранена!");
@@ -3049,6 +3101,7 @@
     const it = store.expenses.find(x => x.id === id);
     if (it && it.cat === 'taxi') store.taxis = store.taxis.filter(t => !(t.date === it.date && t.no === it.no));
     store.expenses = store.expenses.filter(x => x.id !== id);
+    storeTouched = true;
     triggerCloudAutoSave();
     renderExpenseList();
   }
