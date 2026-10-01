@@ -24,11 +24,17 @@
   .btn { display: block; width: 100%; padding: 14px; border-radius: 12px; border: 0; font-size: 16px; font-weight: 600;
     text-align: center; text-decoration: none; cursor: pointer; margin-bottom: 10px; }
   .btn-primary { background: var(--primary); color: #fff; }
+  .btn-primary[disabled] { background: var(--border); color: var(--muted); cursor: default; }
   .btn-secondary { background: var(--card); color: var(--primary); border: 1px solid var(--border); }
   .btn:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
   .note { font-size: 13px; color: var(--muted); line-height: 1.4; }
   .status { font-size: 14px; min-height: 20px; margin: 4px 0 10px; }
   .status.ok { color: var(--ok); } .status.err { color: var(--err); }
+  .att { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 0; border-top: 1px solid var(--border); font-size: 14px; }
+  .att:first-of-type { border-top: 0; }
+  .att a { color: var(--primary); text-decoration: none; font-weight: 600; white-space: nowrap; }
+  .att .st { color: var(--muted); font-size: 13px; white-space: nowrap; }
+  .att .st.ok { color: var(--ok); } .att .st.err { color: var(--err); }
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -52,11 +58,17 @@
       <div class="body" id="body"></div>
     </div>
 
-    <a id="mailBtn" class="btn btn-primary" href="#">Открыть в почте</a>
+    <div class="card" id="attCard" hidden>
+      <div class="label">Вложения: заявки в PDF</div>
+      <div id="attList"></div>
+    </div>
+
+    <button id="shareBtn" class="btn btn-primary" type="button" hidden disabled>✉️ Отправить письмо с PDF</button>
+    <a id="mailBtn" class="btn btn-secondary" href="#">Открыть в почте (без вложений)</a>
     <button id="copyBodyBtn" class="btn btn-secondary" type="button">Скопировать текст письма</button>
     <button id="copySubjectBtn" class="btn btn-secondary" type="button">Скопировать тему</button>
     <div id="status" class="status" role="status"></div>
-    <p class="note">Если почта не открылась, скопируйте тему и текст и вставьте их в новое письмо. Вложения (заявки) прикрепите вручную.</p>
+    <p class="note" id="hint"></p>
   </div>
 </div>
 
@@ -65,6 +77,8 @@
 
   var el = function (id) { return document.getElementById(id); };
   var mail = { subject: "", body: "" };
+  var pdfFiles = [];      // готовые File для системного меню «Поделиться»
+  var attachments = [];   // {reqId, fio, state, url}
 
   function showError(title, text) {
     el("loading").hidden = true;
@@ -96,9 +110,9 @@
     } else { fallback(); }
   }
 
-  function render(data) {
-    mail.subject = data.subject || "";
-    mail.body = data.body || "";
+  function renderLetter(subject, body) {
+    mail.subject = subject || "";
+    mail.body = body || "";
     el("subject").textContent = mail.subject;
     el("body").textContent = mail.body;
     el("mailBtn").href = "mailto:?subject=" + encodeURIComponent(mail.subject) + "&body=" + encodeURIComponent(mail.body);
@@ -106,18 +120,139 @@
     el("content").hidden = false;
   }
 
+  // Тема и текст могут прийти прямо в ссылке (#t=...), тогда запрос к серверу не нужен
+  function readLetterFromHash() {
+    try {
+      var m = location.hash.match(/[#&]t=([^&]+)/);
+      if (!m) return null;
+      var b64 = m[1].replace(/-/g, "+").replace(/_/g, "/");
+      while (b64.length % 4) b64 += "=";
+      var obj = JSON.parse(decodeURIComponent(escape(atob(b64))));
+      return (obj && obj.b) ? obj : null;
+    } catch (e) { return null; }
+  }
+
+  function renderAttachments() {
+    var box = el("attList");
+    box.innerHTML = "";
+    attachments.forEach(function (a) {
+      var row = document.createElement("div");
+      row.className = "att";
+      var name = document.createElement("span");
+      name.textContent = "📄 " + (a.fio || "Заявка");
+      var right = document.createElement("span");
+      if (a.state === "ok" && a.url) {
+        var link = document.createElement("a");
+        link.href = a.url; link.download = a.fileName || "zayavka.pdf"; link.textContent = "Скачать";
+        right.appendChild(link);
+      } else {
+        var st = document.createElement("span");
+        st.className = "st" + (a.state === "err" ? " err" : "");
+        st.textContent = a.state === "err" ? "не загрузился" : "загружается…";
+        right.appendChild(st);
+      }
+      row.appendChild(name); row.appendChild(right);
+      box.appendChild(row);
+    });
+  }
+
+  function b64ToFile(b64, name) {
+    var bin = atob(b64);
+    var bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new File([bytes], /\.pdf$/i.test(name) ? name : name + ".pdf", { type: "application/pdf" });
+  }
+
+  function canShareFiles() {
+    try {
+      return !!(navigator.share && navigator.canShare && pdfFiles.length && navigator.canShare({ files: pdfFiles }));
+    } catch (e) { return false; }
+  }
+
+  function updateShareButton() {
+    var btn = el("shareBtn");
+    var allDone = attachments.every(function (a) { return a.state !== "loading"; });
+    if (!allDone) { btn.disabled = true; btn.textContent = "⏳ Загружаю PDF…"; return; }
+    if (pdfFiles.length && canShareFiles()) {
+      btn.disabled = false;
+      btn.textContent = "✉️ Отправить письмо с PDF (" + pdfFiles.length + ")";
+      el("hint").textContent = "В меню «Поделиться» выберите «Почта»: письмо откроется с текстом и PDF-заявками во вложении. Если тема не подставилась, скопируйте её кнопкой выше.";
+    } else {
+      btn.disabled = true;
+      btn.textContent = "Вложения недоступны в этом окне";
+      el("hint").textContent = "В этом окне системное меню «Поделиться» с файлами не работает. Откройте страницу в Safari (меню ⋯ → «Открыть в Safari») или скачайте PDF кнопками «Скачать» и прикрепите их к письму вручную.";
+    }
+  }
+
+  function loadAttachments(reqIds) {
+    el("attCard").hidden = false;
+    el("shareBtn").hidden = false;
+    attachments = reqIds.map(function (id) { return { reqId: id, fio: "", state: "loading", url: "", fileName: "" }; });
+    renderAttachments();
+    updateShareButton();
+
+    // Сначала список (кто есть, с именами), затем сами PDF параллельно
+    fetch(API + "?action=get_attachments&reqIds=" + encodeURIComponent(reqIds.join(",")))
+      .then(function (r) { return r.json(); })
+      .then(function (res) {
+        var files = (res && res.ok && res.files) ? res.files : [];
+        if (!files.length) { attachments = []; el("attCard").hidden = true; el("shareBtn").hidden = true; return; }
+        attachments = files.map(function (f) { return { reqId: f.reqId, fio: f.fio, state: "loading", url: "", fileName: "" }; });
+        renderAttachments();
+        return Promise.all(attachments.map(function (a) {
+          return fetch(API + "?action=get_pdf&reqId=" + encodeURIComponent(a.reqId))
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+              if (!d || !d.ok) throw new Error("no pdf");
+              var file = b64ToFile(d.b64, d.name || ("zayavka_" + a.reqId + ".pdf"));
+              a.fileName = file.name;
+              a.url = URL.createObjectURL(file);
+              a.state = "ok";
+              pdfFiles.push(file);
+            })
+            .catch(function () { a.state = "err"; })
+            .then(function () { renderAttachments(); updateShareButton(); });
+        }));
+      })
+      .catch(function () {
+        attachments.forEach(function (a) { if (a.state === "loading") a.state = "err"; });
+        renderAttachments(); updateShareButton();
+      });
+  }
+
+  el("shareBtn").addEventListener("click", function () {
+    if (!pdfFiles.length) return;
+    var data = { files: pdfFiles, title: mail.subject, text: mail.body };
+    navigator.share(data).catch(function (err) {
+      if (err && err.name === "AbortError") return;
+      setStatus("Не удалось открыть меню «Поделиться». Скачайте PDF и прикрепите вручную.", true);
+    });
+  });
   el("copyBodyBtn").addEventListener("click", function () { copyText(mail.body, "Текст письма скопирован"); });
   el("copySubjectBtn").addEventListener("click", function () { copyText(mail.subject, "Тема скопирована"); });
 
   (function init() {
-    var reqId = new URLSearchParams(window.location.search).get("req");
-    if (!reqId) { showError("Нет номера заявки", "Откройте ссылку из сообщения бота ещё раз."); return; }
+    var params = new URLSearchParams(window.location.search);
+    // reqs=a,b,c (все заявки командировки); для совместимости со старыми ссылками принимаем и req=a
+    var reqIds = (params.get("reqs") || params.get("req") || "").split(",").map(function (x) { return x.trim(); }).filter(Boolean);
 
-    fetch(API + "?action=get_mail&reqId=" + encodeURIComponent(reqId))
+    var fromHash = readLetterFromHash();
+    if (fromHash) {
+      renderLetter(fromHash.s, fromHash.b);
+      if (reqIds.length) loadAttachments(reqIds);
+      return;
+    }
+    if (!reqIds.length) { showError("Нет номера заявки", "Откройте ссылку из сообщения бота ещё раз."); return; }
+
+    fetch(API + "?action=get_mail&reqId=" + encodeURIComponent(reqIds[0]))
       .then(function (r) { return r.json(); })
       .then(function (data) {
-        if (data && data.ok && data.body) { render(data); }
-        else { showError("Письмо не найдено", "Заявка " + reqId + " отсутствует в реестре или у неё нет сохранённого текста письма."); }
+        if (data && data.ok && data.body) {
+          renderLetter(data.subject, data.body);
+          loadAttachments(reqIds);
+        } else {
+          showError("Письмо не найдено", "Заявка " + reqIds[0] + " отсутствует в реестре или у неё нет сохранённого текста письма.");
+        }
       })
       .catch(function () {
         showError("Нет связи с сервером", "Проверьте интернет и откройте ссылку ещё раз.");
