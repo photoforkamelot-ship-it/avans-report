@@ -43,6 +43,7 @@
     .tab-btn { flex: 1; min-width: 80px; padding: 9px 6px; background: #e5e5ea; border: none; border-radius: 10px; font-weight: 600; font-size: 12px; cursor: pointer; color: var(--text); text-align: center; white-space: nowrap; }
     .tab-btn.active { background: var(--primary); color: white; }
 
+    .tg-notif-btn.active { box-shadow: 0 0 0 2px var(--primary, #007aff); }
     .tg-notif-btn {
       position: relative; background: #fff; border: 1.5px solid #cbd5e1; border-radius: 10px;
       width: 38px; height: 38px; display: inline-flex; align-items: center; justify-content: center;
@@ -279,11 +280,11 @@
       <button type="button" id="tab_btn_trips" class="tab-btn active" onclick="switchMainTab('trips')">✈️ Командировки</button>
       <button type="button" id="tab_btn_new_req" class="tab-btn" style="display:none;" onclick="switchMainTab('new_req')">💰 Заявка на ДС</button>
       <button type="button" id="tab_btn_drafts" class="tab-btn" style="display:none;" onclick="switchMainTab('drafts')">💾 Черновики (<span id="draft_count_badge">0</span>)</button>
-      <button type="button" id="tab_btn_emp" class="tab-btn" style="display:none;" onclick="switchMainTab('employees')">👥 База сотрудников</button>
     </div>
 
     <!-- Подпись и колокол настроек уведомлений Telegram -->
     <div style="display:flex; gap:6px; flex-shrink:0;">
+      <div id="tab_btn_emp" class="tg-notif-btn" style="display:none;" title="База сотрудников" onclick="switchMainTab('employees')"><span>👥</span></div>
       <div class="tg-notif-btn" title="Моя подпись" onclick="openSignatureModal()"><span>✍️</span></div>
       <div class="tg-notif-btn" title="Настройки уведомлений Telegram" onclick="openNotificationSettingsModal()">
         <span>🔔</span>
@@ -1604,8 +1605,8 @@
         applyRoleUiRestrictions();
 
         if (res.isAdmin) {
-          document.getElementById('tab_btn_emp').style.display = 'block';
-          document.getElementById('admin_emp_card').style.display = 'block';
+          document.getElementById('tab_btn_emp').style.display = 'flex';
+          document.getElementById('admin_emp_card').style.display = 'none'; // панель выбора сотрудника убрана: сотрудника выбирают в «Командировках» и «Заявке на ДС»
           renderEmployeeDropdown(res.employees);
           renderAdminEmployees();
         } else {
@@ -2934,7 +2935,7 @@
   function checkCloudDraftPopup(reports, userId, isAdmin) {
     if (isDraftPromptDismissedForSession || isViewingRemoteReport || draftPopupChecked) return;
     draftPopupChecked = true;
-    const userDrafts = (reports || []).filter(r => r.isDraft && String(r.status).toLowerCase() === 'черновик' && (!userId || String(r.tgId).trim() === String(userId).trim() || String(r.authorTgId).trim() === String(userId).trim()));
+    const userDrafts = (reports || []).filter(r => r.isDraft && String(r.status).toLowerCase() === 'черновик' && (!userId || String(r.tgId).trim() === String(userId).trim() || (!isAdmin && String(r.authorTgId).trim() === String(userId).trim())));
     if (userDrafts.length === 0) return;
 
     detectedDraftReport = userDrafts[0];
@@ -3014,6 +3015,7 @@
 
   function switchMainTab(tab) {
     document.querySelectorAll('.top-tabs .tab-btn').forEach(b => b.classList.remove('active'));
+    { const eb = document.getElementById('tab_btn_emp'); if (eb) eb.classList.remove('active'); }
     document.querySelectorAll('.main-tab-content').forEach(c => c.style.display = 'none');
 
     { const st = document.getElementById('status_strip'); if (st && st.className.indexOf(' ') > 0) st.style.display = (tab === 'form') ? 'block' : 'none'; }
