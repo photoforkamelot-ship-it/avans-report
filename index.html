@@ -57,11 +57,16 @@
       background: var(--success); font-size: 10px;
     }
 
-    .review-banner {
-      background: #e8f3ff; border: 1px solid #b8daff; border-radius: 12px;
-      padding: 10px 12px; margin-bottom: 10px; display: none; justify-content: space-between; align-items: center; gap: 8px;
+    .status-strip {
+      display: none; margin: 0 0 10px 0; padding: 9px 12px; border-radius: 12px;
+      font-size: 13px; font-weight: 700; text-align: center; border: 1px solid transparent;
     }
-    .review-banner-btns { display: flex; gap: 6px; flex-shrink: 0; }
+    .status-strip.view { background:#e8f3ff; border-color:#b8daff; color:#004085; animation: stripBlink 1.4s ease-in-out infinite; }
+    .status-strip.edit { background:#fff4d6; border-color:#f1d58a; color:#7a5b00; }
+    .status-strip.pending { background:#fff4d6; border-color:#f1d58a; color:#7a5b00; }
+    .status-strip.ok { background:#e6f6ec; border-color:#b7e2c5; color:#1f8a4c; }
+    .status-strip.err { background:#fdeaea; border-color:#f3b8b8; color:#c62828; }
+    @keyframes stripBlink { 0%,100% { opacity:1; } 50% { opacity:.45; } }
 
     .card { background: var(--card); border-radius: 12px; padding: 12px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
     h2 { font-size: 17px; margin: 0 0 10px 0; font-weight: 700; }
@@ -257,15 +262,6 @@
     .busy-notice-line { font-size: 14px; line-height: 1.4; margin-bottom: 8px; color: #1c1c1e; }
     .busy-notice-hint { font-size: 12px; color: #6c6c70; margin-top: 4px; }
 
-    #draft_status {
-      position: fixed; top: 6px; right: 8px; z-index: 9000; display: none; pointer-events: none;
-      font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 10px;
-      background: rgba(255,255,255,0.92); box-shadow: 0 1px 4px rgba(0,0,0,0.18);
-    }
-    #draft_status.ok { color: #1f8a4c; }
-    #draft_status.pending { color: #8e6a00; }
-    #draft_status.err { color: #c62828; }
-
     #toast {
       position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
       background: rgba(0,0,0,0.85); color: white; padding: 8px 16px; border-radius: 18px;
@@ -296,16 +292,7 @@
     </div>
   </div>
 
-  <div id="review_banner" class="review-banner">
-    <div>
-      <div style="font-weight:700; color:#004085; font-size:13px;">👁️ Просмотр отчёта:</div>
-      <div id="banner_report_title" style="font-size:12px; color:#004085;">—</div>
-    </div>
-    <div class="review-banner-btns">
-      <button type="button" class="btn btn-primary" style="height:32px; min-height:32px; padding:0 10px; font-size:12px;" onclick="enableEditingCurrentReport()">✏ Изменить</button>
-      <button type="button" class="btn btn-secondary" style="height:32px; min-height:32px; padding:0 10px; font-size:12px;" onclick="closeReviewMode()">✕ Закрыть</button>
-    </div>
-  </div>
+  <div id="status_strip" class="status-strip"></div>
 
   <!-- ВКЛАДКА 1: ЗАПОЛНЕНИЕ АО-1 -->
   <div id="tab-form" class="main-tab-content" style="display:none;">
@@ -868,8 +855,8 @@
   </div>
 </div>
 
-<div id="signature_modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:10040; align-items:center; justify-content:center; padding:12px;">
-  <div style="background:#fff; border-radius:16px; width:100%; max-width:440px; max-height:92vh; overflow-y:auto; padding:16px;">
+<div id="signature_modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:10040; align-items:center; justify-content:center; padding:10px; overscroll-behavior:none; touch-action:none;">
+  <div style="background:#fff; border-radius:16px; width:100%; max-width:440px; max-height:96vh; overflow-y:auto; overscroll-behavior:contain; touch-action:pan-y; padding:14px;">
     <h3 style="margin:0 0 4px 0;">✍️ Подпись</h3>
     <div id="sig_subtitle" style="font-size:12px; color:#64748b; margin-bottom:10px;"></div>
 
@@ -880,14 +867,14 @@
     </div>
 
     <div style="display:flex; gap:6px; margin-bottom:10px;">
-      <button type="button" id="sig_mode_draw" class="btn btn-primary" style="height:34px; font-size:13px;" onclick="sigSetMode('draw')">✍️ Нарисовать</button>
-      <button type="button" id="sig_mode_photo" class="btn btn-secondary" style="height:34px; font-size:13px;" onclick="sigSetMode('photo')">📷 Из фото</button>
+      <button type="button" id="sig_mode_draw" class="btn btn-primary" style="height:46px; font-size:15px;" onclick="sigSetMode('draw')">✍️ Нарисовать</button>
+      <button type="button" id="sig_mode_photo" class="btn btn-secondary" style="height:46px; font-size:15px;" onclick="sigSetMode('photo')">📷 Из фото</button>
     </div>
 
     <div id="sig_pane_draw">
-      <canvas id="sig_canvas" width="1200" height="400" style="width:100%; height:auto; border:1.5px dashed #94a3b8; border-radius:10px; background:#fff; touch-action:none;"></canvas>
+      <canvas id="sig_canvas" width="1200" height="400" style="width:100%; aspect-ratio:3/1; height:auto; display:block; border:2px dashed #94a3b8; border-radius:10px; background:#fff; touch-action:none; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none;"></canvas>
       <div style="font-size:11px; color:#94a3b8; margin:4px 0 8px 0;">Распишитесь пальцем или мышью в рамке.</div>
-      <button type="button" class="btn btn-secondary" style="height:32px; font-size:12px; width:auto; padding:0 12px;" onclick="sigClearDraw()">🧹 Очистить</button>
+      <button type="button" class="btn btn-secondary" style="height:48px; font-size:15px; width:100%;" onclick="sigClearDraw()">🧹 Очистить рамку</button>
     </div>
 
     <div id="sig_pane_photo" style="display:none;">
@@ -901,16 +888,15 @@
     </div>
 
     <div id="sig_status" style="font-size:13px; min-height:18px; margin:10px 0 6px 0;"></div>
-    <div style="display:flex; gap:6px;">
-      <button type="button" class="btn btn-primary" onclick="saveSignature()">💾 Сохранить подпись</button>
-      <button type="button" class="btn btn-secondary" onclick="closeSignatureModal()">Закрыть</button>
+    <button type="button" class="btn btn-primary" style="height:54px; font-size:17px; width:100%;" onclick="saveSignature()">💾 Сохранить подпись</button>
+    <div style="display:flex; gap:8px; margin-top:8px;">
+      <button type="button" class="btn btn-secondary" style="height:50px; font-size:15px; flex:1;" onclick="closeSignatureModal()">✕ Закрыть</button>
+      <button type="button" id="sig_delete_btn" class="btn btn-danger" style="height:50px; font-size:15px; flex:1; display:none;" onclick="deleteSignature()">🗑️ Удалить подпись</button>
     </div>
-    <button type="button" id="sig_delete_btn" class="btn btn-danger" style="margin-top:8px; height:30px; font-size:12px; display:none;" onclick="deleteSignature()">🗑️ Удалить сохранённую подпись</button>
   </div>
 </div>
 
 <div id="toast"></div>
-<div id="draft_status"></div>
 <div id="busy_notice" onclick="hideBusyNotice()"></div>
 
 <script>
@@ -1109,8 +1095,7 @@
   }
   function leaveReviewModeForEditing() {
     isViewingRemoteReport = false;
-    const banner = document.getElementById('review_banner');
-    if (banner) banner.style.display = 'none';
+    setStrip('edit', '✏️ Вы начали редактирование');
     calcDaily();
     captureEditBaseline();
   }
@@ -1154,15 +1139,22 @@
   let draftInFlight = false;
   let draftDirty = false;
 
-  function setDraftStatus(state) {
-    const el = document.getElementById('draft_status');
+  function setStrip(kind, text) {
+    const el = document.getElementById('status_strip');
     if (!el) return;
+    if (!kind) { el.style.display = 'none'; el.className = 'status-strip'; el.innerText = ''; return; }
+    el.innerText = text;
+    el.className = 'status-strip ' + kind;
+    const formTab = document.getElementById('tab-form');
+    el.style.display = (formTab && formTab.style.display === 'none') ? 'none' : 'block';
+  }
+
+  function setDraftStatus(state) {
     const hhmm = new Date().toTimeString().slice(0, 5);
-    if (state === 'pending') { el.innerText = '✎ Есть несохранённые правки'; el.className = 'pending'; }
-    else if (state === 'saving') { el.innerText = '💾 Сохраняю…'; el.className = 'pending'; }
-    else if (state === 'saved') { el.innerText = '💾 Черновик сохранён ' + hhmm; el.className = 'ok'; }
-    else { el.innerText = '⚠️ Не сохранено: проверьте связь'; el.className = 'err'; }
-    el.style.display = 'block';
+    if (state === 'pending') setStrip('pending', '✎ Есть несохранённые правки');
+    else if (state === 'saving') setStrip('pending', '💾 Сохраняю…');
+    else if (state === 'saved') setStrip('ok', '💾 Черновик сохранён ' + hhmm);
+    else setStrip('err', '⚠️ Не сохранено: проверьте связь');
   }
 
   function sendDraftNow(isFinalFlush) {
@@ -1270,6 +1262,8 @@
       ctx.lineTo(p.x, p.y); ctx.stroke();
     });
     const end = () => { sigDrawing = false; };
+    cv.addEventListener('touchmove', (ev) => ev.preventDefault(), { passive: false });
+    cv.addEventListener('touchstart', (ev) => ev.preventDefault(), { passive: false });
     cv.addEventListener('pointerup', end);
     cv.addEventListener('pointercancel', end);
   }
@@ -1400,6 +1394,7 @@
     document.getElementById('sig_delete_btn').style.display = 'none';
     sigSetMode('draw');
     document.getElementById('signature_modal').style.display = 'flex';
+    sigLockWindow(true);
 
     const uid = (getTelegramUser() && getTelegramUser().id) || '';
     fetch(`${GOOGLE_SHEET_API}?action=get_signature&tab=${encodeURIComponent(emp.tab)}&user_id=${encodeURIComponent(uid)}&_=${Date.now()}`)
@@ -1408,7 +1403,17 @@
       .catch(() => sigShowCurrent(null));
   }
 
+  function sigLockWindow(on) {
+    try {
+      document.body.style.overflow = on ? 'hidden' : '';
+      document.documentElement.style.overscrollBehavior = on ? 'none' : '';
+      const t = window.Telegram && window.Telegram.WebApp;
+      if (t) { if (on && t.disableVerticalSwipes) t.disableVerticalSwipes(); if (!on && t.enableVerticalSwipes) t.enableVerticalSwipes(); }
+    } catch (e) {}
+  }
+
   function closeSignatureModal() {
+    sigLockWindow(false);
     document.getElementById('signature_modal').style.display = 'none';
   }
 
@@ -2959,7 +2964,7 @@
     if (!detectedDraftReport) return;
     document.getElementById('cloud_draft_modal').style.display = 'none';
     isViewingRemoteReport = false;
-    const rb = document.getElementById('review_banner'); if (rb) rb.style.display = 'none';
+    setStrip(null);
     CURRENT_REPORT_UID = detectedDraftReport.id;
 
     if (detectedDraftReport.rawJson) {
@@ -3011,6 +3016,7 @@
     document.querySelectorAll('.top-tabs .tab-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.main-tab-content').forEach(c => c.style.display = 'none');
 
+    { const st = document.getElementById('status_strip'); if (st && st.className.indexOf(' ') > 0) st.style.display = (tab === 'form') ? 'block' : 'none'; }
     if (tab === 'form') document.getElementById('tab-form').style.display = 'block';
     else if (tab === 'trips') document.getElementById('tab-trips').style.display = 'block';
     else if (tab === 'new_req') document.getElementById('tab-new-req').style.display = 'block';
@@ -3082,8 +3088,7 @@
       document.getElementById('step-4').classList.add('active');
       renderFinal();
 
-      document.getElementById('banner_report_title').innerText = `${store.passport.fio} (${formatUniqueCities(store.passport.city)})`;
-      document.getElementById('review_banner').style.display = 'flex';
+      setStrip('view', `👁️ Просмотр: ${store.passport.fio} (${formatUniqueCities(store.passport.city)})`);
       window.scrollTo(0, 0);
     } catch(e) {
       showToast("Ошибка при открытии: " + e.message);
@@ -3100,7 +3105,7 @@
   function closeReviewMode() {
     isViewingRemoteReport = false;
     clearEditBaseline();
-    document.getElementById('review_banner').style.display = 'none';
+    setStrip(null);
     switchMainTab('trips');
   }
 
