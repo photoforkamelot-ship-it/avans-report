@@ -175,9 +175,10 @@
       position: absolute; top: 100%; left: 0; right: 0;
       background: #ffffff; border: 1px solid var(--border); border-radius: 8px;
       box-shadow: 0 4px 14px rgba(0,0,0,0.15); z-index: 1000; display: none;
-      max-height: 200px; overflow-y: auto; margin-top: 2px;
+      max-height: 45vh; overflow-y: auto; margin-top: 4px; -webkit-overflow-scrolling: touch;
     }
-    .suggest-item { padding: 9px 11px; font-size: 12px; border-bottom: 1px solid #f2f2f7; cursor: pointer; line-height: 1.35; }
+    .suggest-item { padding: 12px 14px; min-height: 44px; box-sizing: border-box; font-size: 14px; border-bottom: 1px solid #f2f2f7; cursor: pointer; line-height: 1.35; display: block; }
+    .suggest-item:active { background: #e8f3ff; }
     .suggest-item:hover { background: #f2f2f7; color: var(--primary); }
 
     .table-scroll { width: 100%; overflow-x: auto; margin: 6px 0; -webkit-overflow-scrolling: touch; }
@@ -295,7 +296,8 @@
 
     .emp-estimate-card { background: #fdfdfd; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px; margin-bottom: 8px; }
     .team-chip { display: inline-flex; align-items: center; gap: 6px; background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; margin: 3px; }
-    .team-chip-del { cursor: pointer; color: #ef4444; font-weight: 700; margin-left: 2px; }
+    .team-chip { padding: 6px 6px 6px 12px; margin: 3px; }
+    .team-chip-del { cursor: pointer; color: #ef4444; font-weight: 700; margin-left: 2px; width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; background: #fff; }
 
     .red-comment-tag {
       color: #dc2626; font-size: 11px; font-weight: 700; margin-bottom: 4px; display: block;
@@ -599,9 +601,8 @@
       <div class="field">
         <label>Состав участников поездки <span class="req-star">*</span></label>
         <div id="admin_team_picker" style="position:relative; margin-bottom:6px;">
-          <div style="display:flex; gap:6px;">
-            <input type="text" id="team_search_input" placeholder="Фамилия сотрудника..." autocomplete="off" oninput="filterTeamSearch(this.value)">
-            <button type="button" class="btn btn-secondary" style="width:auto; height:40px; padding:0 12px; font-size:12px;" onclick="showAllTeamDropdown()">👥 Все</button>
+          <div style="display:flex; flex-wrap:nowrap; gap:8px; align-items:center;">
+            <input type="text" id="team_search_input" style="flex:1 1 auto; min-width:0; width:100%;" placeholder="Начните вводить фамилию сотрудника…" autocomplete="off" oninput="filterTeamSearch(this.value)">
           </div>
           <div id="team_suggest_box" class="suggest-box" style="display:none;"></div>
         </div>
@@ -2802,11 +2803,11 @@
     const box = document.getElementById('team_suggest_box');
     val = (val || '').toLowerCase().trim();
     if (!val) { box.style.display = 'none'; return; }
-    const matches = (globalAppData.employees || []).filter(e => e.fio.toLowerCase().includes(val));
+    const matches = (globalAppData.employees || []).filter(e => e.fio.toLowerCase().split(/\s+/).some(w => w.startsWith(val)));
     if (matches.length === 0) { box.style.display = 'none'; return; }
     box.innerHTML = matches.map(e => `
       <div class="suggest-item" onclick="onSuggestTeamMemberClick('${e.fio.replace(/'/g, "\\'")}')">
-        👤 <b>${e.fio}</b> <span style="color:#64748b; font-size:11px;">(${e.role})</span>
+        👤 <b>${e.fio}</b><br><span style="color:#64748b; font-size:12px;">${e.role}</span>
       </div>
     `).join('');
     box.style.display = 'block';
@@ -2818,7 +2819,7 @@
     if (list.length === 0) return;
     box.innerHTML = list.map(e => `
       <div class="suggest-item" onclick="onSuggestTeamMemberClick('${e.fio.replace(/'/g, "\\'")}')">
-        👤 <b>${e.fio}</b> <span style="color:#64748b; font-size:11px;">(${e.role})</span>
+        👤 <b>${e.fio}</b><br><span style="color:#64748b; font-size:12px;">${e.role}</span>
       </div>
     `).join('');
     box.style.display = box.style.display === 'block' ? 'none' : 'block';
@@ -3587,7 +3588,7 @@
   }
 
   document.addEventListener('click', (e) => {
-    if (!e.target.closest('.main-addr')) document.querySelectorAll('.suggest-box').forEach(b => b.style.display = 'none');
+    if (!e.target.closest('.main-addr') && !e.target.closest('#admin_team_picker')) document.querySelectorAll('.suggest-box').forEach(b => b.style.display = 'none');
     if (!e.target.closest('#admin_team_picker')) {
       const tb = document.getElementById('team_suggest_box');
       if (tb) tb.style.display = 'none';
