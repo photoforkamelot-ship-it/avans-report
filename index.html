@@ -1012,11 +1012,10 @@
     if (totalEl) totalEl.innerText = (days * rate).toLocaleString('ru-RU');
   }
 
-  function savePassport() {
-    if (isViewingRemoteReport) return;
+  function buildPassportObject() {
     const days = parseInt(document.getElementById('p_days').value) || 0;
     const rate = parseFloat(document.getElementById('p_rate').value) || 0;
-    store.passport = {
+    return {
       fio: (document.getElementById('p_fio').value || '').trim() || 'Сотрудник',
       role: (document.getElementById('p_role').value || '').trim() || 'Инженер',
       tab: (document.getElementById('p_tab').value || '').trim() || '—',
@@ -1030,9 +1029,48 @@
     };
   }
 
+  function savePassport() {
+    if (isViewingRemoteReport) return;
+    store.passport = buildPassportObject();
+  }
+
   let CURRENT_REPORT_UID = Math.random().toString(36).substring(2, 8);
   let isViewingRemoteReport = false;
   let autoSaveTimeout = null;
+  // Снимок данных на момент входа в редактирование уже сданного отчёта.
+  // Пока данные не отличаются от снимка, отчёт остаётся «сданным» и черновик не создаётся.
+  let editBaseline = null;
+  let editMarkedUnsaved = false;
+  let needsTreeRefresh = false;
+  let draftPopupChecked = false;
+
+  function dirtySerialize() {
+    const p = buildPassportObject();
+    return JSON.stringify({
+      p: [p.fio, p.role, p.tab, p.city, p.dStart, p.dEnd, p.advance, p.days, p.rate, p.tripId],
+      e: store.expenses, t: store.taxis
+    });
+  }
+  function captureEditBaseline() {
+    editBaseline = dirtySerialize();
+    editMarkedUnsaved = false;
+    markStep4ButtonsSaved();
+  }
+  function clearEditBaseline() {
+    editBaseline = null;
+    editMarkedUnsaved = false;
+  }
+  function isReportChangedSinceLoad() {
+    return editBaseline === null || dirtySerialize() !== editBaseline;
+  }
+  function leaveReviewModeForEditing() {
+    isViewingRemoteReport = false;
+    const banner = document.getElementById('review_banner');
+    if (banner) banner.style.display = 'none';
+    calcDaily();
+    captureEditBaseline();
+  }
+
   let storeTouched = false; // true, если в этой сессии расходы загружены из сохранённого или добавлялись/удалялись пользователем
   let detectedDraftReport = null;
   let isDraftPromptDismissedForSession = false;
@@ -1104,7 +1142,11 @@
       })
     })
     .then(r => r.json())
-    .then(res => { setDraftStatus(res && (res.status === 'success' || res.status === 'ok') ? 'saved' : 'error'); })
+    .then(res => {
+      const okSave = res && (res.status === 'success' || res.status === 'ok');
+      setDraftStatus(okSave ? 'saved' : 'error');
+      if (okSave) needsTreeRefresh = true; // таймлайн нужно перечитать при возврате на вкладку «Командировки»
+    })
     .catch(() => { setDraftStatus('error'); })
     .finally(() => {
       draftInFlight = false;
@@ -1114,6 +1156,10 @@
 
   function triggerCloudAutoSave() {
     if (isViewingRemoteReport) return;
+    // Данные не отличаются от сданного отчёта: ничего не сохраняем, статус «Сдан» не трогаем
+    if (!isReportChangedSinceLoad()) return;
+    // Первая реальная правка сданного отчёта: кнопки Excel/PDF снова требуют пересохранения
+    if (editBaseline !== null && !editMarkedUnsaved) { editMarkedUnsaved = true; markStep4ButtonsUnsaved(); }
     clearTimeout(autoSaveTimeout);
     setDraftStatus('pending');
     autoSaveTimeout = setTimeout(() => { autoSaveTimeout = null; sendDraftNow(false); }, 1000);
@@ -1508,7 +1554,8 @@
 
       const isGroupCompleted = grp.members.every(m => {
         const rep = (reports || []).find(r => !r.isDraft && String(r.status).toLowerCase() === 'готов' && (r.tripId === m.tripId));
-        return (rep || m.status === 'Завершена');
+        const hasDraft = (reports || []).some(r => r.isDraft && r.tripId === m.tripId);
+        return (rep || m.status === 'Завершена') && !hasDraft;
       });
 
       html += `
@@ -1542,7 +1589,8 @@
           String(r.status).toLowerCase() === 'готов' && 
           (r.tripId === tr.tripId)
         );
-        const isMemberDone = (relatedAo || tr.status === 'Завершена');
+        const draftAo = (reports || []).find(r => r.isDraft && r.tripId === tr.tripId);
+        const isMemberDone = (relatedAo || tr.status === 'Завершена') && !draftAo;
 
         html += `
           <div style="display:flex; gap:6px; align-items:center; margin:4px 0;">
@@ -1550,7 +1598,7 @@
               <span>👤 ${shortFio} ${cleanEmpCity} (${daysCount || 18} дн)</span>
               <span style="font-size:11px; color:#007aff;">Цепочка документов ▾</span>
             </button>
-            <div class="emp-icon-badge ${isMemberDone ? 'emp-icon-done' : 'emp-icon-progress'}" title="${isMemberDone ? 'Отчёт сдан' : 'В процессе'}">
+            <div class="emp-icon-badge ${isMemberDone ? 'emp-icon-done' : 'emp-icon-progress'}" title="${isMemberDone ? 'Отчёт сдан' : (draftAo ? 'Есть несданные правки' : 'В процессе')}">
               ${isMemberDone ? '✅' : '📝'}
             </div>
             ${globalAppData.isAdmin ? `<button type="button" class="btn btn-danger" style="height:34px; width:34px; min-width:34px;" title="Удалить командировку сотрудника" onclick="deleteSingleMemberTrip('${tr.tripId}', '${personFio.replace(/'/g, "\\'")}')">🗑️</button>` : ''}
@@ -1584,9 +1632,16 @@
           html += `
             <div class="timeline-node-field" onclick="openReportInReviewMode('${relatedAo.id}')">
               <b>📊 Авансовый отчет АО-1</b> (Сумма: ${Number(relatedAo.sum).toLocaleString('ru-RU')} ₽)<br>
-              <small>Статус: <b>Сдан</b> | Нажмите для открытия отчёта</small>
+              <small>Статус: ${draftAo ? '<b style="color:#b45309;">Изменён, правки не сданы</b> (ниже последняя сданная версия)' : '<b>Сдан</b>'} | Нажмите для открытия отчёта</small>
               ${relatedAo.url ? `<br><a href="${relatedAo.url}" target="_blank" style="color:var(--primary); font-size:11px;" onclick="event.stopPropagation();">Открыть файл Excel на Диске ➔</a>` : ''}
               ${relatedAo.pdfUrl ? `<br><a href="${relatedAo.pdfUrl}" target="_blank" style="color:var(--success); font-size:11px; font-weight:700;" onclick="event.stopPropagation();">🖨️ Открыть PDF для печати ➔</a>` : ''}
+            </div>
+          `;
+        } else if (draftAo) {
+          html += `
+            <div class="timeline-node-field" style="border-color:#f59e0b; background:#fffbeb;" onclick="loadTripIntoReport('${tr.tripId}')">
+              <b>📝 Авансовый отчет АО-1</b>: черновик (${Number(draftAo.sum).toLocaleString('ru-RU')} ₽)<br>
+              <small style="color:#b45309;">Нажмите сюда, чтобы продолжить заполнение</small>
             </div>
           `;
         } else {
@@ -1604,6 +1659,13 @@
               <b>⚠️ Изменены данные командировки!</b><br>
               Обнаружены новые или измененные заявки. Необходимо пересохранить АО-1.<br>
               <button type="button" class="btn btn-warning" style="height:32px; font-size:11px; margin-top:6px;" onclick="openRecalcModal('${tr.tripId}')">🔄 Произвести пересчёт и изменить Авансовый отчёт?</button>
+            </div>
+          `;
+        } else if (draftAo && (relatedAo || tr.status === 'Завершена')) {
+          html += `
+            <div class="status-field-box status-warning">
+              ✏️ <b>В отчёте есть правки, которые ещё не сданы.</b><br>
+              Черновик на сумму <b>${Number(draftAo.sum).toLocaleString('ru-RU')} ₽</b>. Нажмите «Заполнить АО-1», затем «Скачать Excel» или «Сохранить в PDF», чтобы зафиксировать изменения.
             </div>
           `;
         } else if (relatedAo || tr.status === 'Завершена') {
@@ -1624,7 +1686,7 @@
 
         html += `
             <div style="display:flex; gap:6px; margin-top:4px;">
-              <button type="button" class="btn btn-primary" style="height:30px; font-size:11px;" onclick="loadTripIntoReport('${tr.tripId}')">✏️ Заполнить АО-1</button>
+              <button type="button" class="btn btn-primary" style="height:30px; font-size:11px;" onclick="loadTripIntoReport('${tr.tripId}')">${draftAo ? '✏️ Продолжить правки' : '✏️ Заполнить АО-1'}</button>
               <button type="button" class="btn btn-secondary" style="height:30px; font-size:11px;" onclick="prolongPersonTrip('${tr.tripId}')">➕ Продление</button>
             </div>
           </div>
@@ -1900,6 +1962,7 @@
     document.getElementById('loader_modal_desc').innerText = "Идёт формирование и выгрузка Excel-таблицы авансового отчёта...";
     document.getElementById('report_loader_modal').style.display = 'flex';
 
+    clearTimeout(autoSaveTimeout); autoSaveTimeout = null; // чтобы отложенный черновик не обогнал сдачу отчёта
     savePassport();
     const sortedExpenses = [...store.expenses].sort((a, b) => parseDateToTimestamp(a.date) - parseDateToTimestamp(b.date));
     const sortedTaxis = [...store.taxis].sort((a, b) => parseDateToTimestamp(a.date) - parseDateToTimestamp(b.date));
@@ -1922,6 +1985,7 @@
     .then(res => {
       document.getElementById('report_loader_modal').style.display = 'none';
       markStep4ButtonsSaved();
+      captureEditBaseline(); // отчёт сдан: дальнейшие правки считаются от этого состояния
 
       if (res.excel_download_url) {
         const a = document.createElement("a");
@@ -1957,6 +2021,7 @@
     document.getElementById('loader_modal_desc').innerText = loaderDesc;
     document.getElementById('report_loader_modal').style.display = 'flex';
 
+    clearTimeout(autoSaveTimeout); autoSaveTimeout = null;
     savePassport();
     const sortedExpenses = [...store.expenses].sort((a, b) => parseDateToTimestamp(a.date) - parseDateToTimestamp(b.date));
     const sortedTaxis = [...store.taxis].sort((a, b) => parseDateToTimestamp(a.date) - parseDateToTimestamp(b.date));
@@ -1991,6 +2056,7 @@
       if (finished) return;
       finished = true;
       stopWaiting();
+      captureEditBaseline();
       btn.classList.remove("btn-danger-action");
       btn.classList.add("btn-green");
       if (pdfUrl) {
@@ -2091,6 +2157,10 @@
     calcDaily();
     savePassport();
     renderExpenseList();
+
+    // Если загружен уже сданный отчёт (не черновик), запоминаем его как исходный: пока ничего не изменено, он остаётся сданным
+    if (savedRep && !savedRep.isDraft) { captureEditBaseline(); }
+    else { clearEditBaseline(); markStep4ButtonsUnsaved(); }
 
     switchMainTab('form');
     goToStep(1);
@@ -2519,7 +2589,8 @@
   }
 
   function checkCloudDraftPopup(reports, userId, isAdmin) {
-    if (isDraftPromptDismissedForSession || isViewingRemoteReport) return;
+    if (isDraftPromptDismissedForSession || isViewingRemoteReport || draftPopupChecked) return;
+    draftPopupChecked = true;
     const userDrafts = (reports || []).filter(r => r.isDraft && String(r.status).toLowerCase() === 'черновик' && (!userId || String(r.tgId).trim() === String(userId).trim() || String(r.authorTgId).trim() === String(userId).trim()));
     if (userDrafts.length === 0) return;
 
@@ -2553,6 +2624,7 @@
     }
 
     storeTouched = true; // данные подняты из сохранённого черновика
+    clearEditBaseline();
 
     const p = store.passport;
     document.getElementById('p_trip_id').value = p.tripId || '';
@@ -2601,6 +2673,7 @@
       renderAdminEmployees();
     }
 
+    if (tab === 'trips' && needsTreeRefresh) { needsTreeRefresh = false; loadAppData(); }
     if (tab === 'trips') document.getElementById('tab_btn_trips').classList.add('active');
     else if (tab === 'drafts') document.getElementById('tab_btn_drafts').classList.add('active');
     else if (tab === 'employees') document.getElementById('tab_btn_emp').classList.add('active');
@@ -2671,17 +2744,15 @@
   }
 
   function enableEditingCurrentReport() {
-    isViewingRemoteReport = false;
-    document.getElementById('review_banner').style.display = 'none';
-    markStep4ButtonsUnsaved();
-    calcDaily();
+    leaveReviewModeForEditing();
     renderExpenseList();
     goToStep(1);
-    showToast("Отчёт готов к изменению!");
+    showToast("Отчёт открыт для правок. Пока вы ничего не измените, он остаётся сданным");
   }
 
   function closeReviewMode() {
     isViewingRemoteReport = false;
+    clearEditBaseline();
     document.getElementById('review_banner').style.display = 'none';
     switchMainTab('trips');
   }
@@ -2887,6 +2958,8 @@
   }
 
   function goToStep(s) {
+    // «Назад» из просмотра сданного отчёта открывает его для правок (иначе правки жили бы только в памяти)
+    if (isViewingRemoteReport && s < 4) { leaveReviewModeForEditing(); }
     if (s === 2) {
       if (!validateFields(['p_fio', 'p_role', 'p_city', 'p_date_range'])) { showToast('Заполните обязательные поля'); return; }
       savePassport();
