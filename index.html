@@ -1337,7 +1337,7 @@
       const warnClass = hasAnyWarning ? 'warning-active' : '';
 
       const isGroupCompleted = grp.members.every(m => {
-        const rep = (reports || []).find(r => !r.isDraft && String(r.status).toLowerCase() === 'готов' && (r.tripId === m.tripId || (m.tab && r.tab === m.tab)));
+        const rep = (reports || []).find(r => !r.isDraft && String(r.status).toLowerCase() === 'готов' && (r.tripId === m.tripId));
         return (rep || m.status === 'Завершена');
       });
 
@@ -1370,7 +1370,7 @@
         const relatedAo = (reports || []).find(r => 
           !r.isDraft && 
           String(r.status).toLowerCase() === 'готов' && 
-          (r.tripId === tr.tripId || (tr.tab && r.tab === tr.tab))
+          (r.tripId === tr.tripId)
         );
         const isMemberDone = (relatedAo || tr.status === 'Завершена');
 
@@ -1845,6 +1845,19 @@
     isViewingRemoteReport = false;
     markStep4ButtonsUnsaved();
 
+    // Ищем сохранённый отчёт именно этой командировки (строго по Trip ID): сначала черновик, затем готовый.
+    // Если его нет, начинаем с чистого листа, чтобы не унаследовать расходы другой командировки.
+    const savedRepsOfTrip = (globalAppData.reports || []).filter(r => r.tripId === tripId);
+    const savedRep = savedRepsOfTrip.find(r => r.isDraft) || savedRepsOfTrip[0] || null;
+    let savedData = null;
+    if (savedRep && savedRep.rawJson) {
+      try { savedData = (typeof savedRep.rawJson === 'string') ? JSON.parse(savedRep.rawJson) : savedRep.rawJson; } catch(e) { savedData = null; }
+    }
+    store.expenses = (savedData && Array.isArray(savedData.expenses)) ? savedData.expenses : [];
+    store.taxis = (savedData && Array.isArray(savedData.taxis)) ? savedData.taxis : [];
+    store.passport.purpose = (savedData && savedData.passport && savedData.passport.purpose) ? savedData.passport.purpose : '';
+    if (savedRep && savedRep.isDraft) CURRENT_REPORT_UID = savedRep.id;
+
     document.getElementById('p_trip_id').value = tripId;
     document.getElementById('p_fio').value = tr.team || d.fio || '';
     document.getElementById('p_role').value = d.role || 'Сотрудник команды открытия';
@@ -1867,10 +1880,11 @@
 
     calcDaily();
     savePassport();
+    renderExpenseList();
 
     switchMainTab('form');
     goToStep(1);
-    showToast("Данные командировки загружены!");
+    showToast(savedData ? "Данные командировки и сохранённые расходы загружены!" : "Данные командировки загружены!");
   }
 
   function openRecalcModal(tripId) {
