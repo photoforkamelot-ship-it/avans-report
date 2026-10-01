@@ -1147,7 +1147,7 @@
   function getTelegramUser() {
     if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) return tg.initDataUnsafe.user;
     const urlParams = new URLSearchParams(window.location.search);
-    return { id: urlParams.get('user_id') || "446642559", first_name: store.passport.fio };
+    return { id: urlParams.get('user_id') || "", first_name: store.passport.fio };
   }
 
   // ===== Автосохранение черновика АО-1 в реестр =====
@@ -1587,12 +1587,16 @@
     const urlParams = new URLSearchParams(window.location.search);
     let userId = urlParams.get('user_id');
     if (!userId && tg && tg.initDataUnsafe && tg.initDataUnsafe.user) userId = tg.initDataUnsafe.user.id;
-    if (!userId) userId = "446642559";
+    if (!userId) {
+      // Без Telegram пользователя нет: данные не загружаем (для проверки в браузере добавьте в адрес ?user_id=...)
+      showToast("Откройте приложение через Telegram");
+    }
 
     fetch(`${GOOGLE_SHEET_API}?user_id=${userId}`)
       .then(r => r.json())
       .then(res => {
         globalAppData = res;
+        applyRoleUiRestrictions();
 
         if (res.isAdmin) {
           document.getElementById('tab_btn_emp').style.display = 'block';
@@ -2061,6 +2065,16 @@
     renderTeamEstimateCards();
     document.getElementById('email_result_card').style.display = 'none';
     switchMainTab('new_req');
+    // Обычный сотрудник создаёт заявку на себя: подставляем его сразу
+    if (!globalAppData.isAdmin && globalAppData.currentUser) {
+      addTeamMemberToEstimate(globalAppData.currentUser);
+    }
+  }
+
+  // Для обычного сотрудника скрываем выбор других сотрудников (сервер всё равно отдаёт ему только его карточку)
+  function applyRoleUiRestrictions() {
+    const inp = document.getElementById('team_search_input');
+    if (inp && inp.parentElement) inp.parentElement.style.display = globalAppData.isAdmin ? '' : 'none';
   }
 
   function openReqDetailsModal(reqId, label) {
@@ -2399,7 +2413,7 @@
     // Страховочный опрос реестра
     pollTimer = setInterval(() => {
       if (finished) return;
-      const uid = (getTelegramUser() && getTelegramUser().id) || "446642559";
+      const uid = (getTelegramUser() && getTelegramUser().id) || "";
       fetch(`${GOOGLE_SHEET_API}?user_id=${uid}&_=${Date.now()}`)
         .then(r => r.json())
         .then(res => {
@@ -2671,6 +2685,7 @@
   }
 
   function removeTeamMemberFromEstimate(fio) {
+    if (!globalAppData.isAdmin) { showToast("Обычный сотрудник создаёт заявку только на себя"); return; }
     delete currentReqTeamData[fio];
     renderSelectedTeamChips();
     renderTeamEstimateCards();
