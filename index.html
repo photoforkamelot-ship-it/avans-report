@@ -70,6 +70,49 @@
     .md-item .md-t { font-weight:700; font-size:14px; }
     .md-item .md-h { font-size:12px; color:#64748b; margin-top:2px; }
     .md-item button { margin-top:6px; height:40px; font-size:14px; width:auto; padding:0 14px; }
+
+    /* Нажатия: лёгкое «вдавливание», затемнение и контур */
+    button, .btn, .tab-btn, .tg-notif-btn, .trip-accordion-btn, .trip-emp-btn, .timeline-node-field, .emp-card, .emp-act, .emp-big-btn, .pick-row {
+      -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none;
+      transition: transform .12s ease, box-shadow .15s ease, filter .15s ease;
+    }
+    button:active, .btn:active, .tab-btn:active, .tg-notif-btn:active, .trip-accordion-btn:active, .trip-emp-btn:active,
+    .timeline-node-field:active, .emp-act:active, .emp-big-btn:active, .pick-row:active {
+      transform: scale(.965); filter: brightness(.92); box-shadow: 0 0 0 3px rgba(0,122,255,.28);
+    }
+    .emp-card:active { transform: scale(.992); filter: brightness(.97); }
+    button:focus-visible, .tg-notif-btn:focus-visible { outline: 2px solid #007aff; outline-offset: 2px; }
+    .tg-notif-btn svg.tg-ico { display:block; }
+
+    /* База сотрудников */
+    .emp-card { background:#fff; border:1px solid #cbd5e1; border-radius:12px; padding:8px 12px; margin-bottom:8px; cursor:pointer; }
+    .emp-card.open { border-color:#007aff; box-shadow:0 2px 10px rgba(0,122,255,.12); padding-bottom:12px; }
+    .emp-head { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+    .emp-name { font-weight:700; font-size:14px; line-height:1.25; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+    .emp-card.open .emp-name { white-space:normal; }
+    .emp-meta { display:flex; align-items:center; gap:6px; flex-shrink:0; }
+    .emp-chev { color:#94a3b8; font-size:13px; }
+    .emp-sub { font-size:11px; color:#64748b; margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .emp-card.open .emp-sub { display:none; }
+    .emp-details { font-size:12px; color:#64748b; margin:6px 0 10px 0; line-height:1.5; }
+    .emp-actions { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    .emp-act { background:#f1f5f9; border:1.5px solid #cbd5e1; border-radius:12px; min-height:48px; display:flex; align-items:center; justify-content:center; gap:8px; padding:6px 8px; font-size:13px; font-weight:700; color:#1c1c1e; cursor:pointer; }
+    .emp-act .ea-i { font-size:18px; display:inline-flex; }
+    .emp-act-danger { background:#fff0f0; border-color:#f3b8b8; color:#c62828; }
+    .emp-act-wide { grid-column:1 / -1; background:#fff8e1; border-color:#f1d58a; color:#7a5b00; }
+    .pick-box-wrap { margin-top:10px; padding:10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; }
+    .pick-title { font-weight:700; font-size:13px; margin-bottom:8px; }
+    .pick-search { width:100%; height:42px; font-size:15px; border:1.5px solid #cbd5e1; border-radius:10px; padding:0 12px; box-sizing:border-box; }
+    .pick-all { display:flex; align-items:center; gap:8px; font-size:13px; margin:8px 2px; }
+    .pick-list { max-height:220px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:10px; background:#fff; }
+    .pick-row { display:flex; align-items:center; gap:10px; padding:10px 12px; border-bottom:1px solid #f1f5f9; font-size:14px; cursor:pointer; }
+    .pick-row.on { background:#e8f3ff; font-weight:700; }
+    .pick-box { width:22px; height:22px; border:1.5px solid #94a3b8; border-radius:6px; display:inline-flex; align-items:center; justify-content:center; font-size:14px; color:#fff; flex-shrink:0; background:#fff; }
+    .pick-row.on .pick-box { background:#007aff; border-color:#007aff; }
+    .pick-chips { display:flex; flex-wrap:wrap; gap:6px; margin:10px 0; }
+    .pick-chip { background:#e8f3ff; color:#004085; border-radius:14px; padding:4px 10px; font-size:12px; font-weight:600; }
+    .emp-big-btn { width:100%; height:54px; border:none; border-radius:14px; background:#007aff; color:#fff; font-size:16px; font-weight:800; cursor:pointer; margin-top:4px; }
+    .emp-big-danger { background:#fff0f0; color:#c62828; border:1.5px solid #f3b8b8; height:46px; font-size:14px; margin-top:8px; }
     .status-strip {
       display: none; margin: 0 0 10px 0; padding: 9px 12px; border-radius: 12px;
       font-size: 13px; font-weight: 700; text-align: center; border: 1px solid transparent;
@@ -300,7 +343,7 @@
       <div id="tab_btn_emp" class="tg-notif-btn" style="display:none;" title="База сотрудников" onclick="switchMainTab('employees')"><span>👥</span></div>
       <div class="tg-notif-btn" title="Моя подпись" onclick="openSignatureModal()"><span>✍️</span></div>
       <div class="tg-notif-btn" title="Настройки уведомлений Telegram" onclick="openNotificationSettingsModal()">
-        <span>🔔</span>
+        <svg class="tg-ico" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><circle cx="12" cy="12" r="12" fill="#229ED9"/><path fill="#fff" d="M5.4 11.9l11.1-4.3c.5-.2 1 .1.8.9l-1.9 8.9c-.1.6-.5.8-1 .5l-2.9-2.1-1.4 1.4c-.2.2-.3.3-.6.3l.2-3 5.4-4.9c.2-.2 0-.3-.4-.1l-6.7 4.2-2.9-.9c-.6-.2-.6-.6.1-.9z"/></svg>
         <span id="tg_header_badge" class="tg-badge-counter all-good">✓</span>
       </div>
     </div>
@@ -606,20 +649,8 @@
   <div id="tab-employees" class="main-tab-content" style="display:none;">
     <div class="card">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-        <h2 style="margin:0;">👥 База сотрудников</h2>
-        <button type="button" class="btn btn-primary" style="height:32px; width:auto; padding:0 12px; font-size:12px;" onclick="openAddEmployeeModal()">➕ Добавить сотрудника</button>
-      </div>
-
-      <div id="super_admin_roles_box" style="display:none; background:#f0f9ff; border:1px solid #bae6fd; border-radius:10px; padding:10px; margin-bottom:12px;">
-        <h3 style="margin-top:0; color:#0369a1; font-size:14px;">👑 Настройка доступа руководителей (Суперадмин)</h3>
-        <div class="grid-2">
-          <input type="text" id="role_lead_tg" placeholder="Telegram ID руководителя">
-          <input type="text" id="role_lead_name" placeholder="ФИО руководителя">
-        </div>
-        <div class="field" style="margin-top:6px;">
-          <input type="text" id="role_lead_tabs" placeholder="Табельные номера через запятую или ALL">
-        </div>
-        <button type="button" class="btn btn-primary" style="height:34px; font-size:12px;" onclick="saveLeadPermissions()">Сохранить права руководителя</button>
+        <h2 style="margin:0; font-size:17px; white-space:nowrap;">👥 База сотрудников</h2>
+        <button type="button" class="btn btn-primary" style="height:32px; width:auto; padding:0 12px; font-size:12px;" onclick="openAddEmployeeModal()">➕ Добавить</button>
       </div>
 
       <div id="admin_employees_container">Загрузка...</div>
@@ -662,7 +693,7 @@
 <!-- МОДАЛКА НАСТРОЕК УВЕДОМЛЕНИЙ TELEGRAM -->
 <div id="notif_settings_modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.6); z-index:10030; align-items:center; justify-content:center; padding:16px;">
   <div style="background:white; padding:18px; border-radius:14px; width:100%; max-width:420px; box-shadow:0 12px 30px rgba(0,0,0,0.25); max-height:92vh; overflow-y:auto;">
-    <h3 style="margin-top:0; color:#0369a1; font-size:16px;">🔔 Настройки уведомлений Telegram</h3>
+    <h3 style="margin-top:0; color:#0369a1; font-size:16px; display:flex; align-items:center; gap:8px;"><svg class="tg-ico" viewBox="0 0 24 24" width="22" height="22" style="flex-shrink:0;" aria-hidden="true"><circle cx="12" cy="12" r="12" fill="#229ED9"/><path fill="#fff" d="M5.4 11.9l11.1-4.3c.5-.2 1 .1.8.9l-1.9 8.9c-.1.6-.5.8-1 .5l-2.9-2.1-1.4 1.4c-.2.2-.3.3-.6.3l.2-3 5.4-4.9c.2-.2 0-.3-.4-.1l-6.7 4.2-2.9-.9c-.6-.2-.6-.6.1-.9z"/></svg> Настройки уведомлений Telegram</h3>
     <p id="notif_modal_subtitle" style="font-size:12px; color:#64748b; margin-bottom:12px;">Управление оповещениями бота:</p>
     <input type="hidden" id="notif_target_tab">
     <input type="hidden" id="notif_target_tgid">
@@ -1181,6 +1212,8 @@
     } catch (e) {}
     return _origFetch(url, opts);
   };
+
+  document.addEventListener('touchstart', function () {}, { passive: true }); // чтобы :active (эффект нажатия) работал на iOS
 
   // Журнал действий: короткие события от приложения (открытие ссылок, кнопки писем, начало редактирования, ошибки)
   function logEvent(kind, details) {
@@ -1767,11 +1800,6 @@
           document.getElementById('admin_emp_card').style.display = 'none';
         }
 
-        if (res.isSuperAdmin) {
-          document.getElementById('super_admin_roles_box').style.display = 'block';
-        } else {
-          document.getElementById('super_admin_roles_box').style.display = 'none';
-        }
 
         const activeDrafts = (res.reports || []).filter(r => r.isDraft && String(r.status).toLowerCase() === 'черновик');
         const draftTabBtn = document.getElementById('tab_btn_drafts');
@@ -3280,49 +3308,148 @@
     });
   }
 
-  function saveLeadPermissions() {
-    const tgId = document.getElementById('role_lead_tg').value.trim();
-    const name = document.getElementById('role_lead_name').value.trim();
-    const tabs = document.getElementById('role_lead_tabs').value.trim();
+  // ===== База сотрудников: компактные карточки, по нажатию раскрываются кнопки управления =====
+  let empExpanded = -1;                 // индекс раскрытой карточки
+  let adminPick = null;                 // {idx, selected:Set, query, all}
 
-    if (!tgId || !name) { showToast("Укажите TG ID и ФИО"); return; }
-    fetch(GOOGLE_SHEET_API, {
-      method: "POST",
-      body: JSON.stringify({
-        action: "update_lead_permissions",
-        sender_id: getTelegramUser().id,
-        lead_tgid: tgId, lead_name: name, allowed_tabs: tabs || "ALL"
-      })
-    })
-    .then(r => r.json())
-    .then(() => {
-      showToast("Права руководителя обновлены!");
-      document.getElementById('role_lead_tg').value = '';
-      document.getElementById('role_lead_name').value = '';
-      document.getElementById('role_lead_tabs').value = '';
-    });
+  function empAccessToken(emp) {
+    const emps = globalAppData.employees || [];
+    const t = String(emp.tab || '').trim();
+    const bad = !t || /^0+$/.test(t);
+    const dup = emps.filter(x => String(x.tab || '').trim() === t).length > 1;
+    if (bad || dup) return 'ФИО:' + String(emp.fio || '').toLowerCase().replace(/ё/g, 'е').replace(/\s+/g, ' ').trim();
+    return t;
+  }
+  function adminCfgOf(emp) {
+    const cfg = globalAppData.adminConfig || {};
+    return emp && emp.tgId ? cfg[String(emp.tgId).trim()] : null;
+  }
+  const TG_ICON = '<svg class="tg-ico" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><circle cx="12" cy="12" r="12" fill="#229ED9"/><path fill="#fff" d="M5.4 11.9l11.1-4.3c.5-.2 1 .1.8.9l-1.9 8.9c-.1.6-.5.8-1 .5l-2.9-2.1-1.4 1.4c-.2.2-.3.3-.6.3l.2-3 5.4-4.9c.2-.2 0-.3-.4-.1l-6.7 4.2-2.9-.9c-.6-.2-.6-.6.1-.9z"/></svg>';
+  function escH(x) { return String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+  function toggleEmpCard(idx) {
+    empExpanded = (empExpanded === idx) ? -1 : idx;
+    if (empExpanded !== idx) adminPick = null;
+    renderAdminEmployees();
   }
 
   function renderAdminEmployees() {
     const c = document.getElementById("admin_employees_container");
-    if (!globalAppData.employees || globalAppData.employees.length === 0) {
-      c.innerHTML = '<div style="color:#8e8e93; font-size:12px;">Сотрудники не найдены.</div>';
-      return;
-    }
-    c.innerHTML = globalAppData.employees.map((emp, idx) => `
-      <div style="background:#fff; border:1px solid #cbd5e1; border-radius:8px; padding:10px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
-        <div>
-          <strong>${emp.fio}</strong><br>
-          <small style="color:#64748b;">${emp.role} | Таб: ${emp.tab} | TG: ${emp.tgId || '—'}</small>
-        </div>
-        <div style="display:flex; gap:6px; align-items:center;">
-          <button type="button" class="btn btn-secondary" style="height:32px; font-size:12px; width:auto; padding:0 8px;" title="Подпись сотрудника" onclick="openSignatureModal('${emp.tab}', ${idx})">✍️${emp.hasSignature ? '✅' : '➕'}</button>
-          <button type="button" class="btn btn-secondary" style="height:32px; font-size:13px; width:34px; padding:0;" title="Настройки уведомлений Telegram" onclick="openNotificationSettingsModal('${emp.tab}', ${idx})">🔔</button>
-          <button type="button" class="btn btn-secondary" style="height:32px; font-size:11px; width:auto; padding:0 8px;" onclick="openEditEmployeeModal(${idx})">✏️ Изм.</button>
-          <button type="button" class="btn btn-danger" onclick="deleteEmployee('${emp.tab}', ${idx})">🗑️</button>
-        </div>
-      </div>
-    `).join('');
+    const list = globalAppData.employees || [];
+    if (list.length === 0) { c.innerHTML = '<div style="color:#8e8e93; font-size:12px;">Сотрудники не найдены.</div>'; return; }
+    const isSuper = !!globalAppData.isSuperAdmin;
+    c.innerHTML = list.map((emp, idx) => {
+      const open = (idx === empExpanded);
+      const adm = adminCfgOf(emp);
+      const crown = adm ? ' <span title="Руководитель" style="font-size:13px;">👑</span>' : '';
+      const sig = emp.hasSignature ? '<span title="Подпись есть" style="font-size:12px;">✍️✅</span>' : '<span title="Подписи нет" style="font-size:12px; opacity:.45;">✍️</span>';
+      let body = '';
+      if (open) {
+        const rights = adm ? (adm.allowedTabs && adm.allowedTabs.indexOf('ALL') >= 0 ? 'все сотрудники' : ((adm.allowedTabs || []).length + ' сотр.')) : '';
+        body = `
+          <div class="emp-details">
+            ${escH(emp.role)} · Таб: ${escH(emp.tab || '—')} · TG: ${escH(emp.tgId || '—')}
+            ${adm ? `<br>👑 Руководитель, доступ: <b>${rights}</b>` : ''}
+          </div>
+          <div class="emp-actions" onclick="event.stopPropagation();">
+            <button type="button" class="emp-act" onclick="openSignatureModal('${escH(emp.tab)}', ${idx})"><span class="ea-i">✍️</span><span class="ea-t">Подпись ${emp.hasSignature ? '✅' : '➕'}</span></button>
+            <button type="button" class="emp-act" onclick="openNotificationSettingsModal('${escH(emp.tab)}', ${idx})"><span class="ea-i">${TG_ICON}</span><span class="ea-t">Уведомления</span></button>
+            <button type="button" class="emp-act" onclick="openEditEmployeeModal(${idx})"><span class="ea-i">✏️</span><span class="ea-t">Изменить</span></button>
+            <button type="button" class="emp-act emp-act-danger" onclick="deleteEmployee('${escH(emp.tab)}', ${idx})"><span class="ea-i">🗑️</span><span class="ea-t">Удалить</span></button>
+            ${isSuper ? `<button type="button" class="emp-act emp-act-wide" onclick="startAdminPick(${idx})"><span class="ea-i">👑</span><span class="ea-t">${adm ? 'Права руководителя' : 'Назначить администратором'}</span></button>` : ''}
+          </div>
+          ${(adminPick && adminPick.idx === idx) ? renderAdminPick(emp) : ''}
+        `;
+      }
+      return `
+        <div class="emp-card ${open ? 'open' : ''}" onclick="toggleEmpCard(${idx})">
+          <div class="emp-head">
+            <div class="emp-name">${escH(emp.fio)}${crown}</div>
+            <div class="emp-meta">${sig} <span class="emp-chev">${open ? '▴' : '▾'}</span></div>
+          </div>
+          <div class="emp-sub">${escH(emp.role)}${emp.tab ? ' · ' + escH(emp.tab) : ''}</div>
+          ${body}
+        </div>`;
+    }).join('');
+  }
+
+  // ----- Назначение руководителя: поиск и выбор подчинённых -----
+  function startAdminPick(idx) {
+    const emp = globalAppData.employees[idx];
+    if (!emp.tgId) { showToast('У сотрудника нет Telegram ID: добавьте его через «Изменить»'); return; }
+    const adm = adminCfgOf(emp);
+    const sel = new Set(adm && adm.allowedTabs ? adm.allowedTabs.filter(t => t !== 'ALL') : []);
+    adminPick = { idx, selected: sel, query: '', all: !!(adm && adm.allowedTabs && adm.allowedTabs.indexOf('ALL') >= 0) };
+    renderAdminEmployees();
+  }
+
+  function renderAdminPick(lead) {
+    const emps = globalAppData.employees || [];
+    const q = (adminPick.query || '').toLowerCase();
+    const rows = emps.filter(e => e !== lead && (!q || String(e.fio).toLowerCase().indexOf(q) >= 0 || String(e.tab).indexOf(q) >= 0)).map(e => {
+      const tok = empAccessToken(e), on = adminPick.all || adminPick.selected.has(tok);
+      const eIdx = emps.indexOf(e);
+      return `<div class="pick-row ${on ? 'on' : ''}" onclick="event.stopPropagation(); togglePick(${eIdx});"><span class="pick-box">${on ? '✓' : ''}</span><span>${escH(e.fio)}</span></div>`;
+    }).join('') || '<div style="color:#8e8e93; font-size:12px; padding:6px;">Никого не найдено</div>';
+    const chips = adminPick.all ? '<span class="pick-chip">Все сотрудники</span>' :
+      Array.from(adminPick.selected).map(t => { const e = emps.find(x => empAccessToken(x) === t); return `<span class="pick-chip">${escH(e ? e.fio.split(' ').slice(0, 2).join(' ') : t)}</span>`; }).join('') || '<span style="color:#8e8e93; font-size:12px;">Пока никто не выбран</span>';
+    const adm = adminCfgOf(lead);
+    return `
+      <div class="pick-box-wrap" onclick="event.stopPropagation();">
+        <div class="pick-title">Подчинённые: ${escH(lead.fio.split(' ').slice(0, 2).join(' '))}</div>
+        <input type="text" id="pick_search" class="pick-search" placeholder="🔍 Поиск сотрудника…" value="${escH(adminPick.query)}" oninput="onPickSearch(this.value)">
+        <label class="pick-all" onclick="event.stopPropagation();"><input type="checkbox" ${adminPick.all ? 'checked' : ''} onchange="togglePickAll(this.checked)"> Все сотрудники (ALL)</label>
+        <div class="pick-list">${rows}</div>
+        <div class="pick-chips">${chips}</div>
+        <button type="button" class="emp-big-btn" onclick="saveAdminPick()">Дать доступ к выбранным сотрудникам</button>
+        ${adm ? `<button type="button" class="emp-big-btn emp-big-danger" onclick="removeAdmin()">Снять права руководителя</button>` : ''}
+      </div>`;
+  }
+
+  function onPickSearch(v) {
+    adminPick.query = v;
+    renderAdminEmployees();
+    const el = document.getElementById('pick_search');
+    if (el) { el.focus(); el.setSelectionRange(v.length, v.length); }
+  }
+  function togglePick(eIdx) {
+    const tok = empAccessToken(globalAppData.employees[eIdx]);
+    if (adminPick.all) { adminPick.all = false; }
+    if (adminPick.selected.has(tok)) adminPick.selected.delete(tok); else adminPick.selected.add(tok);
+    renderAdminEmployees();
+  }
+  function togglePickAll(on) { adminPick.all = on; renderAdminEmployees(); }
+
+  function saveAdminPick() {
+    const lead = globalAppData.employees[adminPick.idx];
+    const tabs = adminPick.all ? ['ALL'] : Array.from(adminPick.selected);
+    if (tabs.length === 0) { showToast('Выберите хотя бы одного сотрудника или «Все сотрудники»'); return; }
+    fetch(GOOGLE_SHEET_API, {
+      method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'update_lead_permissions', sender_id: getTelegramUser().id, lead_tgid: lead.tgId, lead_name: lead.fio, allowed_tabs: tabs })
+    }).then(() => {
+      if (!globalAppData.adminConfig) globalAppData.adminConfig = {};
+      globalAppData.adminConfig[String(lead.tgId).trim()] = Object.assign({}, globalAppData.adminConfig[String(lead.tgId).trim()] || {}, { name: lead.fio, role: 'lead', allowedTabs: tabs });
+      adminPick = null;
+      showToast('Права руководителя сохранены');
+      renderAdminEmployees();
+      setTimeout(loadAppData, 1500);
+    });
+  }
+
+  function removeAdmin() {
+    const lead = globalAppData.employees[adminPick.idx];
+    if (!confirm('Снять права руководителя с «' + lead.fio + '»?')) return;
+    fetch(GOOGLE_SHEET_API, {
+      method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'remove_lead', sender_id: getTelegramUser().id, lead_tgid: lead.tgId })
+    }).then(() => {
+      if (globalAppData.adminConfig) delete globalAppData.adminConfig[String(lead.tgId).trim()];
+      adminPick = null;
+      showToast('Права руководителя сняты');
+      renderAdminEmployees();
+      setTimeout(loadAppData, 1500);
+    });
   }
 
   function openAddEmployeeModal() {
