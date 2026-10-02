@@ -4380,9 +4380,10 @@
     const tab = document.getElementById("modal_tab").value.trim();
     const tgid = document.getElementById("modal_tgid").value.trim();
     const oldTab = document.getElementById("modal_old_tab").value.trim();
-    if (!fio || !role || !tab) { showToast("Заполните обязательные поля"); return; }
+    const isEdit = empModalIdx >= 0;
+    if (!fio || !role) { showToast("Заполните ФИО и должность"); return; }
     const bankPart = {};
-    if (!oldTab) {
+    if (!isEdit) {
       const d = (v) => String(v || '').replace(/\D/g, '');
       const inn = normInn(document.getElementById('modal_inn').value), bik = d(document.getElementById('modal_bik').value), acc = d(document.getElementById('modal_acc').value);
       const any = inn || bik || acc;
@@ -4392,29 +4393,27 @@
         bankPart.homeCity = document.getElementById('modal_hcity').value.trim() || 'г. Томск';
       }
     }
+    empApi(Object.assign({ action: isEdit ? "update" : "add", fio, role, tab, tgid, oldTab, oldFio: isEdit ? (document.getElementById("modal_old_tab").dataset.fio || '') : '', sender_id: getTelegramUser().id }, bankPart), "Сохранено!", closeEmpModal);
+  }
 
-    fetch(GOOGLE_SHEET_API, {
-      method: "POST", mode: "no-cors",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(Object.assign({ action: oldTab ? "update" : "add", fio, role, tab, tgid, oldTab, oldFio: oldTab ? (document.getElementById("modal_old_tab").dataset.fio || '') : '', sender_id: getTelegramUser().id }, bankPart))
-    }).then(() => {
-      showToast("Сохранено!");
-      closeEmpModal();
-      setTimeout(loadAppData, 1200);
-    });
+  // Запрос на изменение справочника сотрудников с показом реального результата
+  function empApi(payload, okText, onOk) {
+    fetch(GOOGLE_SHEET_API, { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(payload) })
+      .then(r => r.text())
+      .then(t => {
+        let res = null; try { res = JSON.parse(t); } catch (e) {}
+        if (res && (res.status === 'error' || res.error)) { showToast(res.message || res.error || 'Не удалось выполнить действие'); return; }
+        showToast(okText);
+        if (onOk) onOk();
+        setTimeout(loadAppData, 1200);
+      })
+      .catch(() => showToast('Нет связи с сервером, повторите позже'));
   }
 
   function deleteEmployee(tab, idx) {
     const delEmp = (idx !== undefined && globalAppData.employees) ? globalAppData.employees[idx] : null;
     if (!confirm("Удалить сотрудника" + (delEmp ? " «" + delEmp.fio + "»" : "") + "?")) return;
-    fetch(GOOGLE_SHEET_API, {
-      method: "POST", mode: "no-cors",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "delete", tab, fio: delEmp ? delEmp.fio : '', sender_id: getTelegramUser().id })
-    }).then(() => {
-      showToast("Удалено!");
-      setTimeout(loadAppData, 1200);
-    });
+    empApi({ action: "delete", tab, fio: delEmp ? delEmp.fio : '', sender_id: getTelegramUser().id }, "Удалено!");
   }
 
   function promptBankDetailsModal(emp) {
