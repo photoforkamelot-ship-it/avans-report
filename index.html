@@ -1078,9 +1078,9 @@
     <h3 style="margin-top:0; font-size:16px; color:#0f172a;">🏦 Реквизиты для перечисления ДС</h3>
     <p id="bank_modal_desc" style="font-size:12px; color:#64748b; margin-bottom:12px;">Укажите банковские реквизиты сотрудника:</p>
     <input type="hidden" id="bank_modal_fio">
-    <div class="field"><label>ИНН банка <span class="req-star">*</span></label><input type="text" id="bm_inn" placeholder="7707083893"></div>
-    <div class="field"><label>БИК банка <span class="req-star">*</span></label><input type="text" id="bm_bik" placeholder="046902606"></div>
-    <div class="field"><label>Лицевой счёт (20 знаков) <span class="req-star">*</span></label><input type="text" id="bm_acc" placeholder="40817810364004802956" maxlength="20"></div>
+    <div class="field"><label>ИНН банка <span class="req-star">*</span></label><input type="text" id="bm_inn" inputmode="numeric" placeholder="7707083893"></div>
+    <div class="field"><label>БИК банка <span class="req-star">*</span></label><input type="text" id="bm_bik" inputmode="numeric" placeholder="046902606"></div>
+    <div class="field"><label>Лицевой счёт (20 знаков) <span class="req-star">*</span></label><input type="text" id="bm_acc" inputmode="numeric" placeholder="40817810364004802956"></div>
     <div class="field"><label>Домашний город (выезд) <span class="req-star">*</span></label><input type="text" id="bm_city" placeholder="г. Томск"></div>
     <div style="display:flex; gap:6px; margin-top:12px;">
       <button type="button" class="btn btn-primary" onclick="saveBankDetailsModal()">Сохранить реквизиты</button>
@@ -1118,9 +1118,9 @@
     <div id="emp_bank_add" style="display:none; margin-top:6px; padding:10px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px;">
       <div style="font-weight:700; font-size:13px; margin-bottom:6px;">🏦 Банковские реквизиты <span style="font-weight:400; color:#64748b;">(можно позже)</span></div>
       <div style="font-size:11px; color:#c62828; margin-bottom:6px;">Без реквизитов заявку на ДС на сотрудника создать не получится: при добавлении в заявку приложение попросит их ввести.</div>
-      <div class="field"><label>ИНН банка</label><input type="text" id="modal_inn" inputmode="numeric" placeholder="10 или 12 цифр"></div>
+      <div class="field"><label>ИНН банка</label><input type="text" id="modal_inn" inputmode="numeric" placeholder="10 цифр"></div>
       <div class="field"><label>БИК банка</label><input type="text" id="modal_bik" inputmode="numeric" placeholder="9 цифр"></div>
-      <div class="field"><label>Счёт (20 цифр)</label><input type="text" id="modal_acc" inputmode="numeric" maxlength="20" placeholder="20 цифр"></div>
+      <div class="field"><label>Счёт (20 цифр)</label><input type="text" id="modal_acc" inputmode="numeric" placeholder="20 цифр"></div>
       <div class="field"><label>Домашний город (выезд)</label><input type="text" id="modal_hcity" placeholder="г. Томск"></div>
     </div>
 
@@ -2197,6 +2197,14 @@
     const btn = scope.querySelector('.nav-next, #btn_submit_req, .btn-primary');
     if (btn) { try { btn.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {} afFlash(btn); }
   }
+  document.addEventListener('input', function (e) {
+    const t = e.target;
+    if (t && /^(bm|modal)_(inn|bik|acc)$/.test(t.id)) {
+      const mx = /inn$/.test(t.id) ? 12 : (/bik$/.test(t.id) ? 9 : 20);
+      const v = t.value.replace(/\D/g, '').slice(0, mx);
+      if (v !== t.value) t.value = v;
+    }
+  });
   document.addEventListener('keydown', function (e) {
     if (e.key !== 'Enter' || e.isComposing) return;
     const t = e.target;
@@ -2300,6 +2308,8 @@
     }, wait);
   }
 
+  // ИНН банка: цифры, ведущий ноль возвращаем (в таблице он теряется), максимум 12 знаков
+  function normInn(v) { let d = String(v || '').replace(/\D/g, '').slice(0, 12); if (d.length === 9 || d.length === 11) d = '0' + d; return d; }
   function computeMissingData(emp) {
     const miss = [];
     if (!emp) return miss;
@@ -2307,7 +2317,7 @@
     const tab = String(emp.tab || '').trim();
     if (!tab || /^0+$/.test(tab)) miss.push({ ico: '🔢', t: 'Табельный номер', h: 'Табельный номер вносит руководитель во вкладке «База сотрудников» (кнопка 👥). Напишите руководителю, пожалуйста.', act: null });
     if (!emp.hasSignature) miss.push({ ico: '✍️', t: 'Подпись', h: 'Нажмите кнопку ✍️ вверху: нарисуйте подпись пальцем или загрузите фото. Она ставится в заявки на ДС.', act: 'sig', btn: '✍️ Добавить подпись' });
-    const inn = digits(emp.bankInn), bik = digits(emp.bankBik), acc = digits(emp.bankAcc);
+    const inn = normInn(emp.bankInn), bik = digits(emp.bankBik), acc = digits(emp.bankAcc);
     const bankLack = [];
     if (!(inn.length === 10 || inn.length === 12)) bankLack.push('ИНН банка (10 цифр)');
     if (bik.length !== 9) bankLack.push('БИК банка (9 цифр)');
@@ -3434,7 +3444,7 @@
 
     currentReqTeamData[emp.fio] = {
       fio: emp.fio, role: emp.role, tab: emp.tab, tgId: emp.tgId,
-      bankInn: emp.bankInn || '', bankBik: emp.bankBik || '', bankAcc: emp.bankAcc || '',
+      bankInn: normInn(emp.bankInn), bankBik: emp.bankBik || '', bankAcc: emp.bankAcc || '',
       days: actualDays, stayDays: stayDays, sumTravel: travelSum, hotelDaily: hotelDaily,
       sumHotel: sumHotel, sumDaily: sumDaily, sumTotal: sumTotal
     };
@@ -4069,7 +4079,7 @@
 
   function bankComplete(e) {
     const d = (v) => String(v || '').replace(/\D/g, '');
-    const inn = d(e && e.bankInn), bik = d(e && e.bankBik), acc = d(e && e.bankAcc);
+    const inn = normInn(e && e.bankInn), bik = d(e && e.bankBik), acc = d(e && e.bankAcc);
     return (inn.length === 10 || inn.length === 12) && bik.length === 9 && acc.length === 20;
   }
   let empModalIdx = -1;
@@ -4115,7 +4125,7 @@
     const bankPart = {};
     if (!oldTab) {
       const d = (v) => String(v || '').replace(/\D/g, '');
-      const inn = d(document.getElementById('modal_inn').value), bik = d(document.getElementById('modal_bik').value), acc = d(document.getElementById('modal_acc').value);
+      const inn = normInn(document.getElementById('modal_inn').value), bik = d(document.getElementById('modal_bik').value), acc = d(document.getElementById('modal_acc').value);
       const any = inn || bik || acc;
       if (any) {
         if (!(inn.length === 10 || inn.length === 12) || bik.length !== 9 || acc.length !== 20) { showToast('Реквизиты: ИНН 10 или 12 цифр, БИК 9, счёт 20 цифр. Либо оставьте все три поля пустыми'); return; }
@@ -4151,7 +4161,7 @@
   function promptBankDetailsModal(emp) {
     document.getElementById('bank_modal_fio').value = emp.fio;
     document.getElementById('bank_modal_desc').innerText = `Реквизиты: ${emp.fio}`;
-    document.getElementById('bm_inn').value = emp.bankInn || '';
+    document.getElementById('bm_inn').value = normInn(emp.bankInn);
     document.getElementById('bm_bik').value = emp.bankBik || '';
     document.getElementById('bm_acc').value = emp.bankAcc || '';
     document.getElementById('bm_city').value = emp.homeCity || 'г. Томск';
@@ -4162,7 +4172,7 @@
 
   function saveBankDetailsModal() {
     const fio = document.getElementById('bank_modal_fio').value;
-    const inn = document.getElementById('bm_inn').value.trim();
+    const inn = normInn(document.getElementById('bm_inn').value);
     const bik = document.getElementById('bm_bik').value.trim();
     const acc = document.getElementById('bm_acc').value.trim();
     const city = document.getElementById('bm_city').value.trim();
