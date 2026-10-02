@@ -668,7 +668,7 @@
     <div id="step-4" class="step-content">
       <div class="tip-danger-banner">
         <span style="font-size: 22px;">🚨</span>
-        <div>ВНИМАНИЕ! Для завершения и сдачи отчёта нажмите одну из кнопок ниже ⬇️ или потяните экран влево ⬅️</div>
+        <div>ВНИМАНИЕ! Для завершения и сдачи отчёта нажмите одну из кнопок ниже ⬇️ или проведите по нижней панели влево ⬅️</div>
       </div>
 
       <div class="nav-bar nav-static" style="display:flex; flex-direction:column; gap:8px;">
@@ -1904,8 +1904,8 @@
       { img: 'main', t: 'Главный экран', p: 'Вверху: ваши командировки, черновики, подпись ✍️, уведомления Telegram и эта инструкция «?». Нажмите на командировку — раскроется цепочка документов.' },
       { img: 'sig', t: 'Подпись — один раз', p: 'Нарисуйте подпись пальцем или загрузите фото. Она автоматически ставится в ваши заявки. Ещё нужны банковские реквизиты — приложение подскажет.' },
       { img: 'req', t: 'Заявка на деньги (ДС)', p: 'Город, цель, сроки — и готово. Бланки на Google Диске и письмо на согласование система сформирует сама. Курсор сам перескакивает от поля к полю.' },
-      { img: 'step', t: 'Отчёт АО-1 за 4 шага', p: '1 Сведения → 2 Расходы → 3 Проверка → 4 Итог. Расходы вносите по чекам и билетам. Всё сохраняется само, а перелистывать шаги можно свайпом.' },
-      { img: 'drawer', t: 'Свайп влево — действия', p: 'На последнем шаге потяните экран влево: выедет панель с кнопками Excel, PDF и списка документов для бухгалтерии.' },
+      { img: 'step', t: 'Отчёт АО-1 за 4 шага', p: '1 Сведения → 2 Расходы → 3 Проверка → 4 Итог. Расходы вносите по чекам и билетам. Всё сохраняется само, а шаги можно листать свайпом по полосе шагов или нижней панели.' },
+      { img: 'drawer', t: 'Свайп влево — действия', p: 'На последнем шаге проведите пальцем влево по нижней панели с кнопками (или нажмите ‹ у края): выедет панель с кнопками Excel, PDF и списка документов для бухгалтерии.' },
       { img: 'final', t: 'Готово!', p: 'Скачайте Excel и PDF, распечатайте и сдайте с чеками. Бот пришлёт уведомления. Если что-то забудете — кнопка «?» вверху всегда под рукой.' }
     ];
     if (globalAppData && globalAppData.isAdmin) s.splice(6, 0, { img: 'base', t: 'Для руководителей', p: 'Кнопка 👥 открывает базу сотрудников: реквизиты, подписи, уведомления. В заявке можно выбрать сразу нескольких сотрудников.' });
@@ -2132,17 +2132,20 @@
       ok = false;
       if (e.touches.length !== 1) return;
       const t = e.target;
-      if (t.closest && t.closest('input, select, textarea, canvas, .table-scroll, .flatpickr-calendar, #add-box, button, a')) return;
+      // Свайп работает только на «ручках»: полоса шагов вверху, нижняя панель кнопок и выехавшая панель действий.
+      // По самому содержимому (поля, таблицы, списки) свайп не срабатывает — чтобы не переключать шаг случайно.
       const tf = document.getElementById('tab-form');
       const inDrawer = t.closest && t.closest('#act_drawer');
-      if (!inDrawer && (!tf || tf.style.display === 'none' || !tf.contains(t))) return;
+      const inHandle = t.closest && t.closest('.stepper, .nav-bar, #act_tab');
+      if (!inDrawer && (!inHandle || !tf || tf.style.display === 'none' || !tf.contains(t))) return;
+      if (t.closest && t.closest('input, select, textarea, canvas, .flatpickr-calendar')) return;
       if (e.touches[0].clientX < 24 || anyModalOpen()) return;
       sx = e.touches[0].clientX; sy = e.touches[0].clientY; st = Date.now(); ok = true;
     }, { passive: true });
     document.addEventListener('touchend', function (e) {
       if (!ok) return; ok = false;
       const c = e.changedTouches[0], dx = c.clientX - sx, dy = c.clientY - sy;
-      if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.6 || Date.now() - st > 700) return;
+      if (Math.abs(dx) < 80 || Math.abs(dx) < Math.abs(dy) * 2 || Date.now() - st > 700) return;
       swipeStep(dx < 0 ? 'next' : 'prev');
     }, { passive: true });
   })();
@@ -4579,22 +4582,26 @@
     const diff = (Number(p.advance) || 0) - total;
     const cleanCity = formatUniqueCities(p.city || '');
     const rows = [];
-    const mid = [];
 
-    rows.push({ d: formatRuDateString(p.dStart), t: `Выезд в ${cleanCity}` });
+    const tripCreated = (id) => { const m = /^TRIP_(\d{4})(\d{2})(\d{2})_/.exec(String(id || '')); return m ? `${m[3]}.${m[2]}.${m[1]}` : ''; };
+    const periodOf = (txt) => { const a = String(txt || '').split('—').map(x => x.trim()).filter(Boolean); const sh = (x) => x.replace(/^(\d{2}\.\d{2})\.\d{4}$/, '$1'); return a.length === 2 ? ` (${sh(a[0])}–${sh(a[1])})` : ''; };
+    // o — порядок внутри одного дня: заявка → выезд → расходы → возвращение
+    rows.push({ d: formatRuDateString(p.dStart), t: `Выезд в ${cleanCity}`, o: 1 });
     try {
       const related = (globalAppData.requestsArchive || []).filter(rq => rq.tripId && rq.tripId === (p.tripId || ''));
       related.sort((a, b) => (a.seqNumber || 0) - (b.seqNumber || 0));
       if (related.length > 0) {
         related.forEach((rq, idx) => {
           const title = idx === 0 ? 'Заявка на ДС' : `Продление${idx > 1 ? ' ' + idx : ''}`;
-          mid.push({ d: cleanDateStr((rq.dates || '').split('—')[0] || p.dStart), t: `${title}: ${formatUniqueCities(rq.city || cleanCity)}, ${rq.days || p.days} дн`, s: Number(rq.sum || 0) });
+          // у первой заявки датой считаем день её формирования (он зашит в номере поездки); у продления — его первый день
+          const when = (idx === 0 && tripCreated(rq.tripId)) || cleanDateStr((rq.dates || '').split('—')[0] || p.dStart);
+          rows.push({ d: when, t: `${title}: ${formatUniqueCities(rq.city || cleanCity)}, ${rq.days || p.days} дн${periodOf(rq.dates)}`, s: Number(rq.sum || 0), o: 0 });
         });
       } else {
-        mid.push({ d: formatRuDateString(p.dStart), t: `Заявка на ДС: ${cleanCity}, ${p.days} дн`, s: Number(p.advance || 0) });
+        rows.push({ d: tripCreated(p.tripId) || formatRuDateString(p.dStart), t: `Заявка на ДС: ${cleanCity}, ${p.days} дн`, s: Number(p.advance || 0), o: 0 });
       }
     } catch (e) {
-      mid.push({ d: formatRuDateString(p.dStart), t: 'Заявка на ДС', s: Number(p.advance || 0) });
+      rows.push({ d: formatRuDateString(p.dStart), t: 'Заявка на ДС', s: Number(p.advance || 0), o: 0 });
     }
 
     const transName = (it) => it.cat === 'plane' ? 'самолёт' : (it.cat === 'train' ? 'поезд' : 'автобус');
@@ -4602,18 +4609,18 @@
       const items = store.expenses.filter(e => e.dir === dir);
       if (items.length === 0) return;
       const main = items.find(x => x.isMainTicket) || items[0];
-      mid.push({ d: formatRuDateString(main.date), t: `${dir === 'there' ? 'Туда' : 'Обратно'}, ${transName(main)}`, s: items.reduce((t, x) => t + Number(x.sum || 0), 0) });
+      rows.push({ d: formatRuDateString(main.date), t: `${dir === 'there' ? 'Туда' : 'Обратно'}, ${transName(main)}`, s: items.reduce((t, x) => t + Number(x.sum || 0), 0), o: 2 });
     });
     store.expenses.filter(e => e.cat === 'hotel').forEach(h => {
-      mid.push({ d: formatRuDateString(h.date), t: h.bizType === 'self' ? 'Проживание, аренда жилья' : 'Проживание, гостиница', s: Number(h.sum) });
+      rows.push({ d: formatRuDateString(h.date), t: h.bizType === 'self' ? 'Проживание, аренда жилья' : 'Проживание, гостиница', s: Number(h.sum), o: 2 });
     });
-    (store.taxis || []).forEach(t => mid.push({ d: formatRuDateString(t.date), t: `Такси, ${t.route || 'поездка'}`, s: Number(t.sum) }));
+    (store.taxis || []).forEach(t => rows.push({ d: formatRuDateString(t.date), t: `Такси, ${t.route || 'поездка'}`, s: Number(t.sum), o: 2 }));
     store.expenses.filter(e => e.cat === 'misc').forEach(m => {
-      mid.push({ d: formatRuDateString(m.date), t: `Прочее: ${m.customName || String(m.name || '').replace(/^Чек,\s*/i, '')}`, s: Number(m.sum) });
+      rows.push({ d: formatRuDateString(m.date), t: `Прочее: ${m.customName || String(m.name || '').replace(/^Чек,\s*/i, '')}`, s: Number(m.sum), o: 2 });
     });
-    mid.sort((a, b) => parseDateToTimestamp(a.d) - parseDateToTimestamp(b.d));
-    mid.forEach(r => rows.push(r));
-    rows.push({ d: formatRuDateString(p.dEnd), t: 'Возвращение из командировки' });
+    rows.push({ d: formatRuDateString(p.dEnd), t: 'Возвращение из командировки', o: 3 });
+    rows.forEach((r, i) => { r.i = i; });
+    rows.sort((a, b) => (parseDateToTimestamp(a.d) - parseDateToTimestamp(b.d)) || (a.o - b.o) || (a.i - b.i));
 
     const lines = [
       { l: `Суточные за ${p.days} дн.`, v: daily },
