@@ -241,6 +241,25 @@
     .ex-ch .ev:first-of-type { border-top: none; }
     .ex-ch .ev small { color: #92400e; display: block; }
     .ex-sus { font-size: 13px; color: #475569; }
+    .ex-tools { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 8px; }
+    .ex-tools .lbl { font-size: 12px; color: #64748b; font-weight: 700; flex: 0 0 auto; }
+    .ex-tools button { flex: 0 0 auto; border: 1px solid #cbd5e1; background: #fff; border-radius: 14px; padding: 5px 10px; font-size: 12.5px; font-weight: 600; color: #475569; cursor: pointer; }
+    .ex-tools button.on { background: var(--primary); border-color: var(--primary); color: #fff; }
+    details.ex-s > summary.ex-sec { list-style: none; cursor: pointer; display: flex; gap: 6px; align-items: center; }
+    details.ex-s > summary.ex-sec::-webkit-details-marker { display: none; }
+    details.ex-s > summary.ex-sec::before { content: '▸'; color: #94a3b8; transition: transform 0.15s; }
+    details.ex-s[open] > summary.ex-sec::before { transform: rotate(90deg); }
+    .ex-card.mine { border: 2px solid #dc2626; background: #fff5f5; }
+    .ex-card.mine .m { color: #dc2626; }
+    .ex-card.arch { opacity: 0.78; background: #f8fafc; border-color: #e2e8f0; box-shadow: none; }
+    .ex-card.arch .a { color: #64748b; font-weight: 700; }
+    .ex-card.arch .m { color: #6b7fa8; }
+    .ex-card.arch .d .dt { color: #94a3b8; }
+    .ex-card.arch .rel { color: #94a3b8; }
+    .ex-seg { display: flex; background: #e5e5ea; border-radius: 10px; padding: 2px; margin-top: 10px; }
+    .ex-seg button { flex: 1; border: none; background: transparent; padding: 8px 4px; border-radius: 8px; font-size: 13px; font-weight: 700; color: #475569; cursor: pointer; }
+    .ex-seg button.on { background: #fff; color: var(--primary); box-shadow: 0 1px 3px rgba(0,0,0,0.15); }
+    .ex-mine-tag { color: #dc2626; font-weight: 800; font-size: 12.5px; margin: 2px 0 4px; }
     /* Журнал действий (окно) */
     #journal_modal { position: fixed; inset: 0; background: #f2f2f7; z-index: 10040; display: none; flex-direction: column; }
     .jr-head { background: #fff; padding: 12px 14px 8px; border-bottom: 1px solid #e5e5ea; }
@@ -1007,6 +1026,8 @@
 <div id="ext_modal">
   <div class="ex-head">
     <div class="t"><div><h3>🏬 Объекты к открытию</h3><small id="ex_upd"></small></div><div style="display:flex; gap:6px;"><button type="button" class="btn btn-secondary" style="width:38px; height:38px;" onclick="loadExt()">🔄</button><button type="button" class="btn btn-secondary" style="width:38px; height:38px;" onclick="closeExt()">✕</button></div></div>
+    <div class="ex-seg"><button type="button" id="ex_v_now" class="on" onclick="setExView('now')">🏬 Актуальные</button><button type="button" id="ex_v_arch" onclick="setExView('arch')">📦 Архив</button></div>
+    <div class="ex-tools" id="ex_tools"><span class="lbl">Сортировка:</span><button type="button" data-s="e" onclick="setExSort('e')">✉️ Письма</button><button type="button" data-s="f" class="on" onclick="setExSort('f')">🔑 Приёмки</button><button type="button" data-s="g" onclick="setExSort('g')">🏬 Открытия</button><button type="button" id="ex_mine_btn" onclick="toggleExMine()">⭐ Только мои</button><button type="button" onclick="exFoldAll()">⇅ Свернуть/развернуть</button></div>
     <label class="ex-notify"><input type="checkbox" id="ex_notify" onchange="setExtNotify(this.checked)"> 🔔 Присылать в Telegram изменения по объектам (кого откуда сняли, кого назначили)</label>
   </div>
   <div class="ex-body" id="ex_body"></div>
@@ -2134,7 +2155,7 @@
 
 
   // ===== Служебная сводка по объектам к открытию (скрытое окно) =====
-  let exTaps = 0, exTapT = 0, exLoading = false;
+  let exTaps = 0, exTapT = 0, exLoading = false, exSort = 'f', exView = 'now', exMineOnly = false, exLast = null, exOpen = {}, exAllOpen = true;
   document.addEventListener('click', function (e) {
     const card = e.target.closest && e.target.closest('#admin_employees_container .emp-card');
     if (!card || !globalAppData || !globalAppData.isAdmin) return;
@@ -2163,7 +2184,9 @@
         if (!res || res.status !== 'ok') { document.getElementById('ex_body').innerHTML = '<div class="jr-empty">Не удалось получить данные.<br>' + escHtml((res && res.message) || '') + '<br><br><button type="button" class="btn btn-primary" onclick="loadExt()">Повторить</button></div>'; return; }
         document.getElementById('ex_notify').checked = !!res.notify;
         document.getElementById('ex_upd').innerText = 'обновлено ' + res.updated;
-        renderExt(res);
+        exLast = res;
+        document.getElementById('ex_v_arch').innerText = '📦 Архив (' + ((res.archive || []).length) + ')';
+        renderExt();
       })
       .catch(() => { exLoading = false; document.getElementById('ex_body').innerHTML = '<div class="jr-empty">Нет связи с сервером.<br><br><button type="button" class="btn btn-primary" onclick="loadExt()">Повторить</button></div>'; });
   }
@@ -2174,24 +2197,64 @@
     const n = Math.round((t - td.getTime()) / 86400000);
     return n === 0 ? 'сегодня' : (n > 0 ? 'через ' + n + ' дн.' : Math.abs(n) + ' дн. назад');
   }
-  function exCard(o) {
-    const mgr = o.h ? `<div class="m">👤 ${escHtml(exShort(o.h))}</div>` : '<div class="m none">⚠️ РКО не назначен</div>';
-    const line = (ico, dt, txt) => dt ? `<div class="d"><span class="dt">${dt}</span><span>${ico} ${txt} <span class="rel">· ${exRel(dt)}</span></span></div>` : '';
-    return `<div class="ex-card"><div class="a">📍 ${escHtml(o.a)}</div>${mgr}${line('✉️', o.e, 'уведомление РКО о приёмке')}${line('🔑', o.f, 'приёмка магазина')}${line('🏬', o.g, 'открытие')}${o.fc ? `<div class="d"><span class="dt">👥 Штат</span><span>${escHtml(o.fc)}${o.fcLoose ? ' <span class="rel">· адрес совпал приблизительно</span>' : ''}</span></div>` : (o.fcNone ? '<div class="d"><span class="dt">👥 Штат</span><span class="rel">на вкладке «Контрольные точки найма» объект не найден</span></div>' : '')}</div>`;
+  function exNorm(t) { return String(t || '').toLowerCase().replace(/ё/g, 'е').replace(/[^a-zа-я\s-]/g, ' ').split(/\s+/).filter(Boolean); }
+  function exMine(o) {
+    if (o.mine !== undefined) return !!o.mine;
+    const me = new Set(exNorm((globalAppData.currentUser && globalAppData.currentUser.fio) || ''));
+    const t = exNorm(o.h);
+    return !!(me.size && t.length >= 2 && t.every(x => me.has(x)));
   }
-  function renderExt(res) {
-    const td = new Date(); td.setHours(12, 0, 0, 0); const T = td.getTime();
-    const cur = res.stores.filter(o => o.s === 'cur'), sus = res.stores.filter(o => o.s === 'sus');
+  function setExView(v) {
+    exView = v;
+    document.getElementById('ex_v_now').classList.toggle('on', v === 'now'); document.getElementById('ex_v_arch').classList.toggle('on', v === 'arch');
+    document.getElementById('ex_mine_btn').style.display = v === 'arch' ? 'none' : '';
+    renderExt();
+  }
+  function setExSort(k) { exSort = k; document.querySelectorAll('#ex_tools button[data-s]').forEach(b => b.classList.toggle('on', b.dataset.s === k)); renderExt(); }
+  function toggleExMine() { exMineOnly = !exMineOnly; document.getElementById('ex_mine_btn').classList.toggle('on', exMineOnly); renderExt(); }
+  function exFoldAll() { exAllOpen = !exAllOpen; document.querySelectorAll('#ex_body details.ex-s').forEach(d => { d.open = exAllOpen; exOpen[d.dataset.k] = exAllOpen; }); }
+  function exCard(o, T, arch) {
+    const mine = arch ? false : exMine(o);
+    const mgr = o.h ? `<div class="m">👤 ${escHtml(exShort(o.h))}</div>` : '<div class="m none">⚠️ РКО не назначен</div>';
+    const tag = mine ? `<div class="ex-mine-tag">🔴 ${(parseDateToTimestamp(o.e) || 0) > T || !o.e ? 'Ваш будущий объект (дата уведомления ещё не наступила)' : 'Ваш объект'}</div>` : '';
+    const line = (ico, dt, txt) => dt ? `<div class="d"><span class="dt">${dt}</span><span>${ico} ${txt} <span class="rel">· ${exRel(dt)}</span></span></div>` : '';
+    return `<div class="ex-card${mine ? ' mine' : ''}${arch ? ' arch' : ''}"><div class="a">📍 ${escHtml(o.a)}</div>${tag}${mgr}${line('✉️', o.e, 'уведомление РКО о приёмке')}${line('🔑', o.f, 'приёмка магазина')}${line('🏬', o.g, 'открытие')}${o.fc ? `<div class="d"><span class="dt">👥 Штат</span><span>${escHtml(o.fc)}${o.fcLoose ? ' <span class="rel">· адрес совпал приблизительно</span>' : ''}</span></div>` : (o.fcNone ? '<div class="d"><span class="dt">👥 Штат</span><span class="rel">на вкладке «Контрольные точки найма» объект не найден</span></div>' : '')}</div>`;
+  }
+  function renderExtArchive(res) {
+    const list = res.archive || [];
     const ts = (d) => parseDateToTimestamp(d) || 0;
+    const yearOf = (o) => { const d = o.g || o.f || o.e; return d ? d.slice(-4) : 'Без дат'; };
+    const by = {};
+    list.forEach(o => { const y = yearOf(o); (by[y] = by[y] || []).push(o); });
+    const years = Object.keys(by).sort((a, b) => (b === 'Без дат') - (a === 'Без дат') || b.localeCompare(a)).sort((a, b) => (a === 'Без дат') - (b === 'Без дат') || b.localeCompare(a));
+    let html = `<div class="ex-sec">📦 Все объекты, где вы указаны руководителем: ${list.length}</div>`;
+    if (!list.length) { document.getElementById('ex_body').innerHTML = html + '<div class="jr-empty">Объектов с вашим именем в таблице не найдено.</div>'; return; }
+    years.forEach((y, i) => {
+      const k = 'a' + y;
+      const open = exOpen[k] !== undefined ? exOpen[k] : i === 0;
+      const items = by[y].slice().sort((a, b) => ts(b[exSort]) - ts(a[exSort]));
+      html += `<details class="ex-s" data-k="${k}"${open ? ' open' : ''} ontoggle="exOpen['${k}']=this.open"><summary class="ex-sec">${y} (${items.length})</summary>${items.map(o => exCard(o, 0, true)).join('')}</details>`;
+    });
+    document.getElementById('ex_body').innerHTML = html;
+  }
+  function renderExt() {
+    const res = exLast; if (!res) return;
+    if (exView === 'arch') { renderExtArchive(res); return; }
+    const td = new Date(); td.setHours(12, 0, 0, 0); const T = td.getTime();
+    const ts = (d) => parseDateToTimestamp(d) || 0;
+    let all = res.stores;
+    if (exMineOnly) all = all.filter(exMine);
+    const cur = all.filter(o => o.s === 'cur'), sus = all.filter(o => o.s === 'sus');
+    // ближайшие к сегодняшнему дню — выше; без даты — в конце
+    const dist = (o) => { const t = ts(o[exSort]); return t ? Math.abs(t - T) : 9e15; };
     const groups = [
-      { t: '✉️ Ожидается уведомление РКО о приёмке', f: o => ts(o.e) > T, k: o => ts(o.e) },
-      { t: '🔔 РКО уведомлён о приёмке, приёмка ещё не состоялась', f: o => (!ts(o.e) || ts(o.e) <= T) && ts(o.f) > T, k: o => ts(o.f) },
-      { t: '🔑 РКО уведомлён, приёмка состоялась, магазин ещё не открыт', f: o => ts(o.f) && ts(o.f) <= T && (!ts(o.g) || ts(o.g) > T), k: o => ts(o.g) || 9e15 },
-      { t: '🏬 РКО уведомлён, приёмка состоялась, магазин открыт', f: o => ts(o.g) && ts(o.g) <= T, k: o => -ts(o.g) }
+      { t: '✉️ Ожидается уведомление РКО о приёмке', f: o => ts(o.e) > T },
+      { t: '🔔 РКО уведомлён о приёмке, приёмка ещё не состоялась', f: o => (!ts(o.e) || ts(o.e) <= T) && ts(o.f) > T },
+      { t: '🔑 РКО уведомлён, приёмка состоялась, магазин ещё не открыт', f: o => ts(o.f) && ts(o.f) <= T && (!ts(o.g) || ts(o.g) > T) },
+      { t: '🏬 РКО уведомлён, приёмка состоялась, магазин открыт', f: o => ts(o.g) && ts(o.g) <= T }
     ];
     const used = new Set();
     let html = '';
-    // что изменилось с прошлого захода
     const ico = { new: '➕', gone: '➖', pause: '⏸', resume: '▶️', swap: '🔁', assign: '👤', unassign: '🚫', date: '📅' };
     if (res.events && res.events.length) {
       html += `<div class="ex-sec">🆕 ${res.firstVisit ? 'Изменения за последнюю неделю' : 'Что изменилось с вашего прошлого захода (' + escHtml(res.sinceTs) + ')'}</div><div class="ex-ch">` +
@@ -2199,14 +2262,19 @@
     } else {
       html += `<div class="ex-sec">🆕 Изменений ${res.firstVisit ? 'за неделю' : 'с прошлого захода (' + escHtml(res.sinceTs) + ')'} нет</div>`;
     }
-    groups.forEach(g => {
-      const list = cur.filter(o => !used.has(o) && g.f(o)).sort((a, b) => g.k(a) - g.k(b));
+    const sec = (k, title, list) => {
+      const open = exOpen[k] !== undefined ? exOpen[k] : (k !== 'g3');
+      return `<details class="ex-s" data-k="${k}"${open ? ' open' : ''} ontoggle="exOpen['${k}']=this.open"><summary class="ex-sec">${title} (${list.length})</summary>${list.map(o => exCard(o, T)).join('')}</details>`;
+    };
+    groups.forEach((g, i) => {
+      const list = cur.filter(o => !used.has(o) && g.f(o)).sort((a, b) => dist(a) - dist(b));
       list.forEach(o => used.add(o));
-      if (list.length) html += `<div class="ex-sec">${g.t} (${list.length})</div>` + list.map(exCard).join('');
+      if (list.length) html += sec('g' + i, g.t, list);
     });
     const rest = cur.filter(o => !used.has(o));
-    if (rest.length) html += `<div class="ex-sec">❔ Без дат</div>` + rest.map(exCard).join('');
-    if (sus.length) html += `<details class="ex-card" style="margin-top:14px;"><summary style="font-weight:800; cursor:pointer;">⏸ Временно приостановлены (${sus.length})</summary><div class="ex-sus">${sus.map(o => `<div style="padding:5px 0; border-top:1px dashed #e2e8f0;">📍 ${escHtml(o.a)}${o.g ? ' · открытие ' + o.g : ''}${o.h ? ' · ' + escHtml(exShort(o.h)) : ''}</div>`).join('')}</div></details>`;
+    if (rest.length) html += sec('gr', '❔ Без дат', rest);
+    if (sus.length) html += `<details class="ex-card" style="margin-top:14px;"><summary style="font-weight:800; cursor:pointer;">⏸ Временно приостановлены (${sus.length})</summary><div class="ex-sus">${sus.map(o => `<div style="padding:5px 0; border-top:1px dashed #e2e8f0;${exMine(o) ? ' color:#dc2626; font-weight:700;' : ''}">📍 ${escHtml(o.a)}${o.g ? ' · открытие ' + o.g : ''}${o.h ? ' · ' + escHtml(exShort(o.h)) : ''}</div>`).join('')}</div></details>`;
+    if (exMineOnly && !cur.length && !sus.length) html += '<div class="jr-empty">За вами объектов пока не закреплено.</div>';
     document.getElementById('ex_body').innerHTML = html || '<div class="jr-empty">Объектов не найдено.</div>';
   }
 
