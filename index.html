@@ -2633,7 +2633,15 @@
         html += `<div class="month-header">📅 ${currentMonthHeader}</div>`;
       }
 
-      const dParts = grp.dates.split('—').map(s => s.trim());
+      // Сданный отчёт мог скорректировать сроки (дорога заняла больше): показываем фактический период, а срок по заявке — отдельной строкой
+      const aoPeriod = (rep) => { try { const pp = (typeof rep.rawJson === 'string' ? JSON.parse(rep.rawJson) : rep.rawJson || {}).passport || {}; return (pp.dStart && pp.dEnd) ? `${pp.dStart} — ${pp.dEnd}` : ''; } catch (e) { return ''; } };
+      let shownDates = grp.dates;
+      for (const m of grp.members) {
+        const rep = (reports || []).find(r => !r.isDraft && String(r.status).toLowerCase() === 'готов' && r.tripId === m.tripId);
+        const per = rep ? aoPeriod(rep) : '';
+        if (per) { shownDates = per; break; }
+      }
+      const dParts = shownDates.split('—').map(s => s.trim());
       let daysCount = 0;
       if (dParts.length === 2) {
         const t1 = parseDateToTimestamp(dParts[0]), t2 = parseDateToTimestamp(dParts[1]);
@@ -2653,7 +2661,7 @@
         <div style="margin-bottom:8px;">
           <div style="display:flex; gap:6px; align-items:center;">
             <button type="button" class="trip-accordion-btn ${warnClass}" style="margin-bottom:0;" onclick="toggleAccordion('box_trip_${gIdx}')">
-              <span style="flex:1; min-width:0; line-height:1.3;">🧳 Командировка ${grp.cities} <span style="white-space:nowrap;">(${daysCount || 18} дн)</span><br><small style="font-weight:400; opacity:0.85;">${grp.dates}</small></span>
+              <span style="flex:1; min-width:0; line-height:1.3;">🧳 Командировка ${grp.cities} <span style="white-space:nowrap;">(${daysCount || 18} дн)</span><br><small style="font-weight:400; opacity:0.85;">${shownDates}${shownDates !== grp.dates ? ` · по заявке ${grp.dates}` : ''}</small></span>
               <div class="trip-status-col">
                 ${isGroupCompleted 
                   ? `<span class="badge-status-tag badge-status-done">✅ Сдан</span>` 
@@ -2720,6 +2728,7 @@
           html += `
             <div class="timeline-node-field" onclick="openReportInReviewMode('${relatedAo.id}')">
               <b>📊 Авансовый отчет АО-1</b> (Сумма: ${Number(relatedAo.sum).toLocaleString('ru-RU')} ₽)<br>
+              ${(() => { const per = aoPeriod(relatedAo); if (!per) return ''; const q = per.split('—').map(x => x.trim()); const t1 = parseDateToTimestamp(q[0]), t2 = parseDateToTimestamp(q[1]); const n = (t2 >= t1 && t1 > 0) ? Math.ceil((t2 - t1) / 86400000) + 1 : 0; return `<small>Фактический срок: <b>${per}</b>${n ? ' (' + n + ' дн.)' : ''}</small><br>`; })()}
               <small>Статус: ${draftAo ? '<b style="color:#b45309;">Изменён, правки не сданы</b> (ниже последняя сданная версия)' : '<b>Сдан</b>'} | Нажмите для открытия отчёта</small>
               ${relatedAo.url ? `<br><a href="${relatedAo.url}" target="_blank" style="color:var(--primary); font-size:11px;" onclick="event.stopPropagation();">Открыть файл Excel на Диске ➔</a>` : ''}
               ${relatedAo.pdfUrl ? `<br><a href="${relatedAo.pdfUrl}" target="_blank" style="color:var(--success); font-size:11px; font-weight:700;" onclick="event.stopPropagation();">🖨️ Открыть PDF для печати ➔</a>` : ''}
