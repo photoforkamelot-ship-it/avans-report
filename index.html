@@ -219,6 +219,19 @@
     #act_drawer h3 { margin: 0 0 4px; font-size: 16px; }
 
     @media (max-width: 420px) { #top_tabs .tab-btn { min-width: 0; font-size: 12px; padding: 0 3px; gap: 2px; letter-spacing: -0.2px; } #hdr_icons { gap: 4px !important; } #hdr_icons .tg-notif-btn { width: 34px; } #top_tabs .te { display: none; } }
+    /* Архив командировок (из истории объектов) */
+    details.ta-year { margin-bottom: 8px; }
+    details.ta-year > summary { list-style: none; cursor: pointer; padding: 8px 4px; font-weight: 800; color: #64748b; display: flex; gap: 6px; align-items: center; }
+    details.ta-year > summary::-webkit-details-marker { display: none; }
+    details.ta-year > summary::before { content: '▸'; color: #94a3b8; transition: transform 0.15s; }
+    details.ta-year[open] > summary::before { transform: rotate(90deg); }
+    details.ta-card { opacity: 0.72; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 12px; margin: 0 0 6px; }
+    details.ta-card > summary { list-style: none; cursor: pointer; padding: 9px 12px; display: flex; gap: 8px; align-items: center; }
+    details.ta-card > summary::-webkit-details-marker { display: none; }
+    .ta-t { flex: 1; min-width: 0; line-height: 1.3; font-weight: 700; color: #475569; font-size: 13.5px; }
+    .ta-t small { display: block; font-weight: 400; color: #94a3b8; font-size: 12px; }
+    .ta-ok { font-size: 11px; font-weight: 700; color: #4d9a62; background: #eaf6ee; border-radius: 10px; padding: 2px 8px; white-space: nowrap; }
+    .ta-body { padding: 0 12px 10px; font-size: 12.5px; color: #94a3b8; line-height: 1.4; }
     /* Служебная сводка по объектам */
     #ext_modal { position: fixed; inset: 0; background: #f2f2f7; z-index: 10045; display: none; flex-direction: column; }
     .ex-head { background: #fff; padding: 12px 14px 10px; border-bottom: 1px solid #e5e5ea; }
@@ -757,6 +770,7 @@
         Группировка по месяцам. Нажмите на плашку командировки для раскрытия цепочки.
       </div>
       <div id="trips_tree_container">Загрузка командировок...</div>
+      <div id="trip_archive_box" style="display:none; margin-top:14px;"></div>
     </div>
   </div>
 
@@ -2228,13 +2242,16 @@
     list.forEach(o => { const y = yearOf(o); (by[y] = by[y] || []).push(o); });
     const years = Object.keys(by).sort((a, b) => (b === 'Без дат') - (a === 'Без дат') || b.localeCompare(a)).sort((a, b) => (a === 'Без дат') - (b === 'Без дат') || b.localeCompare(a));
     let html = `<div class="ex-sec">📦 Все объекты, где вы указаны руководителем: ${list.length}</div>`;
-    if (!list.length) { document.getElementById('ex_body').innerHTML = html + '<div class="jr-empty">Объектов с вашим именем в таблице не найдено.</div>'; return; }
+    if (!list.length) html += '<div class="jr-empty">Объектов с вашим именем в таблице не найдено.</div>';
     years.forEach((y, i) => {
+      if (!by[y]) return;
       const k = 'a' + y;
       const open = exOpen[k] !== undefined ? exOpen[k] : i === 0;
       const items = by[y].slice().sort((a, b) => ts(b[exSort]) - ts(a[exSort]));
       html += `<details class="ex-s" data-k="${k}"${open ? ' open' : ''} ontoggle="exOpen['${k}']=this.open"><summary class="ex-sec">${y} (${items.length})</summary>${items.map(o => exCard(o, 0, true)).join('')}</details>`;
     });
+    const dg = res.diag || {};
+    html += `<div class="rel" style="margin:14px 2px 0; font-size:11.5px; color:#94a3b8; line-height:1.4;">Просмотрено строк: ${dg.rows || '—'}${dg.src === 'export' ? '' : ' (видимые)'} · с руководителем: ${dg.withMgr !== undefined ? dg.withMgr : '—'}${(dg.unmatched && dg.unmatched.length) ? '<br>Похожие записи, не засчитанные: ' + dg.unmatched.map(escHtml).join('; ') : ''}${dg.err ? '<br>' + escHtml(dg.err) : ''}</div>`;
     document.getElementById('ex_body').innerHTML = html;
   }
   function renderExt() {
@@ -2276,6 +2293,62 @@
     if (sus.length) html += `<details class="ex-card" style="margin-top:14px;"><summary style="font-weight:800; cursor:pointer;">⏸ Временно приостановлены (${sus.length})</summary><div class="ex-sus">${sus.map(o => `<div style="padding:5px 0; border-top:1px dashed #e2e8f0;${exMine(o) ? ' color:#dc2626; font-weight:700;' : ''}">📍 ${escHtml(o.a)}${o.g ? ' · открытие ' + o.g : ''}${o.h ? ' · ' + escHtml(exShort(o.h)) : ''}</div>`).join('')}</div></details>`;
     if (exMineOnly && !cur.length && !sus.length) html += '<div class="jr-empty">За вами объектов пока не закреплено.</div>';
     document.getElementById('ex_body').innerHTML = html || '<div class="jr-empty">Объектов не найдено.</div>';
+  }
+
+
+  // ===== Архив командировок: восстановленная история (бледные плашки, без перехода в отчёт) =====
+  let taItems = null;
+  function exCity(addr) {
+    let t = String(addr || '').replace(/^\s*[A-Za-zА-Яа-я]\d{3}\s+/, '');
+    const parts = t.split(',').map(x => x.trim()).filter(Boolean).filter(x => !/(край|област|обл\.?$|республик|респ\.?$|округ|\bао\b)/i.test(x));
+    const c = (parts[0] || '').split(/\s+/).filter(w => !/^(г|гор|город)\.?$/i.test(w)).join(' ').replace(/^г\./i, '').trim();
+    return c;
+  }
+  function taNormCity(c) { return String(c || '').toLowerCase().replace(/ё/g, 'е').split(/\s+/).filter(w => !/^(г|гор|город)\.?$/.test(w)).join('').replace(/^г\./, '').replace(/[^a-zа-я0-9]/g, ''); }
+  function loadTripArchive() {
+    if (!globalAppData || !globalAppData.isAdmin) return;
+    fetch(GOOGLE_SHEET_API, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'ext_trips_archive', telegram_user: getTelegramUser() }) })
+      .then(r => r.json())
+      .then(res => { if (res && res.status === 'ok' && Array.isArray(res.items)) { taItems = res.items; renderTripArchive(); } })
+      .catch(() => {});
+  }
+  function renderTripArchive() {
+    const box = document.getElementById('trip_archive_box');
+    if (!box || !taItems || !globalAppData || !globalAppData.isAdmin) return;
+    const cu = globalAppData.currentUser || {};
+    const home = taNormCity(cu.homeCity || 'г. Томск');
+    const me = String(cu.fio || '').toLowerCase().replace(/ё/g, 'е');
+    const day = 86400000;
+    const T = new Date(); T.setHours(0, 0, 0, 0);
+    // реальные командировки этого сотрудника — по ним фантомные не дублируем
+    const real = (globalAppData.trips || []).filter(t => String(t.tgId || '') === String(cu.tgId || '') || String(t.team || '').toLowerCase().replace(/ё/g, 'е') === me).map(t => {
+      const p = String(t.dates || '').split('—').map(x => x.trim()); return [parseDateToTimestamp(p[0]), parseDateToTimestamp(p[1])];
+    }).filter(r => r[0] && r[1]);
+    const trips = [];
+    taItems.forEach(o => {
+      const s = parseDateToTimestamp(o.f), g = parseDateToTimestamp(o.g);
+      if (!s || !g) return;
+      const e = g + day;                       // дорога обратно — на следующий день после открытия
+      if (e < s || e >= T.getTime()) return;   // только завершённые
+      const city = exCity(o.a);
+      if (!city || taNormCity(city) === home) return;
+      if (real.some(r => s <= r[1] && e >= r[0])) return;
+      trips.push({ city, s, e, days: Math.round((e - s) / day) + 1 });
+    });
+    trips.sort((a, b) => b.s - a.s);
+    if (!trips.length) { box.style.display = 'none'; return; }
+    const MN = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
+    const fmt = (t) => { const d = new Date(t); const p = n => String(n).padStart(2, '0'); return `${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()}`; };
+    const by = {};
+    trips.forEach(t => { const y = new Date(t.s).getFullYear(); (by[y] = by[y] || []).push(t); });
+    const years = Object.keys(by).sort((a, b) => b - a);
+    const dn = (n) => n + (n % 10 === 1 && n % 100 !== 11 ? ' день' : ([2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100) ? ' дня' : ' дней'));
+    box.innerHTML = `<details style="border-top:1px solid #e5e5ea; padding-top:8px;"><summary style="cursor:pointer; font-weight:800; color:#64748b; padding:6px 2px;">📦 Архив командировок (${trips.length})</summary>` +
+      years.map((y, i) => `<details class="ta-year"${i === 0 ? ' open' : ''}><summary>${y} (${by[y].length})</summary>` + by[y].map(t => {
+        const mo = MN[new Date(t.s).getMonth()];
+        return `<details class="ta-card"><summary><span class="ta-t">🧳 Командировка г. ${escHtml(t.city)} (${dn(t.days)})<small>${fmt(t.s)} — ${fmt(t.e)} · ${mo}</small></span><span class="ta-ok">✅ Сдан</span></summary><div class="ta-body">Отчётные документы сданы не через это приложение. Информации о тратах нет.</div></details>`;
+      }).join('') + '</details>').join('') + '</details>';
+    box.style.display = 'block';
   }
 
   // ===== Свайпы между шагами и панель действий =====
@@ -2577,6 +2650,7 @@
         }
 
         TOUR_SEEN = (res.tourSeen !== false);
+        if (res.isAdmin) setTimeout(loadTripArchive, 2500);
         checkCloudDraftPopup(res.reports, userId, res.isAdmin);
         hideSplash(true);
       })
