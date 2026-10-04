@@ -777,9 +777,9 @@
 
     <!-- ШАГ 4: ГОТОВЫЙ ПАКЕТ АО-1 -->
     <div id="step-4" class="step-content">
-      <div class="tip-danger-banner">
+      <div class="tip-danger-banner" id="step4_banner">
         <span style="font-size: 22px;">🚨</span>
-        <div>ВНИМАНИЕ! Для завершения и сдачи отчёта нажмите одну из кнопок ниже ⬇️ или проведите по нижней панели влево ⬅️</div>
+        <div id="step4_banner_txt">ВНИМАНИЕ! Для завершения и сдачи отчёта нажмите одну из кнопок ниже ⬇️ или проведите по нижней панели влево ⬅️</div>
       </div>
 
       <div class="nav-bar nav-static" style="display:flex; flex-direction:column; gap:8px;">
@@ -3435,6 +3435,15 @@
     if (stage === 'none') { set(b1, ["btn-danger-action"]); set(b2, ["btn-secondary", "btn-disabled"]); }
     else if (stage === 'excel') { set(b1, ["btn-green", "btn-locked"]); set(b2, ["btn-danger-action"]); }
     else { set(b1, ["btn-green", "btn-locked"]); set(b2, ["btn-green", "btn-locked"]); }
+    const bn = document.getElementById('step4_banner'), bt = document.getElementById('step4_banner_txt');
+    if (bn && bt) {
+      bn.style.display = stage === 'done' ? 'none' : '';
+      bt.innerText = stage === 'excel' ? 'Excel сформирован. Отчёт ещё не сдан: нажмите «Сохранить в PDF».' : 'ВНИМАНИЕ! Для завершения и сдачи отчёта нажмите одну из кнопок ниже ⬇️ или проведите по нижней панели влево ⬅️';
+    }
+    if (!isViewingRemoteReport) {
+      if (stage === 'done') setStrip('ok', '✅ Отчёт сдан: Excel и PDF сформированы');
+      else if (stage === 'excel') setStrip('pending', '⏳ Excel готов, сформируйте PDF');
+    }
     if (a1) a1.style.opacity = stage === 'none' ? '1' : '0.45';
     if (a2) a2.style.opacity = stage === 'excel' ? '1' : '0.45';
   }
