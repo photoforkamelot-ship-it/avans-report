@@ -442,6 +442,11 @@
       background: #fef3c7; color: #b45309; border: 1px solid #fde68a;
     }
 
+    .badge-status-interim { background: #ffedd5; color: #c2410c; border: 1px solid #fdba74; }
+    .emp-icon-interim { background: #ffedd5; border-color: #fdba74; }
+    .status-field-box.status-interim { border: 2px solid #dc2626; background: #fef2f2; color: #7f1d1d; font-weight: 600; box-shadow: 0 0 0 3px rgba(220,38,38,.12); }
+    .pdf-need { display: block; margin-top: 4px; color: #dc2626; font-weight: 800; font-size: 14px; animation: pdfblink 1.4s ease-in-out infinite; }
+    @keyframes pdfblink { 50% { opacity: .4; } }
     .trip-emp-btn {
       width: 100%; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px;
       padding: 8px 10px; margin: 4px 0; text-align: left; font-size: 12px; font-weight: 600;
@@ -999,6 +1004,10 @@
 
     <div id="ntf_types_section" style="border-top:1px dashed #cbd5e1; padding-top:10px; margin:0 0 10px;">
       <div style="font-size:12px; font-weight:700; color:#1e293b; margin-bottom:6px;">Какие события присылать мне:</div>
+      <label class="checkbox-row" style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px; margin-bottom:8px;">
+        <input type="checkbox" id="chk_ntf_interim" checked>
+        <div><b>Промежуточный отчёт</b><br><span style="font-size:11px; color:#64748b;">Сообщение, когда сформирован Excel, а PDF ещё нет</span></div>
+      </label>
       <label class="checkbox-row" style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px; margin-bottom:8px;">
         <input type="checkbox" id="chk_ntf_expense" checked>
         <div><b>Добавлен расход</b><br><span style="font-size:11px; color:#64748b;">Сообщение, когда в отчёт добавлен новый расход</span></div>
@@ -2830,7 +2839,7 @@
       if (!mine) return;
       fetch(GOOGLE_SHEET_API, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'notify_prefs', telegram_user: getTelegramUser() }) })
         .then(r => r.json()).then(res => {
-          if (res && res.prefs) ['expense', 'docs', 'account'].forEach(k => { document.getElementById('chk_ntf_' + k).checked = res.prefs[k] !== false; });
+          if (res && res.prefs) ['interim', 'expense', 'docs', 'account'].forEach(k => { document.getElementById('chk_ntf_' + k).checked = res.prefs[k] !== false; });
         }).catch(() => {});
     })();
     const leadSec = document.getElementById('lead_notif_section');
@@ -2864,7 +2873,7 @@
     const notifyTeamAo = document.getElementById('chk_lead_notif_ao').checked;
 
     if (document.getElementById('ntf_types_section').style.display !== 'none') {
-      fetch(GOOGLE_SHEET_API, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'notify_prefs', telegram_user: getTelegramUser(), prefs: { expense: document.getElementById('chk_ntf_expense').checked, docs: document.getElementById('chk_ntf_docs').checked, account: document.getElementById('chk_ntf_account').checked } }) }).catch(() => {});
+      fetch(GOOGLE_SHEET_API, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'notify_prefs', telegram_user: getTelegramUser(), prefs: { interim: document.getElementById('chk_ntf_interim').checked, expense: document.getElementById('chk_ntf_expense').checked, docs: document.getElementById('chk_ntf_docs').checked, account: document.getElementById('chk_ntf_account').checked } }) }).catch(() => {});
     }
     showToast("Сохранение настроек...");
     fetch(GOOGLE_SHEET_API, {
@@ -3023,11 +3032,17 @@
       const hasAnyWarning = grp.members.some(m => m.hasPendingRecalc);
       const warnClass = hasAnyWarning ? 'warning-active' : '';
 
-      const isGroupCompleted = grp.members.every(m => {
+      // Состояние отчёта сотрудника: done — Excel и PDF сформированы; interim — Excel есть, PDF ещё не запрошен; prog — в работе
+      const aoState = (m) => {
         const rep = (reports || []).find(r => !r.isDraft && String(r.status).toLowerCase() === 'готов' && (r.tripId === m.tripId));
         const hasDraft = (reports || []).some(r => r.isDraft && r.tripId === m.tripId && draftHasContent(r));
-        return (rep || m.status === 'Завершена') && !hasDraft;
-      });
+        if (hasDraft) return 'prog';
+        if (rep) return rep.pdfUrl ? 'done' : 'interim';
+        return m.status === 'Завершена' ? 'done' : 'prog';
+      };
+      const stList = grp.members.map(aoState);
+      const groupState = stList.every(x => x === 'done') ? 'done' : (stList.every(x => x === 'done' || x === 'interim') ? 'interim' : 'prog');
+      const isGroupCompleted = groupState === 'done';
 
       html += `
         <div style="margin-bottom:8px;">
@@ -3035,9 +3050,11 @@
             <button type="button" class="trip-accordion-btn ${warnClass}" style="margin-bottom:0;" onclick="toggleAccordion('box_trip_${gIdx}')">
               <span style="flex:1; min-width:0; line-height:1.3;">🧳 Командировка ${grp.cities} <span style="white-space:nowrap;">(${daysCount || 18} дн)</span><br><small style="font-weight:400; opacity:0.85;">${shownDates}${shownDates !== grp.dates ? ` · по заявке ${grp.dates}` : ''}</small></span>
               <div class="trip-status-col">
-                ${isGroupCompleted 
+                ${groupState === 'done' 
                   ? `<span class="badge-status-tag badge-status-done">✅ Сдан</span>` 
-                  : `<span class="badge-status-tag badge-status-progress">✏️ В процессе</span>`}
+                  : (groupState === 'interim'
+                    ? `<span class="badge-status-tag badge-status-interim">⏳ Почти</span>`
+                    : `<span class="badge-status-tag badge-status-progress">✏️ В процессе</span>`)}
               </div>
             </button>
             ${globalAppData.isAdmin ? `<button type="button" class="btn btn-danger" title="Удалить всю командировку для всех сотрудников" onclick="deleteFullTripGroup('${grp.cities.replace(/'/g, "\\'")}', '${grp.dates.replace(/'/g, "\\'")}')">🗑️️</button>` : ''}
@@ -3061,13 +3078,15 @@
           (r.tripId === tr.tripId)
         );
         const draftAo = (reports || []).find(r => r.isDraft && r.tripId === tr.tripId && draftHasContent(r));
-        const isMemberDone = (relatedAo || tr.status === 'Завершена') && !draftAo;
+        const memberState = aoState({ tripId: tr.tripId, status: tr.status });
+        const isMemberDone = memberState === 'done';
+        const isMemberInterim = memberState === 'interim';
 
         html += `
           <div style="display:flex; gap:6px; align-items:center; margin:4px 0;">
             <button type="button" class="trip-emp-btn" style="margin:0; flex:1;" onclick="toggleAccordion('${memberBoxId}')">
               <span>👤 ${shortFio}${(cleanEmpCity && cleanEmpCity !== grp.cities) ? ' ' + cleanEmpCity : ''} <small style="opacity:.8;">(${daysCount || 18} дн)</small></span>
-              <span class="emp-pill-status ${isMemberDone ? 'emp-icon-done' : 'emp-icon-progress'}" title="${isMemberDone ? 'Отчёт сдан' : (draftAo ? 'Есть несданные правки' : 'В процессе')}">${isMemberDone ? '✅' : '📝'} <span style="font-size:11px; color:#007aff;">▾</span></span>
+              <span class="emp-pill-status ${isMemberDone ? 'emp-icon-done' : (isMemberInterim ? 'emp-icon-interim' : 'emp-icon-progress')}" title="${isMemberDone ? 'Отчёт сдан' : (isMemberInterim ? 'Excel готов, сформируйте PDF' : (draftAo ? 'Есть несданные правки' : 'В процессе'))}">${isMemberDone ? '✅' : (isMemberInterim ? '⏳' : '📝')} <span style="font-size:11px; color:#007aff;">▾</span></span>
             </button>
             ${globalAppData.isAdmin ? `<button type="button" class="btn btn-danger" title="Удалить командировку сотрудника" onclick="deleteSingleMemberTrip('${tr.tripId}', '${personFio.replace(/'/g, "\\'")}')">🗑️</button>` : ''}
           </div>
@@ -3101,7 +3120,7 @@
             <div class="timeline-node-field" onclick="openReportInReviewMode('${relatedAo.id}')">
               <b>📊 Авансовый отчет АО-1</b> (Сумма: ${Number(relatedAo.sum).toLocaleString('ru-RU')} ₽)<br>
               ${(() => { const per = aoPeriod(relatedAo); if (!per) return ''; const q = per.split('—').map(x => x.trim()); const t1 = parseDateToTimestamp(q[0]), t2 = parseDateToTimestamp(q[1]); const n = (t2 >= t1 && t1 > 0) ? Math.ceil((t2 - t1) / 86400000) + 1 : 0; return `<small>Фактический срок: <b>${per}</b>${n ? ' (' + n + ' дн.)' : ''}</small><br>`; })()}
-              <small>Статус: ${draftAo ? '<b style="color:#b45309;">Изменён, правки не сданы</b> (ниже последняя сданная версия)' : '<b>Сдан</b>'} | Нажмите для открытия отчёта</small>
+              <small>Статус: ${draftAo ? '<b style="color:#b45309;">Изменён, правки не сданы</b> (ниже последняя сданная версия)' : (relatedAo.pdfUrl ? '<b>Сдан</b>' : '<b style="color:#c2410c;">Почти готов: нет PDF</b>')} | Нажмите для открытия отчёта</small>
               ${relatedAo.url ? `<br><a href="${relatedAo.url}" target="_blank" style="color:var(--primary); font-size:11px;" onclick="event.stopPropagation();">Открыть файл Excel на Диске ➔</a>` : ''}
               ${relatedAo.pdfUrl ? `<br><a href="${relatedAo.pdfUrl}" target="_blank" style="color:var(--success); font-size:11px; font-weight:700;" onclick="event.stopPropagation();">🖨️ Открыть PDF для печати ➔</a>` : ''}
             </div>
@@ -3135,6 +3154,14 @@
             <div class="status-field-box status-warning">
               ✏️ <b>В отчёте есть правки, которые ещё не сданы.</b><br>
               Черновик на сумму <b>${Number(draftAo.sum).toLocaleString('ru-RU')} ₽</b>. Нажмите «Заполнить АО-1», затем «Скачать Excel» или «Сохранить в PDF», чтобы зафиксировать изменения.
+            </div>
+          `;
+        } else if (isMemberInterim) {
+          html += `
+            <div class="status-field-box status-interim" onclick="openReportInReviewMode('${relatedAo.id}')" style="cursor:pointer;">
+              ⏳ <b>Excel сформирован, отчёт ещё не сдан.</b><br>
+              Сумма отчёта о расходах: <b>${Number(relatedAo.sum).toLocaleString('ru-RU')} ₽</b>
+              <span class="pdf-need">Сформируйте PDF</span>
             </div>
           `;
         } else if (relatedAo || tr.status === 'Завершена') {
