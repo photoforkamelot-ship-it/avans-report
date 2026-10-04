@@ -4831,7 +4831,14 @@
   function loadBotReceipts() {
     try {
       fetch(GOOGLE_SHEET_API, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'get_receipts', telegram_user: getTelegramUser(), for_tg_id: receiptSubjectTgId() }) })
-        .then(r => r.json()).then(res => { if (res && res.status === 'ok') { botReceipts = res.items || []; renderBotReceipts(); } }).catch(() => {});
+        .then(r => r.json()).then(res => {
+          if (res && res.status === 'ok') {
+            const tid = (document.getElementById('p_trip_id').value || (store.passport && store.passport.tripId) || '').trim();
+            // чеки другой командировки не показываем; чеки без привязки показываем с пометкой
+            botReceipts = (res.items || []).filter(r => !r.tripId || !tid || r.tripId === tid);
+            renderBotReceipts();
+          }
+        }).catch(() => {});
     } catch (e) {}
   }
   function renderBotReceipts() {
@@ -4840,7 +4847,7 @@
     const CAT = { plane: '✈️ Самолёт', train: '🚆 Поезд', bus: '🚌 Автобус', taxi: '🚕 Такси', hotel: '🏨 Проживание', misc: '🛒 Прочее' };
     box.style.display = 'block';
     box.innerHTML = `<div style="font-weight:800; font-size:13px; color:#0369a1;">📷 Чеки из бота (${botReceipts.length})</div><div style="font-size:11.5px; color:#64748b; margin-top:2px;">Нажмите «В расходы»: данные подставятся в форму, останется проверить и сохранить.</div>` +
-      botReceipts.map(r => `<div class="rc-card"><div class="rc-t"><b>${Number(r.sum).toLocaleString('ru-RU')} ₽</b> · ${CAT[r.cat] || CAT.misc}<small>${r.files > 1 ? '📎 ' + r.files + ' док. · ' : ''}${escHtml(r.date || 'без даты')}${r.merchant ? ' · ' + escHtml(r.merchant) : ''}${r.no ? ' · № ' + escHtml(r.no) : ''}</small></div><button type="button" onclick="useBotReceipt('${r.id}')">➕ В расходы</button></div>`).join('');
+      botReceipts.map(r => `<div class="rc-card"><div class="rc-t"><b>${Number(r.sum).toLocaleString('ru-RU')} ₽</b> · ${CAT[r.cat] || CAT.misc}<small>${!r.tripId ? '⚠️ без привязки · ' : ''}${r.files > 1 ? '📎 ' + r.files + ' док. · ' : ''}${escHtml(r.date || 'без даты')}${r.merchant ? ' · ' + escHtml(r.merchant) : ''}${r.no ? ' · № ' + escHtml(r.no) : ''}</small></div><button type="button" onclick="useBotReceipt('${r.id}')">➕ В расходы</button></div>`).join('');
   }
   function useBotReceipt(id) {
     const r = botReceipts.find(x => x.id === id); if (!r) return;
