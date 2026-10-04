@@ -530,6 +530,32 @@
       font-size: 12px; display: none; z-index: 9999; text-align: center; max-width: 90%;
     }
   </style>
+  <style id="tg-shell-css">
+    /* ===== Оболочка мини-приложения: полный экран, стекло, плавающая панель ===== */
+    html, body { overscroll-behavior-y: none; -webkit-tap-highlight-color: transparent; }
+    body { padding-top: calc(var(--tg-top, 0px) + 10px); padding-bottom: calc(var(--tg-bottom, 0px) + 92px); }
+    body.in-form { padding-bottom: 10px; }
+    .header-bar { justify-content: flex-end; }
+    .header-bar #hdr_icons .tg-notif-btn { background: rgba(255,255,255,0.6); -webkit-backdrop-filter: blur(18px) saturate(180%); backdrop-filter: blur(18px) saturate(180%); border: 1px solid rgba(255,255,255,0.7); box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
+    /* Плавающая панель разделов у нижнего края */
+    .top-tabs {
+      position: fixed; left: 14px; right: 14px; bottom: calc(10px + var(--tg-bottom, 0px)); z-index: 45;
+      max-width: 652px; margin: 0 auto; padding: 6px; gap: 4px; flex: none; overflow: visible;
+      border-radius: 28px; background: rgba(255,255,255,0.55);
+      -webkit-backdrop-filter: blur(24px) saturate(190%); backdrop-filter: blur(24px) saturate(190%);
+      border: 1px solid rgba(255,255,255,0.75); box-shadow: 0 8px 28px rgba(0,0,0,0.14), inset 0 1px 0 rgba(255,255,255,0.9);
+    }
+    .top-tabs .tab-btn { height: 48px; border-radius: 22px; background: transparent; color: #1c1c1e; font-size: 12px; flex-direction: column; gap: 1px; line-height: 1.1; transition: background .25s, color .25s, transform .15s; }
+    .top-tabs .tab-btn .te { font-size: 18px; }
+    .top-tabs .tab-btn.active { background: rgba(255,255,255,0.95); color: var(--primary); box-shadow: 0 2px 10px rgba(0,0,0,0.10); }
+    .top-tabs .tab-btn:active { transform: scale(0.96); }
+    body.in-form .top-tabs { display: none !important; }
+    /* Внутри отчёта нижняя панель шагов учитывает «домашний» индикатор */
+    .nav-bar { padding-bottom: calc(10px + max(env(safe-area-inset-bottom, 0px), var(--tg-bottom, 0px))); background: rgba(242,242,247,0.72); -webkit-backdrop-filter: blur(22px) saturate(180%); backdrop-filter: blur(22px) saturate(180%); }
+    /* Полоса шагов закреплена сверху под кнопкой «Закрыть» */
+    .stepper { position: sticky; top: var(--tg-top, 0px); z-index: 35; margin: 0 -10px 10px; padding: 8px 10px 4px; background: rgba(242,242,247,0.72); -webkit-backdrop-filter: blur(18px) saturate(180%); backdrop-filter: blur(18px) saturate(180%); }
+    .stepper .bar { transition: background .35s ease; }
+  </style>
 </head>
 <body>
 
@@ -5012,6 +5038,59 @@
       document.querySelector('#tbl_taxi tbody').innerHTML = store.taxis.map(t => `<tr><td>${t.date}</td><td>${t.route}</td><td>${t.purpose}</td><td class="text-right">${Number(t.sum).toLocaleString('ru-RU', {minimumFractionDigits:2})}</td></tr>`).join('');
     } else cardTaxi.style.display = 'none';
   }
+</script>
+<script id="tg-shell-js">
+/* Оболочка мини-приложения: полный экран, запрет закрытия свайпом, кнопка «Назад» вместо «Закрыть» внутри разделов */
+(function () {
+  const tgw = window.Telegram && window.Telegram.WebApp;
+  const root = document.documentElement;
+  function setInsets() {
+    try {
+      const s = (tgw && tgw.safeAreaInset) || {}, c = (tgw && tgw.contentSafeAreaInset) || {};
+      root.style.setProperty('--tg-top', ((s.top || 0) + (c.top || 0)) + 'px');
+      root.style.setProperty('--tg-bottom', (s.bottom || 0) + 'px');
+    } catch (e) {}
+  }
+  if (tgw) {
+    try { if (tgw.disableVerticalSwipes) tgw.disableVerticalSwipes(); } catch (e) {}
+    try {
+      const mobile = tgw.platform === 'ios' || tgw.platform === 'android';
+      if (mobile && tgw.isVersionAtLeast && tgw.isVersionAtLeast('8.0') && tgw.requestFullscreen && !tgw.isFullscreen) tgw.requestFullscreen();
+    } catch (e) {}
+    try { tgw.setHeaderColor && tgw.setHeaderColor('#f2f2f7'); tgw.setBackgroundColor && tgw.setBackgroundColor('#f2f2f7'); tgw.setBottomBarColor && tgw.setBottomBarColor('#f2f2f7'); } catch (e) {}
+    ['safeAreaChanged', 'contentSafeAreaChanged', 'fullscreenChanged', 'viewportChanged'].forEach(ev => { try { tgw.onEvent(ev, setInsets); } catch (e) {} });
+  }
+  setInsets();
+
+  function inForm() { const f = document.getElementById('tab-form'); return !!f && f.style.display === 'block'; }
+  function tabNow() {
+    const m = document.querySelectorAll('.main-tab-content');
+    for (const el of m) if (el.style.display === 'block') return el.id;
+    return 'tab-trips';
+  }
+  // Кнопка «Назад» в облачке Telegram: показывается везде, кроме главного раздела «Командировки»
+  function syncBack() {
+    document.body.classList.toggle('in-form', inForm());
+    if (!tgw || !tgw.BackButton) return;
+    try { (inForm() || tabNow() !== 'tab-trips') ? tgw.BackButton.show() : tgw.BackButton.hide(); } catch (e) {}
+  }
+  function goBack() {
+    const modals = Array.from(document.querySelectorAll('[id$="_modal"]')).filter(m => m.style.display && m.style.display !== 'none');
+    if (modals.length) { const b = modals[modals.length - 1].querySelector('[onclick*="close"],[onclick*="Close"]'); if (b) { b.click(); return; } }
+    if (inForm()) {
+      const n = typeof curStepNum === 'function' ? curStepNum() : 1;
+      if (n > 1) { goToStep(n - 1); return; }
+    }
+    switchMainTab('trips');
+  }
+  if (tgw && tgw.BackButton) { try { tgw.BackButton.onClick(goBack); } catch (e) {} }
+  ['switchMainTab', 'goToStep'].forEach(name => {
+    const orig = window[name];
+    if (typeof orig !== 'function') return;
+    window[name] = function () { const r = orig.apply(this, arguments); syncBack(); return r; };
+  });
+  syncBack();
+})();
 </script>
 </body>
 </html>
