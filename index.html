@@ -234,7 +234,7 @@
     .ta-body { padding: 0 12px 10px; font-size: 12.5px; color: #94a3b8; line-height: 1.4; }
     /* Служебная сводка по объектам */
     #ext_modal { position: fixed; inset: 0; background: #f2f2f7; z-index: 10045; display: none; flex-direction: column; }
-    .ex-head { background: #fff; padding: 12px 14px 10px; border-bottom: 1px solid #e5e5ea; }
+    .ex-head { background: #fff; padding: calc(var(--tg-top, 0px) + 12px) 14px 10px; border-bottom: 1px solid #e5e5ea; }
     .ex-head .t { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
     .ex-head h3 { margin: 0; font-size: 18px; }
     .ex-head small { color: #64748b; }
@@ -275,7 +275,7 @@
     .ex-mine-tag { color: #dc2626; font-weight: 800; font-size: 12.5px; margin: 2px 0 4px; }
     /* Журнал действий (окно) */
     #journal_modal { position: fixed; inset: 0; background: #f2f2f7; z-index: 10040; display: none; flex-direction: column; }
-    .jr-head { background: #fff; padding: 12px 14px 8px; border-bottom: 1px solid #e5e5ea; }
+    .jr-head { background: #fff; padding: calc(var(--tg-top, 0px) + 12px) 14px 8px; border-bottom: 1px solid #e5e5ea; }
     .jr-title { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
     .jr-title h3 { margin: 0; font-size: 18px; }
     .jr-seg { display: flex; background: #e5e5ea; border-radius: 10px; padding: 2px; margin-bottom: 8px; }
@@ -1109,7 +1109,7 @@
   <div class="ex-head">
     <div class="t"><div><h3>🏬 Объекты к открытию</h3><small id="ex_upd"></small></div><div style="display:flex; gap:6px;"><button type="button" class="btn btn-secondary" style="width:38px; height:38px;" onclick="loadExt()">🔄</button><button type="button" class="btn btn-secondary" style="width:38px; height:38px;" onclick="closeExt()">✕</button></div></div>
     <div class="ex-seg"><button type="button" id="ex_v_now" class="on" onclick="setExView('now')">🏬 Актуальные</button><button type="button" id="ex_v_arch" onclick="setExView('arch')">📦 Архив</button></div>
-    <div class="ex-tools" id="ex_tools"><span class="lbl">Сортировка:</span><button type="button" data-s="e" onclick="setExSort('e')">✉️ Письма</button><button type="button" data-s="f" class="on" onclick="setExSort('f')">🔑 Приёмки</button><button type="button" data-s="g" onclick="setExSort('g')">🏬 Открытия</button><button type="button" id="ex_mine_btn" onclick="toggleExMine()">⭐ Только мои</button><button type="button" onclick="exFoldAll()">⇅ Свернуть/развернуть</button></div>
+    <div class="ex-tools" id="ex_tools"><span class="lbl">Сортировка:</span><button type="button" data-s="e" onclick="setExSort('e')">✉️ Письма</button><button type="button" data-s="f" onclick="setExSort('f')">🔑 Приёмки</button><button type="button" data-s="g" onclick="setExSort('g')">🏬 Открытия</button><button type="button" id="ex_mine_btn" onclick="toggleExMine()">⭐ Только мои</button><button type="button" onclick="exFoldAll()">⇅ Свернуть/развернуть</button></div>
     <label class="ex-notify"><input type="checkbox" id="ex_notify" onchange="setExtNotify(this.checked)"> 🔔 Присылать в Telegram изменения по объектам (кого откуда сняли, кого назначили)</label>
   </div>
   <div class="ex-body" id="ex_body"></div>
@@ -2262,7 +2262,7 @@
 
 
   // ===== Служебная сводка по объектам к открытию (скрытое окно) =====
-  let exTaps = 0, exTapT = 0, exLoading = false, exSort = 'f', exView = 'now', exMineOnly = false, exLast = null, exOpen = {}, exAllOpen = true;
+  let exTaps = 0, exTapT = 0, exLoading = false, exSort = 'n', exView = 'now', exMineOnly = false, exLast = null, exOpen = {}, exAllOpen = true;
   document.addEventListener('click', function (e) {
     const card = e.target.closest && e.target.closest('#admin_employees_container .emp-card');
     if (!card || !globalAppData || !globalAppData.isAdmin) return;
@@ -2340,7 +2340,7 @@
       if (!by[y]) return;
       const k = 'a' + y;
       const open = exOpen[k] !== undefined ? exOpen[k] : i === 0;
-      const items = by[y].slice().sort((a, b) => ts(b[exSort]) - ts(a[exSort]));
+      const items = by[y].slice().sort((a, b) => ts(b[exSort==='n'?'f':exSort]) - ts(a[exSort==='n'?'f':exSort]));
       html += `<details class="ex-s" data-k="${k}"${open ? ' open' : ''} ontoggle="exOpen['${k}']=this.open"><summary class="ex-sec">${y} (${items.length})</summary>${items.map(o => exCard(o, 0, true)).join('')}</details>`;
     });
     const dg = res.diag || {};
@@ -2354,9 +2354,9 @@
     const ts = (d) => parseDateToTimestamp(d) || 0;
     let all = res.stores;
     if (exMineOnly) all = all.filter(exMine);
-    const cur = all.filter(o => o.s === 'cur'), sus = all.filter(o => o.s === 'sus');
+    const cur = all.filter(o => o.s !== 'sus'), sus = [];
     // ближайшие к сегодняшнему дню — выше; без даты — в конце
-    const dist = (o) => { const t = ts(o[exSort]); return t ? Math.abs(t - T) : 9e15; };
+    const dist = (o) => { if (exSort === 'n') return o.n || 0; const t = ts(o[exSort]); return t ? Math.abs(t - T) : 9e15; };
     const groups = [
       { t: '✉️ Ожидается уведомление РКО о приёмке', f: o => ts(o.e) > T },
       { t: '🔔 РКО уведомлён о приёмке, приёмка ещё не состоялась', f: o => (!ts(o.e) || ts(o.e) <= T) && ts(o.f) > T },
@@ -2383,7 +2383,6 @@
     });
     const rest = cur.filter(o => !used.has(o));
     if (rest.length) html += sec('gr', '❔ Без дат', rest);
-    if (sus.length) html += `<details class="ex-card" style="margin-top:14px;"><summary style="font-weight:800; cursor:pointer;">⏸ Временно приостановлены (${sus.length})</summary><div class="ex-sus">${sus.map(o => `<div style="padding:5px 0; border-top:1px dashed #e2e8f0;${exMine(o) ? ' color:#dc2626; font-weight:700;' : ''}">📍 ${escHtml(o.a)}${o.g ? ' · открытие ' + o.g : ''}${o.h ? ' · ' + escHtml(exShort(o.h)) : ''}</div>`).join('')}</div></details>`;
     if (exMineOnly && !cur.length && !sus.length) html += '<div class="jr-empty">За вами объектов пока не закреплено.</div>';
     document.getElementById('ex_body').innerHTML = html || '<div class="jr-empty">Объектов не найдено.</div>';
   }
