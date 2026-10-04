@@ -555,6 +555,30 @@
     /* Полоса шагов закреплена сверху под кнопкой «Закрыть» */
     .stepper { position: sticky; top: var(--tg-top, 0px); z-index: 35; margin: 0 -10px 10px; padding: 8px 10px 4px; background: rgba(242,242,247,0.72); -webkit-backdrop-filter: blur(18px) saturate(180%); backdrop-filter: blur(18px) saturate(180%); }
     .stepper .bar { transition: background .35s ease; }
+
+    /* Нижняя панель: равные кнопки, подпись под значком, бейдж черновиков */
+    .header-bar { margin: 0; min-height: 0; }
+    #hdr_icons { display: none !important; }
+    .top-tabs .tab-btn { flex: 1 1 0 !important; min-width: 0 !important; padding: 0 2px !important; position: relative; }
+    .top-tabs .tab-btn .te { display: inline !important; font-size: 20px; line-height: 1; }
+    .top-tabs .tab-btn .dl { display: inline !important; font-size: 10.5px; font-weight: 600; letter-spacing: .1px; }
+    .top-tabs .tab-btn .dbadge { position: absolute; top: 3px; left: calc(50% + 6px); min-width: 17px; height: 17px; padding: 0 4px; border-radius: 9px; background: #ff3b30; color: #fff; font-size: 10px; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 0 0 2px rgba(255,255,255,.9); }
+    /* Профиль */
+    .prof-card { padding: 0 !important; overflow: hidden; }
+    .prof-head { display: flex; align-items: center; gap: 12px; padding: 18px 16px 14px; }
+    .prof-ava { width: 52px; height: 52px; border-radius: 26px; background: linear-gradient(135deg,#7cb8ff,#007aff); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 700; flex: none; }
+    .prof-name { font-size: 18px; font-weight: 800; color: #0f172a; line-height: 1.2; }
+    .prof-sub { font-size: 12.5px; color: #64748b; margin-top: 2px; }
+    .prof-list { border-top: 1px solid #eef0f4; }
+    .prof-row { display: flex; align-items: center; gap: 12px; width: 100%; padding: 13px 16px; background: none; border: 0; border-bottom: 1px solid #eef0f4; text-align: left; font-family: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+    .prof-row:last-child { border-bottom: 0; }
+    .prof-row:active { background: #f4f6fa; }
+    .pr-i { font-size: 22px; width: 30px; text-align: center; flex: none; }
+    .pr-t { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    .pr-t b { font-size: 15px; font-weight: 700; color: #0f172a; }
+    .pr-t small { font-size: 12px; color: #8e8e93; margin-top: 1px; }
+    .pr-c { font-size: 22px; color: #c0c5ce; flex: none; }
+    .pr-badge { min-width: 20px; height: 20px; border-radius: 10px; background: #ff3b30; color: #fff; font-size: 11px; font-weight: 800; display: none; align-items: center; justify-content: center; padding: 0 5px; }
   </style>
 </head>
 <body>
@@ -564,9 +588,10 @@
   <div class="header-bar">
     <div id="top_tabs" class="top-tabs">
       <button type="button" id="tab_btn_form" class="tab-btn" style="display:none;" onclick="switchMainTab('form')"><span class="te">📝</span> Заполнение</button>
-      <button type="button" id="tab_btn_trips" class="tab-btn active" onclick="switchMainTab('trips')"><span class="te">✈️</span> Командировки</button>
+      <button type="button" id="tab_btn_trips" class="tab-btn active" onclick="switchMainTab('trips')"><span class="te">✈️</span><span class="dl">Командировки</span></button>
       <button type="button" id="tab_btn_new_req" class="tab-btn" style="display:none;" onclick="switchMainTab('new_req')"><span class="te">💰</span> Заявка на ДС</button>
-      <button type="button" id="tab_btn_drafts" class="tab-btn" style="display:none;" onclick="switchMainTab('drafts')"><span class="te">💾</span> <span class="dl">Черновики </span>(<span id="draft_count_badge">0</span>)</button>
+      <button type="button" id="tab_btn_drafts" class="tab-btn" style="display:none;" onclick="switchMainTab('drafts')"><span class="te">💾</span><span class="dl">Черновики</span><span class="dbadge" id="draft_count_badge_wrap"><span id="draft_count_badge">0</span></span></button>
+      <button type="button" id="tab_btn_profile" class="tab-btn" onclick="switchMainTab('profile')"><span class="te">👤</span><span class="dl">Профиль</span></button>
     </div>
 
     <!-- Подпись и колокол настроек уведомлений Telegram -->
@@ -877,6 +902,23 @@
   </div>
 
   <!-- ВКЛАДКА 4: НЕЗАВЕРШЕННЫЕ ЧЕРНОВИКИ -->
+  <!-- ВКЛАДКА: ПРОФИЛЬ -->
+  <div id="tab-profile" class="main-tab-content" style="display:none;">
+    <div class="card prof-card">
+      <div class="prof-head">
+        <div class="prof-ava" id="prof_ava">👤</div>
+        <div class="prof-who"><div class="prof-name" id="prof_name">Профиль</div><div class="prof-sub" id="prof_sub"></div></div>
+      </div>
+      <div class="prof-list">
+        <button type="button" class="prof-row" onclick="openMyProfileModal()"><span class="pr-i">🪪</span><span class="pr-t"><b>Мои данные</b><small>ФИО, должность, табельный номер, телефон, банковские реквизиты</small></span><span class="pr-c">›</span></button>
+        <button type="button" class="prof-row" onclick="openSignatureModal()"><span class="pr-i">✍️</span><span class="pr-t"><b>Подпись</b><small id="prof_sig_hint">Подпись для печатных форм</small></span><span class="pr-c">›</span></button>
+        <button type="button" class="prof-row" onclick="openNotificationSettingsModal()"><span class="pr-i">🔔</span><span class="pr-t"><b>Уведомления Telegram</b><small>Какие сообщения присылает бот</small></span><span class="pr-badge" id="prof_notif_badge"></span><span class="pr-c">›</span></button>
+        <button type="button" class="prof-row" id="prof_row_emp" style="display:none;" onclick="switchMainTab('employees')"><span class="pr-i">👥</span><span class="pr-t"><b>База сотрудников</b><small>Данные, права и подписи команды</small></span><span class="pr-c">›</span></button>
+        <button type="button" class="prof-row" onclick="openHelp()"><span class="pr-i">❓</span><span class="pr-t"><b>Инструкция</b><small>Как работать с приложением</small></span><span class="pr-c">›</span></button>
+      </div>
+    </div>
+  </div>
+
   <div id="tab-drafts" class="main-tab-content" style="display:none;">
     <div class="card">
       <h2>💾 Черновики в процессе заполнения</h2>
@@ -1159,6 +1201,31 @@
       <button type="button" class="btn btn-primary" onclick="confirmOpenCloudDraft()">✏️ Продолжить заполнение</button>
       <button type="button" class="btn btn-secondary" onclick="dismissCloudDraftTemporarily()">🕒 Напомнить позже</button>
       <button type="button" class="btn btn-secondary" onclick="confirmDiscardCloudDraft()" style="color:#ff3b30; background:transparent;">🗑 Начать с нуля</button>
+    </div>
+  </div>
+</div>
+
+<!-- МОДАЛКА «МОИ ДАННЫЕ» -->
+<div id="my_profile_modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.45); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px); z-index:10006; align-items:flex-start; justify-content:center; padding:calc(var(--tg-top,0px) + 12px) 14px 14px; overflow-y:auto;">
+  <div style="background:rgba(255,255,255,0.96); padding:18px; border-radius:22px; width:100%; max-width:440px; box-shadow:0 12px 40px rgba(0,0,0,0.25);">
+    <h3 style="margin:0 0 4px 0; font-size:17px; color:#0f172a;">🪪 Мои данные</h3>
+    <p style="font-size:12px; color:#64748b; margin:0 0 12px 0;">Изменения сразу сохраняются в справочнике сотрудников.</p>
+    <div class="field"><label>ФИО <span class="req-star">*</span></label><input type="text" id="mp_fio" placeholder="Фамилия Имя Отчество"></div>
+    <div style="display:flex; gap:8px;">
+      <div class="field" style="flex:1;"><label>Должность</label><input type="text" id="mp_role"></div>
+      <div class="field" style="flex:1;"><label>Таб. номер</label><input type="text" id="mp_tab" inputmode="numeric"></div>
+    </div>
+    <div class="field"><label>Телефон</label><input type="tel" id="mp_phone" placeholder="8-900-000-00-00"></div>
+    <div style="font-size:12px; font-weight:700; color:#334155; margin:10px 0 6px;">🏦 Банковские реквизиты</div>
+    <div class="field"><label>ИНН банка</label><input type="text" id="mp_inn" inputmode="numeric" placeholder="7707083893"></div>
+    <div style="display:flex; gap:8px;">
+      <div class="field" style="flex:1;"><label>БИК банка</label><input type="text" id="mp_bik" inputmode="numeric" placeholder="046902606"></div>
+      <div class="field" style="flex:1;"><label>Домашний город</label><input type="text" id="mp_city" placeholder="г. Томск"></div>
+    </div>
+    <div class="field"><label>Лицевой счёт (20 знаков)</label><input type="text" id="mp_acc" inputmode="numeric" placeholder="40817810364004802956"></div>
+    <div style="display:flex; gap:8px; margin-top:12px;">
+      <button type="button" class="btn btn-primary" id="mp_save_btn" onclick="saveMyProfile()">Сохранить</button>
+      <button type="button" class="btn btn-secondary" onclick="closeMyProfileModal()">Отмена</button>
     </div>
   </div>
 </div>
@@ -5068,11 +5135,12 @@
     for (const el of m) if (el.style.display === 'block') return el.id;
     return 'tab-trips';
   }
-  // Кнопка «Назад» в облачке Telegram: показывается везде, кроме главного раздела «Командировки»
+  const DOCK_TABS = ['tab-trips', 'tab-drafts', 'tab-profile'];
+  // Кнопка «Назад» в облачке Telegram: показывается везде, кроме разделов нижней панели
   function syncBack() {
     document.body.classList.toggle('in-form', inForm());
     if (!tgw || !tgw.BackButton) return;
-    try { (inForm() || tabNow() !== 'tab-trips') ? tgw.BackButton.show() : tgw.BackButton.hide(); } catch (e) {}
+    try { (inForm() || DOCK_TABS.indexOf(tabNow()) < 0) ? tgw.BackButton.show() : tgw.BackButton.hide(); } catch (e) {}
   }
   function goBack() {
     const modals = Array.from(document.querySelectorAll('[id$="_modal"]')).filter(m => m.style.display && m.style.display !== 'none');
@@ -5081,14 +5149,84 @@
       const n = typeof curStepNum === 'function' ? curStepNum() : 1;
       if (n > 1) { goToStep(n - 1); return; }
     }
-    switchMainTab('trips');
+    switchMainTab(tabNow() === 'tab-employees' ? 'profile' : 'trips');
   }
   if (tgw && tgw.BackButton) { try { tgw.BackButton.onClick(goBack); } catch (e) {} }
+  // Раздел «Профиль» живёт в нижней панели; остальные разделы обрабатывает прежний switchMainTab
+  (function () {
+    const orig = window.switchMainTab;
+    if (typeof orig !== 'function') return;
+    window.switchMainTab = function (tab) {
+      if (tab !== 'profile') return orig.apply(this, arguments);
+      orig.call(this, 'trips');
+      document.querySelectorAll('.main-tab-content').forEach(c => c.style.display = 'none');
+      document.querySelectorAll('.top-tabs .tab-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('tab-profile').style.display = 'block';
+      document.getElementById('tab_btn_profile').classList.add('active');
+      const st = document.getElementById('status_strip'); if (st) st.style.display = 'none';
+      renderProfile(); syncBack(); window.scrollTo(0, 0);
+    };
+  })();
   ['switchMainTab', 'goToStep'].forEach(name => {
     const orig = window[name];
     if (typeof orig !== 'function') return;
     window[name] = function () { const r = orig.apply(this, arguments); syncBack(); return r; };
   });
+
+  function renderProfile() {
+    try {
+      const cu = (typeof globalAppData !== 'undefined' && globalAppData.currentUser) || null;
+      const fio = cu && cu.fio ? cu.fio : (document.getElementById('p_fio') ? document.getElementById('p_fio').value : '');
+      document.getElementById('prof_name').textContent = fio || 'Профиль';
+      document.getElementById('prof_ava').textContent = fio ? fio.trim().charAt(0).toUpperCase() : '👤';
+      const gd = (typeof globalAppData !== 'undefined') ? globalAppData : {};
+      const role = gd.isSuperAdmin ? 'Главный руководитель' : (gd.isAdmin ? 'Руководитель' : (cu && cu.role) || '');
+      document.getElementById('prof_sub').textContent = [role, cu && cu.tab ? 'таб. ' + cu.tab : ''].filter(Boolean).join(' · ');
+      document.getElementById('prof_sig_hint').textContent = cu && cu.hasSignature ? 'Подпись загружена ✅' : 'Подписи пока нет';
+      const eb = document.getElementById('tab_btn_emp');
+      document.getElementById('prof_row_emp').style.display = (eb && eb.style.display !== 'none') ? 'flex' : 'none';
+      const hb = document.getElementById('tg_header_badge'), pb = document.getElementById('prof_notif_badge');
+      const n = hb ? parseInt(hb.textContent, 10) : 0;
+      pb.style.display = n > 0 ? 'inline-flex' : 'none'; pb.textContent = n > 0 ? n : '';
+    } catch (e) {}
+  }
+  window.renderProfile = renderProfile;
+  window.openMyProfileModal = function () {
+    const cu = (typeof globalAppData !== 'undefined' && globalAppData.currentUser) || null;
+    if (!cu) { showToast('Вас нет в справочнике сотрудников: обратитесь к руководителю'); return; }
+    const set = (id, v) => { document.getElementById(id).value = v || ''; };
+    set('mp_fio', cu.fio); set('mp_role', cu.role); set('mp_tab', cu.tab); set('mp_phone', cu.phone);
+    set('mp_inn', typeof normInn === 'function' ? normInn(cu.bankInn) : cu.bankInn); set('mp_bik', cu.bankBik); set('mp_acc', cu.bankAcc); set('mp_city', cu.homeCity);
+    document.getElementById('my_profile_modal').style.display = 'flex';
+  };
+  window.closeMyProfileModal = function () { document.getElementById('my_profile_modal').style.display = 'none'; };
+  window.saveMyProfile = function () {
+    const v = id => document.getElementById(id).value.trim();
+    const dg = x => String(x || '').replace(/\D/g, '');
+    const prof = { fio: v('mp_fio').replace(/\s+/g, ' '), role: v('mp_role'), tab: dg(v('mp_tab')), phone: v('mp_phone'),
+      bankInn: dg(v('mp_inn')), bankBik: dg(v('mp_bik')), bankAcc: dg(v('mp_acc')), homeCity: v('mp_city') };
+    if (prof.fio.split(' ').length < 2) { showToast('Укажите фамилию и имя'); return; }
+    if (prof.phone && (dg(prof.phone).length < 10 || dg(prof.phone).length > 11)) { showToast('Телефон: 10–11 цифр'); return; }
+    const anyBank = prof.bankInn || prof.bankBik || prof.bankAcc;
+    if (anyBank) {
+      if (!(prof.bankInn.length === 10 || prof.bankInn.length === 12)) { showToast('ИНН банка: 10 или 12 цифр'); return; }
+      if (prof.bankBik.length !== 9) { showToast('БИК банка: 9 цифр'); return; }
+      if (prof.bankAcc.length !== 20) { showToast('Счёт: ровно 20 цифр'); return; }
+    }
+    const btn = document.getElementById('mp_save_btn'); btn.disabled = true; btn.textContent = 'Сохраняю…';
+    empApi({ action: 'update_my_profile', telegram_user: getTelegramUser(), profile: prof }, 'Данные сохранены', function () {
+      const cu2 = globalAppData.currentUser; if (cu2) Object.assign(cu2, prof);
+      closeMyProfileModal(); renderProfile();
+    });
+    setTimeout(function () { btn.disabled = false; btn.textContent = 'Сохранить'; }, 1500);
+  };
+  // Бейдж черновиков скрывается, когда их нет
+  (function () {
+    const n = document.getElementById('draft_count_badge'), w = document.getElementById('draft_count_badge_wrap');
+    if (!n || !w) return;
+    const upd = () => { w.style.display = (parseInt(n.textContent, 10) > 0) ? 'inline-flex' : 'none'; };
+    new MutationObserver(upd).observe(n, { childList: true, characterData: true, subtree: true }); upd();
+  })();
   syncBack();
 })();
 </script>
