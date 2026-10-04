@@ -4869,6 +4869,7 @@
 
     if (!validateFields(reqFields)) { showToast('Заполните обязательные поля'); return; }
     const rcUse = pendingReceiptId;
+    const rcInfo = rcUse ? (botReceipts.find(x => x.id === rcUse) || null) : null;
 
     const date = formatRuDateString(document.getElementById('e_date').value);
     const editId = document.getElementById('edit_item_id').value;
@@ -4924,6 +4925,10 @@
       store.expenses.push({ id: Date.now()+'m', date, no, name: `Чек, ${name}`, customName: name, sum, cat: 'misc' });
     }
 
+    if (rcInfo) {
+      const mainEx = store.expenses.slice().reverse().find(x => x.isMainTicket) || store.expenses[store.expenses.length - 1];
+      if (mainEx) { mainEx.rcId = rcInfo.id; mainEx.docs = rcInfo.files || 1; }
+    }
     closeExpense();
     storeTouched = true;
     triggerCloudAutoSave();
@@ -4939,7 +4944,7 @@
     box.innerHTML = store.expenses.map(e => `
       <div style="display:flex; justify-content:space-between; align-items:center; background:#fff; padding:8px; border-radius:8px; margin-bottom:5px; border:1px solid #e5e5ea;">
         <div style="flex:1; min-width:0; padding-right:8px;">
-          <strong>${e.name}</strong><br>
+          <strong>${e.name}</strong>${e.docs ? ` <span title="Приложено документов: ${e.docs}" style="font-size:12px; font-weight:700; color:#0369a1; background:#e0f2fe; border-radius:10px; padding:1px 7px; white-space:nowrap;">📎 ${e.docs}</span>` : ''}<br>
           <small style="color:#8e8e93;">${formatRuDateString(e.date)} | № ${e.no}</small>
         </div>
         <div style="display:flex; gap:6px; align-items:center;">
