@@ -164,6 +164,7 @@
     .btn-warning { background: var(--warning); color: white; }
     .btn-danger { background: #ffe5e5; color: var(--danger); height: 32px; font-size: 12px; border-radius: 8px; width: 32px; min-width: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
     .btn-danger-action { background: #ef4444 !important; color: white !important; font-weight: 700; }
+    .btn-locked { pointer-events: none; cursor: default !important; opacity: 0.72; }
     .btn-disabled { opacity: 0.45; cursor: not-allowed !important; pointer-events: none; }
 
     /* Нижняя панель шагов: всегда у нижнего края экрана, одинаковая на всех шагах */
@@ -1086,7 +1087,7 @@
 <div id="act_back" onclick="closeActions()"></div>
 <div id="act_drawer">
   <div style="display:flex; justify-content:space-between; align-items:center;"><h3>Действия с отчётом</h3><button type="button" class="btn btn-secondary" style="width:40px; height:40px; font-size:16px;" onclick="closeActions()">✕</button></div>
-  <button type="button" class="btn btn-danger-action" onclick="actRun('btn_excel')">📥 Скачать Excel (.xlsx)</button>
+  <button type="button" id="act_excel" class="btn btn-danger-action" onclick="actRun('btn_excel')">📥 Скачать Excel (.xlsx)</button>
   <button type="button" id="act_pdf" class="btn btn-secondary" onclick="actRun('btn_pdf')">📄 Сохранить в PDF</button>
   <button type="button" class="btn btn-secondary" style="border:1px dashed var(--primary); color:var(--primary);" onclick="closeActions(); openChecklistModal()">📦 Список документов</button>
   <button type="button" class="btn btn-secondary" onclick="closeActions(); copyNarrativeText()">📋 Копировать сводку</button>
@@ -1555,10 +1556,10 @@
       e: store.expenses, t: store.taxis
     });
   }
-  function captureEditBaseline() {
+  function captureEditBaseline(stage) {
     editBaseline = dirtySerialize();
     editMarkedUnsaved = false;
-    markStep4ButtonsSaved();
+    markStep4ButtonsSaved(stage);
   }
   function clearEditBaseline() {
     editBaseline = null;
@@ -2472,13 +2473,14 @@
   function curStepNum() { const el = document.querySelector('.step-content.active'); return el ? Number(el.id.replace('step-', '')) : 0; }
   function openActions() {
     const pdf = document.getElementById('btn_pdf'), ap = document.getElementById('act_pdf');
-    if (pdf && ap) ap.style.opacity = pdf.classList.contains('btn-disabled') ? '0.45' : '1';
+    if (pdf && ap) ap.style.opacity = (pdf.classList.contains('btn-disabled') || pdf.classList.contains('btn-locked')) ? '0.45' : '1';
     document.body.classList.add('act-open');
   }
   function closeActions() { document.body.classList.remove('act-open'); }
   function actRun(id) {
     const b = document.getElementById(id);
     if (!b) return;
+    if (b.classList.contains('btn-locked')) { showToast('Уже сформировано. Чтобы сформировать заново, измените данные отчёта'); return; }
     if (b.classList.contains('btn-disabled')) { showToast('Сначала скачайте Excel'); return; }
     closeActions();
     b.click();
@@ -3419,33 +3421,26 @@
     });
   }
 
-  function markStep4ButtonsSaved() {
-    isReportSavedDone = true;
+  // Этапы кнопок шага 4: none — Excel активен, PDF серый; excel — Excel сформирован (заблокирован, зелёный), PDF активен;
+  // done — обе кнопки зелёные и заблокированы. Вернуть цикл можно только правкой данных (расход, заявка, паспорт).
+  let step4Stage = 'none';
+  function applyStep4Stage(stage) {
+    step4Stage = stage;
+    isReportSavedDone = stage !== 'none';
     const b1 = document.getElementById("btn_excel");
     const b2 = document.getElementById("btn_pdf");
-    if (b1) {
-      b1.classList.remove("btn-danger-action");
-      b1.classList.add("btn-green");
-    }
-    if (b2) {
-      b2.classList.remove("btn-disabled", "btn-secondary");
-      b2.classList.add("btn-danger-action");
-    }
+    const a1 = document.getElementById("act_excel"), a2 = document.getElementById("act_pdf");
+    const cls = ["btn-danger-action", "btn-green", "btn-secondary", "btn-disabled", "btn-locked"];
+    const set = (el, add) => { if (!el) return; cls.forEach(c => el.classList.remove(c)); add.forEach(c => el.classList.add(c)); };
+    if (stage === 'none') { set(b1, ["btn-danger-action"]); set(b2, ["btn-secondary", "btn-disabled"]); }
+    else if (stage === 'excel') { set(b1, ["btn-green", "btn-locked"]); set(b2, ["btn-danger-action"]); }
+    else { set(b1, ["btn-green", "btn-locked"]); set(b2, ["btn-green", "btn-locked"]); }
+    if (a1) a1.style.opacity = stage === 'none' ? '1' : '0.45';
+    if (a2) a2.style.opacity = stage === 'excel' ? '1' : '0.45';
   }
-
-  function markStep4ButtonsUnsaved() {
-    isReportSavedDone = false;
-    const b1 = document.getElementById("btn_excel");
-    const b2 = document.getElementById("btn_pdf");
-    if (b1) {
-      b1.classList.remove("btn-green");
-      b1.classList.add("btn-danger-action");
-    }
-    if (b2) {
-      b2.classList.remove("btn-danger-action", "btn-green");
-      b2.classList.add("btn-secondary", "btn-disabled");
-    }
-  }
+  function markStep4ButtonsSaved(stage) { applyStep4Stage(stage || 'excel'); }
+  function markStep4ButtonsUnsaved() { applyStep4Stage('none'); }
+  function stageForReport(rep) { return (!rep || rep.isDraft || String(rep.status).toLowerCase() !== 'готов') ? 'none' : (rep.pdfUrl ? 'done' : 'excel'); }
 
   function handleBackFromStep4() {
     if (isReportSavedDone) {
@@ -3565,9 +3560,7 @@
       if (finished) return;
       finished = true;
       stopWaiting();
-      captureEditBaseline();
-      btn.classList.remove("btn-danger-action");
-      btn.classList.add("btn-green");
+      captureEditBaseline('done');
       if (pdfUrl) {
         const a = document.createElement("a");
         a.href = pdfUrl;
@@ -3668,7 +3661,7 @@
     renderExpenseList();
 
     // Если загружен уже сданный отчёт (не черновик), запоминаем его как исходный: пока ничего не изменено, он остаётся сданным
-    if (savedRep && !savedRep.isDraft) { captureEditBaseline(); }
+    if (savedRep && !savedRep.isDraft) { captureEditBaseline(stageForReport(savedRep)); }
     else { clearEditBaseline(); markStep4ButtonsUnsaved(); }
 
     switchMainTab('form');
@@ -3700,6 +3693,7 @@
     showToast("Пересчёт данных...");
     const targetTrip = activeRecalcTripId;
     loadTripIntoReport(targetTrip);
+    editMarkedUnsaved = true; markStep4ButtonsUnsaved();
     closeRecalcModal();
 
     fetch(GOOGLE_SHEET_API, {
@@ -4292,6 +4286,7 @@
       document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
       document.getElementById('step-4').classList.add('active');
       renderFinal();
+      applyStep4Stage(stageForReport(rep));
 
       logEvent('ao_view', String(store.passport.fio || '') + ' ' + formatUniqueCities(store.passport.city || ''));
       setStrip('view', `👁️ Просмотр: ${store.passport.fio} (${formatUniqueCities(store.passport.city)})`);
