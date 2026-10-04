@@ -997,6 +997,22 @@
       </div>
     </label>
 
+    <div id="ntf_types_section" style="border-top:1px dashed #cbd5e1; padding-top:10px; margin:0 0 10px;">
+      <div style="font-size:12px; font-weight:700; color:#1e293b; margin-bottom:6px;">Какие события присылать мне:</div>
+      <label class="checkbox-row" style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px; margin-bottom:8px;">
+        <input type="checkbox" id="chk_ntf_expense" checked>
+        <div><b>Добавлен расход</b><br><span style="font-size:11px; color:#64748b;">Сообщение, когда в отчёт добавлен новый расход</span></div>
+      </label>
+      <label class="checkbox-row" style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px; margin-bottom:8px;">
+        <input type="checkbox" id="chk_ntf_docs" checked>
+        <div><b>Добавлены документы</b><br><span style="font-size:11px; color:#64748b;">Чеки и документы, прикреплённые к отчёту</span></div>
+      </label>
+      <label class="checkbox-row" style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px;">
+        <input type="checkbox" id="chk_ntf_account" checked>
+        <div><b>Изменены данные учётной записи</b><br><span style="font-size:11px; color:#64748b;">ФИО, таб. номер, должность, телефон, реквизиты: «было → стало»</span></div>
+      </label>
+    </div>
+
     <div id="lead_notif_section" style="display:none; border-top:1px dashed #cbd5e1; padding-top:10px; margin-top:6px;">
       <div style="font-size:12px; font-weight:700; color:#0369a1; margin-bottom:6px;">👑 Уведомления руководителя по команде:</div>
       <label class="checkbox-row" style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:10px; margin-bottom:8px;">
@@ -2806,6 +2822,17 @@
       document.getElementById('chk_notif_ao').checked = (targetEmp.notifyAo !== undefined ? targetEmp.notifyAo : true);
     }
 
+    (function () {
+      const sec = document.getElementById('ntf_types_section');
+      const me = getTelegramUser().id;
+      const mine = !targetEmp || !targetEmp.tgId || String(targetEmp.tgId) === String(me);
+      sec.style.display = mine ? '' : 'none';
+      if (!mine) return;
+      fetch(GOOGLE_SHEET_API, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'notify_prefs', telegram_user: getTelegramUser() }) })
+        .then(r => r.json()).then(res => {
+          if (res && res.prefs) ['expense', 'docs', 'account'].forEach(k => { document.getElementById('chk_ntf_' + k).checked = res.prefs[k] !== false; });
+        }).catch(() => {});
+    })();
     const leadSec = document.getElementById('lead_notif_section');
     const clearSec = document.getElementById('bot_clear_history_section');
 
@@ -2836,6 +2863,9 @@
     const notifyTeamReq = document.getElementById('chk_lead_notif_req').checked;
     const notifyTeamAo = document.getElementById('chk_lead_notif_ao').checked;
 
+    if (document.getElementById('ntf_types_section').style.display !== 'none') {
+      fetch(GOOGLE_SHEET_API, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'notify_prefs', telegram_user: getTelegramUser(), prefs: { expense: document.getElementById('chk_ntf_expense').checked, docs: document.getElementById('chk_ntf_docs').checked, account: document.getElementById('chk_ntf_account').checked } }) }).catch(() => {});
+    }
     showToast("Сохранение настроек...");
     fetch(GOOGLE_SHEET_API, {
       method: "POST", mode: "no-cors",
