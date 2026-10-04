@@ -443,6 +443,11 @@
       background: #fef3c7; color: #b45309; border: 1px solid #fde68a;
     }
 
+    .rc-card { display:flex; align-items:center; gap:8px; background:#fff; border:1px solid #cbd5e1; border-radius:12px; padding:8px 10px; margin-top:6px; }
+    .rc-card .rc-t { flex:1; min-width:0; font-size:12.5px; line-height:1.35; color:#334155; }
+    .rc-card .rc-t b { font-size:14px; color:#0f172a; }
+    .rc-card .rc-t small { display:block; color:#64748b; font-size:11.5px; }
+    .rc-card button { flex:0 0 auto; height:34px; padding:0 10px; font-size:12px; font-weight:700; border-radius:10px; border:none; background:#007aff; color:#fff; }
     .badge-status-interim { background: #ffedd5; color: #c2410c; border: 1px solid #fdba74; }
     .emp-icon-interim { background: #ffedd5; border-color: #fdba74; }
     .status-field-box.status-interim { border: 2px solid #dc2626; background: #fef2f2; color: #7f1d1d; font-weight: 600; box-shadow: 0 0 0 3px rgba(220,38,38,.12); }
@@ -694,6 +699,8 @@
           <h2 style="margin:0;">2. Добавление расходов</h2>
           <button type="button" class="btn btn-warning" style="height:30px; width:auto; font-size:11px; padding:0 8px;" onclick="loadStep2DemoExpenses()">⚡ ДЕМО-расходы</button>
         </div>
+
+        <div id="bot_receipts_box" style="display:none; margin-bottom:10px;"></div>
 
         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 10px;">
           <button type="button" class="btn btn-secondary" onclick="openExpense('plane')">✈️ Самолёт</button>
@@ -4681,6 +4688,7 @@
       savePassport();
       triggerCloudAutoSave();
       renderExpenseList();
+      loadBotReceipts();
     }
     if (s === 3) {
       savePassport();
@@ -4813,6 +4821,45 @@
     }
   }
 
+  // ===== Чеки, присланные боту: подтверждённые чеки подставляются в форму расхода =====
+  let botReceipts = [], pendingReceiptId = null;
+  function receiptSubjectTgId() {
+    const tab = (document.getElementById('p_tab').value || '').trim(), fio = (document.getElementById('p_fio').value || '').trim().toLowerCase();
+    const e = (globalAppData.employees || []).find(x => String(x.tab) === tab && String(x.fio || '').toLowerCase() === fio) || (globalAppData.employees || []).find(x => String(x.fio || '').toLowerCase() === fio);
+    return e && e.tgId ? String(e.tgId) : '';
+  }
+  function loadBotReceipts() {
+    try {
+      fetch(GOOGLE_SHEET_API, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'get_receipts', telegram_user: getTelegramUser(), for_tg_id: receiptSubjectTgId() }) })
+        .then(r => r.json()).then(res => { if (res && res.status === 'ok') { botReceipts = res.items || []; renderBotReceipts(); } }).catch(() => {});
+    } catch (e) {}
+  }
+  function renderBotReceipts() {
+    const box = document.getElementById('bot_receipts_box'); if (!box) return;
+    if (!botReceipts.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
+    const CAT = { plane: '✈️ Самолёт', train: '🚆 Поезд', bus: '🚌 Автобус', taxi: '🚕 Такси', hotel: '🏨 Проживание', misc: '🛒 Прочее' };
+    box.style.display = 'block';
+    box.innerHTML = `<div style="font-weight:800; font-size:13px; color:#0369a1;">📷 Чеки из бота (${botReceipts.length})</div><div style="font-size:11.5px; color:#64748b; margin-top:2px;">Нажмите «В расходы»: данные подставятся в форму, останется проверить и сохранить.</div>` +
+      botReceipts.map(r => `<div class="rc-card"><div class="rc-t"><b>${Number(r.sum).toLocaleString('ru-RU')} ₽</b> · ${CAT[r.cat] || CAT.misc}<small>${r.files > 1 ? '📎 ' + r.files + ' док. · ' : ''}${escHtml(r.date || 'без даты')}${r.merchant ? ' · ' + escHtml(r.merchant) : ''}${r.no ? ' · № ' + escHtml(r.no) : ''}</small></div><button type="button" onclick="useBotReceipt('${r.id}')">➕ В расходы</button></div>`).join('');
+  }
+  function useBotReceipt(id) {
+    const r = botReceipts.find(x => x.id === id); if (!r) return;
+    const cat = ['plane', 'train', 'bus', 'taxi', 'hotel', 'misc'].includes(r.cat) ? r.cat : 'misc';
+    openExpense(cat);
+    pendingReceiptId = id;
+    const set = (el, v) => { const n = document.getElementById(el); if (n) n.value = v; };
+    if (r.date && datePickerExpense) { try { datePickerExpense.setDate(r.date, true, 'd.m.Y'); } catch (e) {} }
+    if (['plane', 'train', 'bus'].includes(cat)) { set('e_ticket_no', r.no || ''); set('e_ticket_sum', r.sum || ''); }
+    else if (cat === 'taxi') { set('e_taxi_no', r.no || ''); set('e_taxi_sum', r.sum || ''); }
+    else if (cat === 'hotel') { set('e_hotel_no', r.no || ''); set('e_hotel_sum', r.sum || ''); }
+    else { set('e_misc_no', r.no || ''); set('e_misc_name', r.merchant || ''); set('e_misc_sum', r.sum || ''); }
+    const box = document.getElementById('add-box'); if (box && box.scrollIntoView) box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+  function markReceiptUsed(id) {
+    botReceipts = botReceipts.filter(x => x.id !== id); renderBotReceipts();
+    try { fetch(GOOGLE_SHEET_API, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'receipt_used', telegram_user: getTelegramUser(), id: id, for_tg_id: receiptSubjectTgId() }) }).catch(() => {}); } catch (e) {}
+  }
+
   function saveExpense() {
     let reqFields = ['e_date'];
     if (['plane','bus','train'].includes(curCategory)) reqFields.push('e_route', 'e_ticket_no', 'e_ticket_sum');
@@ -4821,6 +4868,7 @@
     else if (curCategory === 'misc') reqFields.push('e_misc_no', 'e_misc_name', 'e_misc_sum');
 
     if (!validateFields(reqFields)) { showToast('Заполните обязательные поля'); return; }
+    const rcUse = pendingReceiptId;
 
     const date = formatRuDateString(document.getElementById('e_date').value);
     const editId = document.getElementById('edit_item_id').value;
@@ -4880,6 +4928,7 @@
     storeTouched = true;
     triggerCloudAutoSave();
     renderExpenseList();
+    if (rcUse) markReceiptUsed(rcUse);
     showToast("Позиция сохранена!");
   }
 
