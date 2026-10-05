@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta name="app-build" content="20261006-04">
+  <meta name="app-build" content="20261006-05">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -646,12 +646,12 @@ body.cap-on #docs_modal{padding-top:46px;}
   </style>
   <style id="glass-css">
     /* ===== Стекло: все всплывающие окна и вопросы ===== */
-    [id$="_modal"]:not(#docs_modal) {
+    [id$="_modal"]:not(#docs_modal):not(#ext_modal):not(#journal_modal) {
       background: rgba(18, 24, 38, 0.26) !important;
       -webkit-backdrop-filter: blur(16px) saturate(150%); backdrop-filter: blur(16px) saturate(150%);
       padding-top: calc(var(--tg-top, 0px) + 8px) !important; padding-bottom: calc(var(--tg-bottom, 0px) + 8px) !important; box-sizing: border-box;
     }
-    [id$="_modal"]:not(#docs_modal) > div, #proc_modal .pm-box {
+    [id$="_modal"]:not(#docs_modal):not(#ext_modal):not(#journal_modal) > div, #proc_modal .pm-box {
       background: rgba(255, 255, 255, 0.62) !important;
       -webkit-backdrop-filter: blur(30px) saturate(190%); backdrop-filter: blur(30px) saturate(190%);
       border: 1px solid rgba(255, 255, 255, 0.60) !important;
@@ -659,9 +659,9 @@ body.cap-on #docs_modal{padding-top:46px;}
       max-height: calc(100dvh - var(--tg-top, 0px) - var(--tg-bottom, 0px) - 24px); overflow-y: auto; -webkit-overflow-scrolling: touch;
     }
     #sheet_modal > div, #doc_menu_modal > div { border-radius: 26px !important; margin-bottom: calc(var(--tg-bottom, 0px) + 6px); width: calc(100% - 16px) !important; }
-    [id$="_modal"]:not(#docs_modal) .btn-secondary { background: rgba(120, 120, 128, 0.18) !important; color: #0f172a; }
-    [id$="_modal"]:not(#docs_modal) .btn-primary { box-shadow: 0 4px 14px rgba(0, 122, 255, 0.35); }
-    [id$="_modal"]:not(#docs_modal) input, [id$="_modal"]:not(#docs_modal) select, [id$="_modal"]:not(#docs_modal) textarea { background: rgba(255, 255, 255, 0.7); }
+    [id$="_modal"]:not(#docs_modal):not(#ext_modal):not(#journal_modal) .btn-secondary { background: rgba(120, 120, 128, 0.18) !important; color: #0f172a; }
+    [id$="_modal"]:not(#docs_modal):not(#ext_modal):not(#journal_modal) .btn-primary { box-shadow: 0 4px 14px rgba(0, 122, 255, 0.35); }
+    [id$="_modal"]:not(#docs_modal):not(#ext_modal):not(#journal_modal) input, [id$="_modal"]:not(#docs_modal):not(#ext_modal):not(#journal_modal) select, [id$="_modal"]:not(#docs_modal):not(#ext_modal):not(#journal_modal) textarea { background: rgba(255, 255, 255, 0.7); }
     #proc_modal { background: rgba(18, 24, 38, 0.30) !important; -webkit-backdrop-filter: blur(18px) saturate(150%); backdrop-filter: blur(18px) saturate(150%); }
     .pm-bar { background: rgba(120, 120, 128, 0.22) !important; }
     .pm-st .i { background: rgba(120, 120, 128, 0.22); }
