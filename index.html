@@ -4896,6 +4896,7 @@
       }
     }
 
+    const lenBeforeAdd = store.expenses.length;
     if (['plane','bus','train'].includes(curCategory)) {
       const no = document.getElementById('e_ticket_no').value.trim();
       const sum = parseFloat(document.getElementById('e_ticket_sum').value) || 0;
@@ -4938,7 +4939,8 @@
     }
 
     if (rcInfo) {
-      const mainEx = store.expenses.slice().reverse().find(x => x.isMainTicket) || store.expenses[store.expenses.length - 1];
+      const added = store.expenses.slice(lenBeforeAdd);
+      const mainEx = added.find(x => x.isMainTicket) || added[0];
       if (mainEx) { mainEx.rcId = rcInfo.id; mainEx.docs = rcInfo.files || 1; }
     }
     closeExpense();
@@ -5034,7 +5036,15 @@
     return { rows, total: items.reduce((t, x) => t + Number(x.sum || 0), 0) };
   }
 
+  // Каждому расходу-такси должна соответствовать строка в списке поездок (иначе она пропадает из проверки и бланка)
+  function syncTaxisWithExpenses() {
+    store.taxis = store.taxis || [];
+    (store.expenses || []).filter(e => e.cat === 'taxi').forEach(e => {
+      if (!store.taxis.some(t => t.no === e.no && t.date === e.date)) store.taxis.push({ date: e.date, no: e.no, sum: e.sum, route: '', purpose: 'Служебная поездка' });
+    });
+  }
   function renderDetailedReview() {
+    syncTaxisWithExpenses();
     const p = store.passport;
     const box = document.getElementById('review_cards_container');
     const hotelExp = store.expenses.filter(e => e.cat === 'hotel');
@@ -5054,7 +5064,7 @@
       rvSection('👤', 'Сотрудник', null, rvRow(p.fio || '—', `${formatUniqueCities(p.city || '')} · ${p.days} дн. · аванс ${rvMoney(advance)}`, advance, 'goToStep(1)')) +
       rvSection('➡️', 'Проезд туда', there.total, there.rows) +
       rvSection('🏨', 'Проживание', hotelSum, hotelExp.map(e => rvRow(e.name, `${formatRuDateString(e.date)} · № ${e.no}`, e.sum, `editExpenseItem('${e.id}')`)).join('')) +
-      rvSection('🚕', 'Такси', taxiSum, store.taxis.map(t => rvRow(t.route || 'Такси', formatRuDateString(t.date), t.sum, '')).join('')) +
+      rvSection('🚕', 'Такси', taxiSum, store.taxis.map(t => { const ex = store.expenses.find(x => x.cat === 'taxi' && x.no === t.no && x.date === t.date); return rvRow(t.route || 'Такси: маршрут не указан', formatRuDateString(t.date) + (t.route ? '' : ' · нажмите и укажите маршрут'), t.sum, ex ? `editExpenseItem('${ex.id}')` : ''); }).join('')) +
       rvSection('⬅️', 'Проезд обратно', back.total, back.rows) +
       rvSection('🛒', 'Прочее', miscSum, miscExp.map(e => rvRow(e.name, `${formatRuDateString(e.date)} · № ${e.no}`, e.sum, `editExpenseItem('${e.id}')`)).join('')) +
       rvSection('📅', 'Суточные', daily, rvRow(`${p.days} сут. × ${Number(p.rate || 0).toLocaleString('ru-RU')} ₽`, '', daily, '')) +
@@ -5206,6 +5216,7 @@
   function copyNarrativeText() { navigator.clipboard.writeText(buildNarrativeText()).then(() => showToast("Сводка скопирована!")); }
 
   function renderFinal() {
+    syncTaxisWithExpenses();
     const p = store.passport;
     const total = store.expenses.reduce((s,e)=>s + Number(e.sum || 0), 0) + (Number(p.dailyTotal) || 0);
     const diff = (Number(p.advance) || 0) - total;
