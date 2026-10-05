@@ -5362,6 +5362,14 @@
     if (window.__docsLastId) window.openDocsViewer(window.__docsLastId);
   };
   function paintRotBtn() { const b = document.getElementById('docs_rot_btn'); if (b) { b.innerText = '↻ Все в книжную: ' + (window.__docsPortrait ? 'вкл' : 'выкл'); b.style.background = window.__docsPortrait ? '#007aff' : '#64748b'; } }
+  // Порядок документов внутри одного расхода (первым идёт основной: билет, а следом его чек и другие приложения)
+  window.moveDocInGroup = async function (i, dir) {
+    const arr = (window.__docsList || []).slice(); const j = i + dir;
+    if (j < 0 || j >= arr.length) return;
+    const t = arr[i]; arr[i] = arr[j]; arr[j] = t;
+    try { await api({ action: 'receipt_reorder', id: window.__docsLastId, rids: arr }); window.openDocsViewer(window.__docsLastId); }
+    catch (e) { showToast('Не удалось изменить порядок: ' + (e.message || e)); }
+  };
   window.closeDocsViewer = function () { document.getElementById('docs_modal').style.display = 'none'; document.getElementById('docs_body').innerHTML = ''; window.__docsViewToken = (window.__docsViewToken || 0) + 1; };
   window.openDocsViewer = async function (rcId) {
     if (!rcId) { showToast('Документ не привязан к расходу'); return; }
@@ -5372,13 +5380,17 @@
     body.innerHTML = '<div style="color:#cbd5e1; text-align:center; padding:40px 10px;">⏳ Загружаю документы…</div>';
     try {
       const list = (await api({ action: 'receipt_docs', id: rcId })).docs || [];
+      window.__docsList = list.map(d => d.rid);
       document.getElementById('docs_title').innerText = '📎 Документы расхода: ' + list.length;
       body.innerHTML = '';
       for (let i = 0; i < list.length; i++) {
         if (token !== window.__docsViewToken) return;
         const wrap = document.createElement('div');
         wrap.style.cssText = 'background:#fff; border-radius:12px; margin-bottom:12px; padding:8px; overflow:hidden;';
-        wrap.innerHTML = '<div style="font-size:12px; font-weight:700; color:#475569; margin:2px 4px 6px;">Документ ' + (i + 1) + ' из ' + list.length + '</div><div class="dv-pages" style="color:#64748b; padding:14px; text-align:center;">⏳ Загрузка…</div>';
+        const mv = (list.length > 1) ? ('<span style="float:right;">'
+          + (i > 0 ? '<button type="button" onclick="moveDocInGroup(' + i + ',-1)" style="border:0;background:#e2e8f0;border-radius:8px;padding:2px 9px;font-weight:700;margin-left:4px;">↑ выше</button>' : '')
+          + (i < list.length - 1 ? '<button type="button" onclick="moveDocInGroup(' + i + ',1)" style="border:0;background:#e2e8f0;border-radius:8px;padding:2px 9px;font-weight:700;margin-left:4px;">↓ ниже</button>' : '') + '</span>') : '';
+        wrap.innerHTML = '<div style="font-size:12px; font-weight:700; color:#475569; margin:2px 4px 6px;">' + mv + 'Документ ' + (i + 1) + ' из ' + list.length + (i === 0 && list.length > 1 ? ' · идёт первым в склейке' : '') + '</div><div class="dv-pages" style="color:#64748b; padding:14px; text-align:center;">⏳ Загрузка…</div>';
         body.appendChild(wrap);
         const pages = wrap.querySelector('.dv-pages');
         try {
