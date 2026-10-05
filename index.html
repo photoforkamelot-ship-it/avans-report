@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta name="app-build" content="20261006-06">
+  <meta name="app-build" content="20261006-07">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -598,7 +598,7 @@ body.cap-on #docs_modal{padding-top:46px;}
   <style id="tg-shell-css">
     /* ===== Оболочка мини-приложения: полный экран, стекло, плавающая панель ===== */
     html, body { overscroll-behavior-y: none; -webkit-tap-highlight-color: transparent; }
-    body { padding-top: calc(var(--tg-top, 0px) + 10px); padding-bottom: calc(var(--tg-bottom, 0px) + 92px); }
+    body { padding-top: calc(var(--tg-top, 0px) - 2px); padding-bottom: calc(var(--tg-bottom, 0px) + 92px); }
     body.in-form { padding-bottom: 10px; }
     .header-bar { justify-content: flex-end; }
     .header-bar #hdr_icons .tg-notif-btn { background: rgba(255,255,255,0.6); -webkit-backdrop-filter: blur(18px) saturate(180%); backdrop-filter: blur(18px) saturate(180%); border: 1px solid rgba(255,255,255,0.7); box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
@@ -647,22 +647,22 @@ body.cap-on #docs_modal{padding-top:46px;}
   <style id="glass-css">
     /* ===== Стекло: все всплывающие окна и вопросы ===== */
     [id$="_modal"]:not(#docs_modal):not(#ext_modal):not(#journal_modal) {
-      background: rgba(18, 24, 38, 0.26) !important;
-      -webkit-backdrop-filter: blur(16px) saturate(150%); backdrop-filter: blur(16px) saturate(150%);
-      padding-top: calc(var(--tg-top, 0px) + 8px) !important; padding-bottom: calc(var(--tg-bottom, 0px) + 8px) !important; box-sizing: border-box;
+      background: rgba(18, 24, 38, 0.20) !important;
+      -webkit-backdrop-filter: blur(8px) saturate(150%); backdrop-filter: blur(8px) saturate(150%);
+      padding-top: calc(var(--tg-top, 0px) - 14px) !important; padding-bottom: calc(var(--tg-bottom, 0px) + 8px) !important; box-sizing: border-box;
     }
     [id$="_modal"]:not(#docs_modal):not(#ext_modal):not(#journal_modal) > div, #proc_modal .pm-box {
-      background: rgba(255, 255, 255, 0.62) !important;
-      -webkit-backdrop-filter: blur(30px) saturate(190%); backdrop-filter: blur(30px) saturate(190%);
-      border: 1px solid rgba(255, 255, 255, 0.60) !important;
-      box-shadow: 0 18px 50px rgba(15, 23, 42, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.75) !important;
-      max-height: calc(100dvh - var(--tg-top, 0px) - var(--tg-bottom, 0px) - 24px); overflow-y: auto; -webkit-overflow-scrolling: touch;
+      background: rgba(255, 255, 255, 0.46) !important;
+      -webkit-backdrop-filter: blur(15px) saturate(190%); backdrop-filter: blur(15px) saturate(190%);
+      border: 1px solid rgba(255, 255, 255, 0.45) !important;
+      box-shadow: 0 18px 50px rgba(15, 23, 42, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.56) !important;
+      max-height: calc(100dvh - var(--tg-top, 0px) - var(--tg-bottom, 0px) - 4px); overflow-y: auto; -webkit-overflow-scrolling: touch;
     }
     #sheet_modal > div, #doc_menu_modal > div { border-radius: 26px !important; margin-bottom: calc(var(--tg-bottom, 0px) + 6px); width: calc(100% - 16px) !important; }
     [id$="_modal"]:not(#docs_modal):not(#ext_modal):not(#journal_modal) .btn-secondary { background: rgba(120, 120, 128, 0.18) !important; color: #0f172a; }
     [id$="_modal"]:not(#docs_modal):not(#ext_modal):not(#journal_modal) .btn-primary { box-shadow: 0 4px 14px rgba(0, 122, 255, 0.35); }
-    [id$="_modal"]:not(#docs_modal):not(#ext_modal):not(#journal_modal) input, [id$="_modal"]:not(#docs_modal):not(#ext_modal):not(#journal_modal) select, [id$="_modal"]:not(#docs_modal):not(#ext_modal):not(#journal_modal) textarea { background: rgba(255, 255, 255, 0.7); }
-    #proc_modal { background: rgba(18, 24, 38, 0.30) !important; -webkit-backdrop-filter: blur(18px) saturate(150%); backdrop-filter: blur(18px) saturate(150%); }
+    [id$="_modal"]:not(#docs_modal):not(#ext_modal):not(#journal_modal) input, [id$="_modal"]:not(#docs_modal):not(#ext_modal):not(#journal_modal) select, [id$="_modal"]:not(#docs_modal):not(#ext_modal):not(#journal_modal) textarea { background: rgba(255, 255, 255, 0.52); }
+    #proc_modal { background: rgba(18, 24, 38, 0.22) !important; -webkit-backdrop-filter: blur(9px) saturate(150%); backdrop-filter: blur(9px) saturate(150%); }
     .pm-bar { background: rgba(120, 120, 128, 0.22) !important; }
     .pm-st .i { background: rgba(120, 120, 128, 0.22); }
     /* Капсула позади окна процесса: мигает на размытом фоне */
@@ -682,18 +682,18 @@ body.cap-on #docs_modal{padding-top:46px;}
       background-attachment: fixed !important;
     }
     .card, .ex-card, .jr-card, .tree-card, .prof-list, .prof-head {
-      background: rgba(255, 255, 255, 0.58) !important;
-      -webkit-backdrop-filter: blur(22px) saturate(180%); backdrop-filter: blur(22px) saturate(180%);
-      border: 1px solid rgba(255, 255, 255, 0.65) !important;
-      box-shadow: 0 6px 22px rgba(31, 41, 80, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.7) !important;
+      background: rgba(255, 255, 255, 0.43) !important;
+      -webkit-backdrop-filter: blur(11px) saturate(180%); backdrop-filter: blur(11px) saturate(180%);
+      border: 1px solid rgba(255, 255, 255, 0.49) !important;
+      box-shadow: 0 6px 22px rgba(31, 41, 80, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.52) !important;
     }
-    .field input, .field select, .field textarea { background: rgba(255, 255, 255, 0.62) !important; border-color: rgba(255, 255, 255, 0.8) !important; box-shadow: inset 0 1px 2px rgba(31, 41, 80, 0.06); }
+    .field input, .field select, .field textarea { background: rgba(255, 255, 255, 0.46) !important; border-color: rgba(255, 255, 255, 0.60) !important; box-shadow: inset 0 1px 2px rgba(31, 41, 80, 0.06); }
     .btn-secondary { background: rgba(120, 120, 128, 0.16); }
     #ext_modal, #journal_modal { background: transparent !important; }
-    #ext_modal::before, #journal_modal::before { content: ''; position: absolute; inset: 0; z-index: -1; -webkit-backdrop-filter: blur(24px) saturate(160%); backdrop-filter: blur(24px) saturate(160%); background:
+    #ext_modal::before, #journal_modal::before { content: ''; position: absolute; inset: 0; z-index: -1; -webkit-backdrop-filter: blur(12px) saturate(160%); backdrop-filter: blur(12px) saturate(160%); background:
         radial-gradient(60vmax 40vmax at 10% -5%, rgba(120, 180, 255, 0.55), transparent 60%),
-        radial-gradient(55vmax 38vmax at 105% 18%, rgba(255, 150, 210, 0.42), transparent 60%), rgba(238, 241, 248, 0.82); }
-    .ex-head, .jr-head { background: rgba(255, 255, 255, 0.55) !important; -webkit-backdrop-filter: blur(24px) saturate(180%); backdrop-filter: blur(24px) saturate(180%); border-bottom: 1px solid rgba(255, 255, 255, 0.7) !important; padding-top: calc(var(--tg-top, 0px) + 6px) !important; }
+        radial-gradient(55vmax 38vmax at 105% 18%, rgba(255, 150, 210, 0.42), transparent 60%), rgba(238, 241, 248, 0.62); }
+    .ex-head, .jr-head { background: rgba(255, 255, 255, 0.41) !important; -webkit-backdrop-filter: blur(12px) saturate(180%); backdrop-filter: blur(12px) saturate(180%); border-bottom: 1px solid rgba(255, 255, 255, 0.52) !important; padding-top: calc(var(--tg-top, 0px) - 8px) !important; }
     #test_badge { top: calc(env(safe-area-inset-top, 44px) - 4px) !important; bottom: auto !important; left: 50% !important; transform: translateX(-50%); z-index: 10060 !important; animation: testblink 1.2s ease-in-out infinite; white-space: nowrap; font-size: 10.5px !important; padding: 3px 10px !important; }
     @keyframes testblink { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
     body.test-on #cap_pill { top: calc(var(--tg-top, 0px) + 34px); }
