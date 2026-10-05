@@ -5029,7 +5029,8 @@
     document.getElementById('lbl_count').innerText = store.expenses.length;
     updateStepper();
     if (store.expenses.length === 0) { box.innerHTML = 'Пока ничего не добавлено.'; return; }
-    box.innerHTML = store.expenses.map(e => `
+    const listSorted = [...store.expenses].sort((a, b) => parseDateToTimestamp(a.date) - parseDateToTimestamp(b.date));   // по датам; при равных датах сохраняется порядок добавления (сборы и багаж остаются рядом с билетом)
+    box.innerHTML = listSorted.map(e => `
       <div style="display:flex; justify-content:space-between; align-items:center; background:#fff; padding:8px; border-radius:8px; margin-bottom:5px; border:1px solid #e5e5ea;">
         <div style="flex:1; min-width:0; padding-right:8px;">
           <strong>${e.name}</strong>${e.docs ? ` <span title="Приложено документов: ${e.docs}" onclick="event.stopPropagation(); openDocsViewer('${e.rcId || ''}')" style="cursor:pointer; font-size:12px; font-weight:700; color:#0369a1; background:#e0f2fe; border-radius:10px; padding:1px 7px; white-space:nowrap;">📎 ${e.docs}</span>` : ''}<br>
