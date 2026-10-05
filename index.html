@@ -1158,7 +1158,7 @@
   <div class="ex-head">
     <div class="t"><div><h3>🏬 Объекты к открытию</h3><small id="ex_upd"></small></div><div style="display:flex; gap:6px;"><button type="button" class="btn btn-secondary" style="width:38px; height:38px;" onclick="loadExt()">🔄</button><button type="button" class="btn btn-secondary" style="width:38px; height:38px;" onclick="closeExt()">✕</button></div></div>
     <div class="ex-seg"><button type="button" id="ex_v_now" class="on" onclick="setExView('now')">🏬 Актуальные</button><button type="button" id="ex_v_arch" onclick="setExView('arch')">📦 Архив</button></div>
-    <div class="ex-tools" id="ex_tools"><span class="lbl">Сортировка:</span><button type="button" data-s="e" onclick="setExSort('e')">✉️ Письма</button><button type="button" data-s="f" onclick="setExSort('f')">🔑 Приёмки</button><button type="button" data-s="g" onclick="setExSort('g')">🏬 Открытия</button><button type="button" id="ex_mine_btn" onclick="toggleExMine()">⭐ Только мои</button><button type="button" onclick="exFoldAll()">⇅ Свернуть/развернуть</button></div>
+    <div class="ex-tools" id="ex_tools" style="display:none;"><span class="lbl">Сортировка:</span><button type="button" data-s="e" onclick="setExSort('e')">✉️ Письма</button><button type="button" data-s="f" onclick="setExSort('f')">🔑 Приёмки</button><button type="button" data-s="g" onclick="setExSort('g')">🏬 Открытия</button><button type="button" id="ex_mine_btn" onclick="toggleExMine()">⭐ Только мои</button><button type="button" onclick="exFoldAll()">⇅ Свернуть/развернуть</button></div>
     <label class="ex-notify"><input type="checkbox" id="ex_notify" onchange="setExtNotify(this.checked)"> 🔔 Присылать в Telegram изменения по объектам (кого откуда сняли, кого назначили)</label>
   </div>
   <div class="ex-body" id="ex_body"></div>
@@ -2345,12 +2345,9 @@
   // ===== Служебная сводка по объектам к открытию (скрытое окно) =====
   let exTaps = 0, exTapT = 0, exLoading = false, exSort = 'n', exView = 'now', exMineOnly = false, exLast = null, exOpen = {}, exAllOpen = true;
   document.addEventListener('click', function (e) {
-    const card = e.target.closest && e.target.closest('#admin_employees_container .emp-card');
-    if (!card || !globalAppData || !globalAppData.isAdmin) return;
-    if (e.target.closest('button, input, select, a, .emp-actions')) return;
-    const nm = (card.querySelector('.emp-name') || {}).textContent || '';
-    const me = (globalAppData.currentUser && globalAppData.currentUser.fio) || '';
-    if (!me || nm.replace(/\s*👑\s*$/, '').trim() !== String(me).trim()) return;
+    // 10 быстрых нажатий на ФИО в шапке профиля
+    const nm = e.target.closest && e.target.closest('#prof_name');
+    if (!nm || !globalAppData || !globalAppData.isAdmin) return;
     const now = Date.now();
     exTaps = (now - exTapT < 3000) ? exTaps + 1 : 1; exTapT = now;
     if (exTaps >= 10) { exTaps = 0; openExt(); }
@@ -2373,7 +2370,7 @@
         document.getElementById('ex_notify').checked = !!res.notify;
         document.getElementById('ex_upd').innerText = 'обновлено ' + res.updated;
         exLast = res;
-        document.getElementById('ex_v_arch').innerText = '📦 Архив (' + ((res.archive || []).length) + ')';
+        document.getElementById('ex_v_arch').innerText = '📦 Архив (' + (((res.archive || []).length) + (res.stores || []).filter(o => { const t = parseDateToTimestamp(o.x) || 0; const d = new Date(); d.setHours(12,0,0,0); return o.s !== 'sus' && t && t < d.getTime(); }).length) + ')';
         renderExt();
       })
       .catch(() => { exLoading = false; document.getElementById('ex_body').innerHTML = '<div class="jr-empty">Нет связи с сервером.<br><br><button type="button" class="btn btn-primary" onclick="loadExt()">Повторить</button></div>'; });
@@ -2406,7 +2403,7 @@
     const mgr = o.h ? `<div class="m">👤 ${escHtml(exShort(o.h))}</div>` : '<div class="m none">⚠️ РКО не назначен</div>';
     const tag = mine ? `<div class="ex-mine-tag">🔴 ${(parseDateToTimestamp(o.e) || 0) > T || !o.e ? 'Ваш будущий объект (дата уведомления ещё не наступила)' : 'Ваш объект'}</div>` : '';
     const line = (ico, dt, txt) => dt ? `<div class="d"><span class="dt">${dt}</span><span>${ico} ${txt} <span class="rel">· ${exRel(dt)}</span></span></div>` : '';
-    return `<div class="ex-card${mine ? ' mine' : ''}${arch ? ' arch' : ''}"><div class="a">📍 ${escHtml(o.a)}</div>${tag}${mgr}${line('✉️', o.e, 'уведомление РКО о приёмке')}${line('🔑', o.f, 'приёмка магазина')}${line('🏬', o.g, 'открытие')}${o.fc ? `<div class="d"><span class="dt">👥 Штат</span><span>${escHtml(o.fc)}${o.fcLoose ? ' <span class="rel">· адрес совпал приблизительно</span>' : ''}</span></div>` : (o.fcNone ? '<div class="d"><span class="dt">👥 Штат</span><span class="rel">на вкладке «Контрольные точки найма» объект не найден</span></div>' : '')}</div>`;
+    return `<div class="ex-card${mine ? ' mine' : ''}${arch ? ' arch' : ''}"><div class="a">📍 ${escHtml(o.a)}</div>${tag}${mgr}${(o.ts || o.te) ? `<div class="d"><span class="dt">${escHtml(o.ts || '?')}</span><span>🧳 командировка до ${escHtml(o.te || '?')}</span></div>` : ''}${line('✉️', o.e, 'уведомление РКО о приёмке')}${line('🔑', o.f, 'приёмка магазина')}${line('🏬', o.g, 'открытие')}${o.fc ? `<div class="d"><span class="dt">👥 Штат</span><span>${escHtml(o.fc)}${o.fcLoose ? ' <span class="rel">· адрес совпал приблизительно</span>' : ''}</span></div>` : (o.fcNone ? '<div class="d"><span class="dt">👥 Штат</span><span class="rel">на вкладке «Контрольные точки найма» объект не найден</span></div>' : '')}</div>`;
   }
   function renderExtArchive(res) {
     const list = res.archive || [];
@@ -2415,7 +2412,11 @@
     const by = {};
     list.forEach(o => { const y = yearOf(o); (by[y] = by[y] || []).push(o); });
     const years = Object.keys(by).sort((a, b) => (b === 'Без дат') - (a === 'Без дат') || b.localeCompare(a)).sort((a, b) => (a === 'Без дат') - (b === 'Без дат') || b.localeCompare(a));
-    let html = `<div class="ex-sec">📦 Все объекты, где вы указаны руководителем: ${list.length}</div>`;
+    const td0 = new Date(); td0.setHours(12, 0, 0, 0);
+    const fin = (res.stores || []).filter(o => { const t = ts(o.x); return o.s !== 'sus' && t && t < td0.getTime(); }).sort((a, b) => ts(b.x) - ts(a.x));
+    let html = '';
+    if (fin.length) html += `<details class="ex-s" data-k="fin"${exOpen.fin !== undefined ? (exOpen.fin ? ' open' : '') : ' open'} ontoggle="exOpen.fin=this.open"><summary class="ex-sec">✅ Завершённые (командировка закончилась): ${fin.length}</summary>${fin.map(o => exCard(o, 0, true)).join('')}</details>`;
+    html += `<div class="ex-sec">📦 Все объекты, где вы указаны руководителем: ${list.length}</div>`;
     if (!list.length) html += '<div class="jr-empty">Объектов с вашим именем в таблице не найдено.</div>';
     years.forEach((y, i) => {
       if (!by[y]) return;
@@ -2435,16 +2436,8 @@
     const ts = (d) => parseDateToTimestamp(d) || 0;
     let all = res.stores;
     if (exMineOnly) all = all.filter(exMine);
-    const cur = all.filter(o => o.s !== 'sus'), sus = [];
-    // ближайшие к сегодняшнему дню — выше; без даты — в конце
-    const dist = (o) => { if (exSort === 'n') return o.n || 0; const t = ts(o[exSort]); return t ? Math.abs(t - T) : 9e15; };
-    const groups = [
-      { t: '✉️ Ожидается уведомление РКО о приёмке', f: o => ts(o.e) > T },
-      { t: '🔔 РКО уведомлён о приёмке, приёмка ещё не состоялась', f: o => (!ts(o.e) || ts(o.e) <= T) && ts(o.f) > T },
-      { t: '🔑 РКО уведомлён, приёмка состоялась, магазин ещё не открыт', f: o => ts(o.f) && ts(o.f) <= T && (!ts(o.g) || ts(o.g) > T) },
-      { t: '🏬 РКО уведомлён, приёмка состоялась, магазин открыт', f: o => ts(o.g) && ts(o.g) <= T }
-    ];
-    const used = new Set();
+    const done = (o) => { const t = ts(o.x); return !!t && t < T; };   // последний день командировки уже прошёл → в архив
+    const cur = all.filter(o => o.s !== 'sus' && !done(o)).sort((a, b) => (a.n || 0) - (b.n || 0)), sus = [];
     let html = '';
     const ico = { new: '➕', gone: '➖', pause: '⏸', resume: '▶️', swap: '🔁', assign: '👤', unassign: '🚫', date: '📅' };
     if (res.events && res.events.length) {
@@ -2453,17 +2446,7 @@
     } else {
       html += `<div class="ex-sec">🆕 Изменений ${res.firstVisit ? 'за неделю' : 'с прошлого захода (' + escHtml(res.sinceTs) + ')'} нет</div>`;
     }
-    const sec = (k, title, list) => {
-      const open = exOpen[k] !== undefined ? exOpen[k] : (k !== 'g3');
-      return `<details class="ex-s" data-k="${k}"${open ? ' open' : ''} ontoggle="exOpen['${k}']=this.open"><summary class="ex-sec">${title} (${list.length})</summary>${list.map(o => exCard(o, T)).join('')}</details>`;
-    };
-    groups.forEach((g, i) => {
-      const list = cur.filter(o => !used.has(o) && g.f(o)).sort((a, b) => dist(a) - dist(b));
-      list.forEach(o => used.add(o));
-      if (list.length) html += sec('g' + i, g.t, list);
-    });
-    const rest = cur.filter(o => !used.has(o));
-    if (rest.length) html += sec('gr', '❔ Без дат', rest);
+    if (cur.length) html += `<div class="ex-sec">🏬 Объекты (${cur.length})</div>` + cur.map(o => exCard(o, T)).join('');
     if (exMineOnly && !cur.length && !sus.length) html += '<div class="jr-empty">За вами объектов пока не закреплено.</div>';
     document.getElementById('ex_body').innerHTML = html || '<div class="jr-empty">Объектов не найдено.</div>';
   }
