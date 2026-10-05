@@ -545,6 +545,10 @@
     .busy-notice-hint { font-size: 12px; color: #6c6c70; margin-top: 4px; }
 
 
+
+.test-toggle{width:100%; margin:0 0 12px; padding:9px; border-radius:12px; border:1.5px dashed #f59e0b; background:#fffbeb; color:#92400e; font-weight:700; font-size:13px;}
+.test-toggle.on{background:#f59e0b; color:#fff; border-style:solid;}
+#test_badge{display:none; position:fixed; left:8px; bottom:calc(8px + var(--tg-bottom,0px)); z-index:10070; background:#f59e0b; color:#fff; font-weight:800; font-size:11px; padding:4px 9px; border-radius:10px; pointer-events:none; opacity:.92;}
 /* Капсула-статус и окно хода процесса */
 #cap_pill{position:fixed; left:50%; top:calc(var(--tg-top, 0px) + 10px); transform:translate(-50%,-140%); opacity:0; transition:transform .28s cubic-bezier(.2,.9,.3,1.2), opacity .2s; z-index:10060; background:#000; color:#fff; border-radius:22px; padding:8px 16px; display:flex; align-items:center; gap:9px; font-size:13px; font-weight:600; box-shadow:0 6px 18px rgba(0,0,0,.3); max-width:92vw; pointer-events:none;}
 #cap_pill.on{transform:translate(-50%,0); opacity:1;}
@@ -675,6 +679,7 @@ body.cap-on #docs_modal{padding-top:46px;}
     <div id="step-1" class="step-content active">
       <div class="card">
         <h2>1. Сведения о командировке</h2>
+        <button type="button" class="test-toggle" id="test_toggle_ao" onclick="toggleTestMode()" style="display:none;">🧪 Тестовый режим: выкл</button>
         <input type="hidden" id="p_trip_id" value="">
         <div class="field">
           <label>ФИО сотрудника <span class="req-star">*</span></label>
@@ -880,6 +885,8 @@ body.cap-on #docs_modal{padding-top:46px;}
   <div id="tab-new-req" class="main-tab-content" style="display:none;">
     <div class="card">
       <h2 id="req_form_title">💰 Новая заявка на ДС</h2>
+      <button type="button" class="test-toggle" id="test_toggle_req" onclick="toggleTestMode()" style="display:none;">🧪 Тестовый режим: выкл</button>
+
       <input type="hidden" id="req_target_trip_id" value="">
 
       <div class="field">
@@ -965,6 +972,7 @@ body.cap-on #docs_modal{padding-top:46px;}
         <button type="button" class="prof-row" onclick="openSignatureModal()"><span class="pr-i">✍️</span><span class="pr-t"><b>Подпись</b><small id="prof_sig_hint">Подпись для печатных форм</small></span><span class="pr-c">›</span></button>
         <button type="button" class="prof-row" onclick="openNotificationSettingsModal()"><span class="pr-i">🔔</span><span class="pr-t"><b>Уведомления Telegram</b><small>Какие сообщения присылает бот</small></span><span class="pr-badge" id="prof_notif_badge"></span><span class="pr-c">›</span></button>
         <button type="button" class="prof-row" onclick="Hap.toggle()"><span class="pr-i">📳</span><span class="pr-t"><b>Вибрация</b><small>Тактильный отклик при действиях: <span id="prof_hap_state">включена</span></small></span><span class="pr-c">›</span></button>
+        <button type="button" class="prof-row" id="prof_row_audit" style="display:none;" onclick="openAudit()"><span class="pr-i">🧹</span><span class="pr-t"><b>Ревизия и чистка Диска</b><small>Найти и удалить документы, не относящиеся к существующим командировкам</small></span><span class="pr-c">›</span></button>
         <button type="button" class="prof-row" id="prof_row_emp" style="display:none;" onclick="switchMainTab('employees')"><span class="pr-i">👥</span><span class="pr-t"><b>База сотрудников</b><small>Данные, права и подписи команды</small></span><span class="pr-c">›</span></button>
         <button type="button" class="prof-row" onclick="openHelp()"><span class="pr-i">❓</span><span class="pr-t"><b>Инструкция</b><small>Как работать с приложением</small></span><span class="pr-c">›</span></button>
       </div>
@@ -1449,7 +1457,15 @@ body.cap-on #docs_modal{padding-top:46px;}
     <button type="button" class="btn btn-secondary" style="height:48px; font-size:15px; width:100%; margin-top:6px;" onclick="closeMissingData()">Понятно, напомните позже</button>
   </div>
 </div>
+<div id="audit_modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:10045; align-items:center; justify-content:center; padding:16px;">
+  <div style="background:#fff; border-radius:18px; padding:16px; width:100%; max-width:420px; max-height:88vh; display:flex; flex-direction:column; box-shadow:0 14px 40px rgba(0,0,0,.35);">
+    <h3 style="margin:0 0 8px; font-size:16px;">🧹 Ревизия документов</h3>
+    <div id="audit_body" style="overflow-y:auto; font-size:13px; line-height:1.45; flex:1;"></div>
+    <div id="audit_btns" style="margin-top:12px;"></div>
+  </div>
+</div>
 <div id="cap_pill"></div>
+<div id="test_badge">🧪 ТЕСТОВЫЙ РЕЖИМ</div>
 <div id="proc_modal"><div class="pm-box"><h3 id="pm_title"></h3><div class="pm-sub" id="pm_sub">Не закрывайте приложение</div><div id="pm_steps"></div><div class="pm-bar"><i id="pm_bar" style="width:0%"></i></div><div class="pm-note" id="pm_note"></div><button type="button" id="pm_close" class="btn btn-secondary" style="display:none; width:100%; margin-top:10px;" onclick="Proc.close()">Закрыть</button></div></div>
 <div id="toast"></div>
 <div id="busy_notice" onclick="hideBusyNotice()"></div>
@@ -1610,7 +1626,7 @@ body.cap-on #docs_modal{padding-top:46px;}
       advance: parseFloat(document.getElementById('p_advance').value) || 0,
       days: days, rate: rate, dailyTotal: days * rate,
       purpose: store.passport.purpose || '',
-      tripId: document.getElementById('p_trip_id').value || store.passport.tripId || ''
+      tripId: document.getElementById('p_trip_id').value || store.passport.tripId || (window.__testMode ? (window.__testTripId = window.__testTripId || ('TEST_TRIP_' + new Date().toISOString().replace(/\D/g, '').slice(0, 14))) : '')
     };
   }
 
@@ -1696,6 +1712,9 @@ body.cap-on #docs_modal{padding-top:46px;}
   window.fetch = function (url, opts) {
     try {
       const u = String(url);
+      if (u.indexOf(GOOGLE_SHEET_API) === 0 && window.__testMode && opts && opts.method === 'POST' && typeof opts.body === 'string') {
+        const o0 = JSON.parse(opts.body); o0.test_mode = true; opts = Object.assign({}, opts, { body: JSON.stringify(o0) });
+      }
       if (u.indexOf(GOOGLE_SHEET_API) === 0 && tg && tg.initData) {
         if (opts && opts.method === 'POST' && typeof opts.body === 'string') {
           const o = JSON.parse(opts.body); o.init_data = tg.initData;
@@ -5445,6 +5464,56 @@ body.cap-on #docs_modal{padding-top:46px;}
     hide() { this.close(); },
     active() { return !!st; }
   };
+
+  // ----- Тестовый режим (только суперадмин) -----
+  window.__testMode = false;
+  window.syncTestUi = function () {
+    const sup = !!(globalAppData && globalAppData.isSuperAdmin);
+    ['ao', 'req'].forEach(k => { const b = document.getElementById('test_toggle_' + k); if (!b) return; b.style.display = sup ? 'block' : 'none'; b.classList.toggle('on', window.__testMode); b.innerText = '🧪 Тестовый режим: ' + (window.__testMode ? 'ВКЛ (уведомления только вам, командировка скрыта от остальных)' : 'выкл'); });
+    document.getElementById('test_badge').style.display = (sup && window.__testMode) ? 'block' : 'none';
+  };
+  window.toggleTestMode = function () {
+    if (!(globalAppData && globalAppData.isSuperAdmin)) return;
+    window.__testMode = !window.__testMode; window.__testTripId = null; syncTestUi(); Hap.tap();
+    showToast(window.__testMode ? 'Тестовый режим включён' : 'Тестовый режим выключен');
+  };
+  setInterval(() => { try { syncTestUi(); } catch (e) {} }, 1500);
+
+  // ----- Ревизия и чистка Диска (только суперадмин) -----
+  const aEsc = (t) => String(t == null ? '' : t).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+  function aApi(action) {
+    return fetch(GOOGLE_SHEET_API, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: action, telegram_user: getTelegramUser() }) })
+      .then(r => r.text()).then(t => { let j = null; try { j = JSON.parse(t); } catch (e) {} if (!j) throw new Error('сервер ответил не так, как ждали (нужна новая версия развёртывания)'); if (j.status !== 'ok') throw new Error(j.message || 'Ошибка'); return j; });
+  }
+  function aList(title, arr) {
+    if (!arr || !arr.length) return '';
+    const shown = arr.slice(0, 15).map(x => '<li>' + aEsc(x) + '</li>').join('');
+    return '<div style="margin:10px 0 4px; font-weight:800;">' + title + ' (' + arr.length + ')</div><ul style="margin:0; padding-left:18px; color:#334155;">' + shown + (arr.length > 15 ? '<li style="color:#64748b;">…и ещё ' + (arr.length - 15) + '</li>' : '') + '</ul>';
+  }
+  window.closeAudit = function () { document.getElementById('audit_modal').style.display = 'none'; };
+  window.openAudit = function () {
+    if (!(globalAppData && globalAppData.isSuperAdmin)) return;
+    const body = document.getElementById('audit_body'), btns = document.getElementById('audit_btns');
+    document.getElementById('audit_modal').style.display = 'flex';
+    body.innerHTML = '<div style="text-align:center; padding:26px 6px; color:#475569;"><div class="pm-sp" style="margin:0 auto 10px; width:22px; height:22px;"></div>Ищу документы в папках заявок, авансовых отчётов и чеков…<br><small>Это может занять до минуты</small></div>';
+    btns.innerHTML = '';
+    aApi('audit_orphans').then(res => {
+      if (!res.files && !res.records) { body.innerHTML = '<div style="text-align:center; padding:22px 6px;">✅ Лишних документов не найдено.<br>Всё относится к существующим командировкам.</div>'; btns.innerHTML = '<button type="button" class="btn btn-secondary" style="width:100%;" onclick="closeAudit()">Закрыть</button>'; return; }
+      body.innerHTML = '<div>Найдены документы, <b>не относящиеся к существующим командировкам</b>. Всего файлов: <b>' + res.files + '</b>, записей в реестрах: <b>' + res.records + '</b>.</div>'
+        + aList('📄 Заявки на ДС', res.req) + aList('📊 Авансовые отчёты', res.ao) + aList('🧾 Чеки', res.rc) + aList('📁 Файлы без записи в реестре', res.stray)
+        + '<div style="margin-top:12px; padding:9px; background:#fef2f2; border-radius:10px; color:#991b1b;">Удалить их? Файлы будут удалены с Google Диска.</div>';
+      btns.innerHTML = '<button type="button" class="btn" style="width:100%; background:#dc2626; color:#fff; margin-bottom:8px;" onclick="runAuditDelete()">🗑 Да, удалить</button><button type="button" class="btn btn-secondary" style="width:100%;" onclick="closeAudit()">Нет</button>';
+    }).catch(e => { body.innerHTML = '<div style="color:#b91c1c;">Не удалось выполнить ревизию: ' + aEsc(e.message || e) + '</div>'; btns.innerHTML = '<button type="button" class="btn btn-secondary" style="width:100%;" onclick="closeAudit()">Закрыть</button>'; Hap.err(); });
+  };
+  window.runAuditDelete = function () {
+    const body = document.getElementById('audit_body'), btns = document.getElementById('audit_btns');
+    btns.innerHTML = ''; body.innerHTML = '<div style="text-align:center; padding:26px 6px; color:#475569;"><div class="pm-sp" style="margin:0 auto 10px; width:22px; height:22px;"></div>Удаляю документы…</div>';
+    aApi('audit_trash').then(res => {
+      body.innerHTML = '<div style="text-align:center; padding:22px 6px;">✅ Удалено файлов: <b>' + (res.deletedFiles || 0) + '</b>, записей: <b>' + (res.records || 0) + '</b>.' + (res.trashed ? '<br><small style="color:#64748b;">Часть файлов (' + res.trashed + ') ушла в корзину Диска и удалится окончательно через 30 дней.</small>' : '') + '</div>';
+      btns.innerHTML = '<button type="button" class="btn btn-primary" style="width:100%;" onclick="closeAudit()">Готово</button>';
+      Hap.ok(); try { loadAppData(); } catch (e) {}
+    }).catch(e => { body.innerHTML = '<div style="color:#b91c1c;">Не удалось удалить: ' + aEsc(e.message || e) + '</div>'; btns.innerHTML = '<button type="button" class="btn btn-secondary" style="width:100%;" onclick="closeAudit()">Закрыть</button>'; Hap.err(); });
+  };
   // лёгкий отклик на кнопки
   document.addEventListener('click', (e) => { const b = e.target.closest && e.target.closest('button, .tab-btn, .prof-row'); if (b) Hap.tap(); }, true);
 })();
@@ -5838,6 +5907,7 @@ body.cap-on #docs_modal{padding-top:46px;}
       document.getElementById('prof_sub').textContent = [role, cu && cu.tab ? 'таб. ' + cu.tab : ''].filter(Boolean).join(' · ');
       document.getElementById('prof_sig_hint').textContent = cu && cu.hasSignature ? 'Подпись загружена ✅' : 'Подписи пока нет';
       const eb = document.getElementById('tab_btn_emp');
+      (function () { const a = document.getElementById('prof_row_audit'); if (a) a.style.display = (globalAppData && globalAppData.isSuperAdmin) ? '' : 'none'; })();
       document.getElementById('prof_row_emp').style.display = (eb && eb.style.display !== 'none') ? 'flex' : 'none';
       const hb = document.getElementById('tg_header_badge'), pb = document.getElementById('prof_notif_badge');
       const n = hb ? parseInt(hb.textContent, 10) : 0;
