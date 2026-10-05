@@ -1296,6 +1296,17 @@
   </div>
 </div>
 
+<!-- МЕНЮ СКРЕПКИ РАСХОДА -->
+<input type="file" id="doc_attach_input" accept="application/pdf,image/*" multiple style="display:none" onchange="attachDocsToExpense(this)">
+<div id="doc_menu_modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.45); z-index:10002; align-items:flex-end; justify-content:center;" onclick="closeDocMenu()">
+  <div style="background:#fff; width:100%; max-width:540px; border-radius:16px 16px 0 0; padding:14px 14px calc(14px + var(--tg-bottom, 0px));" onclick="event.stopPropagation()">
+    <div id="doc_menu_title" style="font-weight:800; font-size:15px; margin-bottom:10px;">Документы расхода</div>
+    <button type="button" class="btn btn-primary" style="width:100%; margin-bottom:8px;" id="doc_menu_view" onclick="docMenuView()">👁 Просмотреть</button>
+    <button type="button" class="btn btn-secondary" style="width:100%; margin-bottom:8px;" onclick="docMenuAdd()">➕ Добавить ещё документ</button>
+    <button type="button" class="btn btn-secondary" style="width:100%;" onclick="closeDocMenu()">Отмена</button>
+  </div>
+</div>
+
 <!-- ПРОСМОТР ДОКУМЕНТОВ РАСХОДА -->
 <div id="docs_modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(15,23,42,0.92); z-index:10001; flex-direction:column;">
   <div style="display:flex; align-items:center; gap:10px; padding:calc(10px + var(--tg-top, 0px)) 14px 10px; color:#fff;">
@@ -4960,6 +4971,8 @@
     const editId = document.getElementById('edit_item_id').value;
     const oldGroupKey = document.getElementById('edit_group_key').value;
 
+    // при редактировании расход пересоздаётся: приложенные документы переносим на новую запись
+    const keepDocs = editId ? (store.expenses.find(x => oldGroupKey ? (x.groupKey === oldGroupKey && x.isMainTicket) : x.id === editId) || {}) : {};
     if (editId) {
       if (oldGroupKey) store.expenses = store.expenses.filter(x => x.groupKey !== oldGroupKey);
       else {
@@ -5016,6 +5029,11 @@
       const mainEx = added.find(x => x.isMainTicket) || added[0];
       if (mainEx) { mainEx.rcId = rcInfo.id; mainEx.docs = rcInfo.files || 1; }
     }
+    else if (keepDocs.rcId) {
+      const added = store.expenses.slice(lenBeforeAdd);
+      const mainEx = added.find(x => x.isMainTicket) || added[0];
+      if (mainEx) { mainEx.rcId = keepDocs.rcId; mainEx.docs = keepDocs.docs; }
+    }
     closeExpense();
     storeTouched = true;
     triggerCloudAutoSave();
@@ -5033,7 +5051,7 @@
     box.innerHTML = listSorted.map(e => `
       <div style="display:flex; justify-content:space-between; align-items:center; background:#fff; padding:8px; border-radius:8px; margin-bottom:5px; border:1px solid #e5e5ea;">
         <div style="flex:1; min-width:0; padding-right:8px;">
-          <strong>${e.name}</strong>${e.docs ? ` <span title="Приложено документов: ${e.docs}" onclick="event.stopPropagation(); openDocsViewer('${e.rcId || ''}')" style="cursor:pointer; font-size:12px; font-weight:700; color:#0369a1; background:#e0f2fe; border-radius:10px; padding:1px 7px; white-space:nowrap;">📎 ${e.docs}</span>` : ''}<br>
+          <strong>${e.name}</strong>${window.clipBadge ? window.clipBadge(e) : ''}<br>
           <small style="color:#8e8e93;">${formatRuDateString(e.date)} | № ${e.no}</small>
         </div>
         <div style="display:flex; gap:6px; align-items:center;">
@@ -5388,9 +5406,10 @@
         if (token !== window.__docsViewToken) return;
         const wrap = document.createElement('div');
         wrap.style.cssText = 'background:#fff; border-radius:12px; margin-bottom:12px; padding:8px; overflow:hidden;';
-        const mv = (list.length > 1) ? ('<span style="float:right;">'
+        const mv = ('<span style="float:right;">'
+          + '<button type="button" onclick="removeDocFromGroup(\'' + list[i].rid + '\')" style="border:0;background:#fee2e2;color:#b91c1c;border-radius:8px;padding:2px 9px;font-weight:700;margin-left:4px;">🗑 Удалить</button>'
           + (i > 0 ? '<button type="button" onclick="moveDocInGroup(' + i + ',-1)" style="border:0;background:#e2e8f0;border-radius:8px;padding:2px 9px;font-weight:700;margin-left:4px;">↑ выше</button>' : '')
-          + (i < list.length - 1 ? '<button type="button" onclick="moveDocInGroup(' + i + ',1)" style="border:0;background:#e2e8f0;border-radius:8px;padding:2px 9px;font-weight:700;margin-left:4px;">↓ ниже</button>' : '') + '</span>') : '';
+          + (i < list.length - 1 ? '<button type="button" onclick="moveDocInGroup(' + i + ',1)" style="border:0;background:#e2e8f0;border-radius:8px;padding:2px 9px;font-weight:700;margin-left:4px;">↓ ниже</button>' : '') + '</span>');
         wrap.innerHTML = '<div style="font-size:12px; font-weight:700; color:#475569; margin:2px 4px 6px;">' + mv + 'Документ ' + (i + 1) + ' из ' + list.length + (i === 0 && list.length > 1 ? ' · идёт первым в склейке' : '') + '</div><div class="dv-pages" style="color:#64748b; padding:14px; text-align:center;">⏳ Загрузка…</div>';
         body.appendChild(wrap);
         const pages = wrap.querySelector('.dv-pages');
@@ -5433,6 +5452,59 @@
       }
       if (!list.length) body.innerHTML = '<div style="color:#cbd5e1; text-align:center; padding:40px 10px;">Документов нет</div>';
     } catch (e) { body.innerHTML = '<div style="color:#fecaca; text-align:center; padding:40px 10px;">Не удалось загрузить: ' + escHtml(e.message || e) + '</div>'; }
+  };
+
+  // ---------- Скрепка расхода ----------
+  window.clipBadge = function (e) {
+    const needsDoc = !e.groupKey || e.isMainTicket;   // сборы, багаж и страховка идут вместе с билетом
+    const n = Number(e.docs || 0);
+    if (n > 0 && e.rcId) return ' <span title="Приложено документов: ' + n + '" onclick="event.stopPropagation(); openDocMenu(\'' + e.id + '\')" style="cursor:pointer; font-size:12px; font-weight:700; color:#0369a1; background:#e0f2fe; border-radius:10px; padding:1px 7px; white-space:nowrap;">📎 ' + n + '</span>';
+    if (!needsDoc) return '';
+    return ' <span title="К расходу не приложен документ" onclick="event.stopPropagation(); openDocMenu(\'' + e.id + '\')" style="cursor:pointer; font-size:11.5px; font-weight:700; color:#b45309; background:#fef3c7; border:1px solid #fcd34d; border-radius:10px; padding:1px 7px; white-space:nowrap;">📎 нет вложения</span>';
+  };
+  window.openDocMenu = function (expId) {
+    const e = store.expenses.find(x => x.id === expId); if (!e) return;
+    window.__menuExpId = expId;
+    if (!(Number(e.docs) > 0 && e.rcId)) { window.docMenuAdd(); return; }
+    document.getElementById('doc_menu_title').innerText = e.name + ': документов ' + e.docs;
+    document.getElementById('doc_menu_view').innerText = '👁 Просмотреть (' + e.docs + ')';
+    document.getElementById('doc_menu_modal').style.display = 'flex';
+  };
+  window.closeDocMenu = function () { document.getElementById('doc_menu_modal').style.display = 'none'; };
+  window.docMenuView = function () { const e = store.expenses.find(x => x.id === window.__menuExpId); closeDocMenu(); if (e && e.rcId) openDocsViewer(e.rcId); };
+  window.docMenuAdd = function () { closeDocMenu(); document.getElementById('doc_attach_input').click(); };
+  async function filePayload(f) {
+    const isPdf = f.type === 'application/pdf' || /\.pdf$/i.test(f.name);
+    if (!isPdf && !/^image\//.test(f.type)) throw new Error('Формат не поддерживается');
+    if (isPdf && f.size > 12 * 1024 * 1024) throw new Error('PDF больше 12 МБ');
+    return { mime: isPdf ? 'application/pdf' : 'image/jpeg', b64: isPdf ? await fileToB64(f) : await fileToJpegB64(f) };
+  }
+  window.attachDocsToExpense = async function (input) {
+    const files = Array.from((input && input.files) || []); if (input) input.value = '';
+    const e = store.expenses.find(x => x.id === window.__menuExpId);
+    if (!files.length || !e) return;
+    const tid = (document.getElementById('p_trip_id').value || (store.passport && store.passport.tripId) || '').trim();
+    let ok = 0;
+    for (let i = 0; i < files.length; i++) {
+      showToast('Загружаю документ ' + (i + 1) + ' из ' + files.length + '…');
+      try {
+        const pl = await filePayload(files[i]);
+        const res = await api({ action: 'receipt_attach', rc_id: e.rcId || '', mime: pl.mime, b64: pl.b64, name: files[i].name, trip_id: tid });
+        e.rcId = res.rcId; e.docs = res.docs; ok++;
+      } catch (err) { console.error(err); showToast('Не принят «' + files[i].name + '»: ' + (err.message || err)); await new Promise(r => setTimeout(r, 1400)); }
+    }
+    if (ok) { storeTouched = true; triggerCloudAutoSave(); renderExpenseList(); showToast('Документов у расхода: ' + e.docs); }
+  };
+  window.removeDocFromGroup = async function (rid) {
+    if (!confirm('Удалить этот документ из расхода?')) return;
+    const oldRoot = window.__docsLastId;
+    try {
+      const res = await api({ action: 'receipt_remove', id: oldRoot, rid: rid });
+      store.expenses.forEach(x => { if (x.rcId === oldRoot) { x.rcId = res.newRoot || ''; x.docs = res.docs; } });
+      storeTouched = true; triggerCloudAutoSave(); renderExpenseList();
+      if (res.docs > 0 && res.newRoot) openDocsViewer(res.newRoot);
+      else { closeDocsViewer(); showToast('Документов не осталось'); }
+    } catch (e) { showToast('Не удалось удалить: ' + (e.message || e)); }
   };
 
   // ---------- Загрузка из приложения ----------
