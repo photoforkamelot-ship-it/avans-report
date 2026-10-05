@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta name="app-build" content="20261006-03">
+  <meta name="app-build" content="20261006-04">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -4831,8 +4831,10 @@ body.cap-on #docs_modal{padding-top:46px;}
       triggerCloudAutoSave();
       renderExpenseList();
       loadBotReceipts();
+      try { window.syncDocCounts && window.syncDocCounts(); } catch (eSy) {}
     }
     if (s === 3) {
+      try { window.syncDocCounts && window.syncDocCounts(); } catch (eSy) {}
       savePassport();
       triggerCloudAutoSave();
       renderDetailedReview();
@@ -5885,6 +5887,24 @@ body.cap-on #docs_modal{padding-top:46px;}
 
   // ---------- Склейка итогового PDF ----------
   // Порядок: печатная форма (отчёт, затем адресный лист) → документы по расходам в порядке дат; у PDF сохраняются все страницы, фото ложатся на листы A4
+  // Сверка счётчиков вложений с сервером: бот мог добавить документы, а удалённые/отклонённые исчезнуть
+  window.syncDocCounts = async function () {
+    if (typeof isViewingRemoteReport !== 'undefined' && isViewingRemoteReport) return;
+    const ids = Array.from(new Set((store.expenses || []).filter(e => e.rcId).map(e => e.rcId)));
+    if (!ids.length) return;
+    try {
+      const r = await api({ action: 'receipt_counts', ids: ids });
+      if (!r || !r.counts) return;
+      let ch = false;
+      store.expenses.forEach(e => {
+        if (!e.rcId || r.counts[e.rcId] == null) return;
+        const n = Number(r.counts[e.rcId]);
+        if (n === 0) { e.rcId = ''; e.docs = 0; ch = true; }
+        else if (Number(e.docs) !== n) { e.docs = n; ch = true; }
+      });
+      if (ch) { storeTouched = true; renderExpenseList(); triggerCloudAutoSave(); }
+    } catch (e) { console.warn('syncDocCounts', e); }
+  };
   window.expensesWithDocs = function () {
     const seen = {}; const out = [];
     [...store.expenses].sort((a, b) => parseDateToTimestamp(a.date) - parseDateToTimestamp(b.date)).forEach(e => { if (e.rcId && !seen[e.rcId]) { seen[e.rcId] = 1; out.push(e.rcId); } });
