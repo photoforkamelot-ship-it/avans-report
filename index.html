@@ -712,6 +712,10 @@
           <button type="button" class="btn btn-warning" style="height:30px; width:auto; font-size:11px; padding:0 8px;" onclick="loadStep2DemoExpenses()">⚡ ДЕМО-расходы</button>
         </div>
 
+        <div style="margin-bottom:10px;">
+          <button type="button" class="btn btn-secondary" style="width:100%;" onclick="document.getElementById('doc_file_input').click()">📎 Загрузить чек или документ (PDF, фото)</button>
+          <input type="file" id="doc_file_input" accept="application/pdf,image/*" multiple style="display:none" onchange="uploadDocsFromApp(this)">
+        </div>
         <div id="bot_receipts_box" style="display:none; margin-bottom:10px;"></div>
 
         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 10px;">
@@ -1290,6 +1294,16 @@
       <button type="button" class="btn btn-secondary" onclick="closeBankDetailsModal()">Отмена</button>
     </div>
   </div>
+</div>
+
+<!-- ПРОСМОТР ДОКУМЕНТОВ РАСХОДА -->
+<div id="docs_modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(15,23,42,0.92); z-index:10001; flex-direction:column;">
+  <div style="display:flex; align-items:center; gap:10px; padding:calc(10px + var(--tg-top, 0px)) 14px 10px; color:#fff;">
+    <div id="docs_title" style="flex:1; font-weight:800; font-size:15px;">Документы</div>
+    <button type="button" id="docs_rot_btn" onclick="toggleDocsPortrait()" style="border:0; background:#007aff; color:#fff; border-radius:10px; padding:8px 12px; font-size:13px; font-weight:700;">↻ Все в книжную: вкл</button>
+    <button type="button" onclick="closeDocsViewer()" style="border:0; background:rgba(255,255,255,.18); color:#fff; border-radius:10px; padding:8px 14px; font-size:15px; font-weight:700;">✕ Закрыть</button>
+  </div>
+  <div id="docs_body" style="flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:0 10px calc(16px + var(--tg-bottom, 0px));"></div>
 </div>
 
 <!-- МОДАЛКА ПЕРЕЧНЯ ДОКУМЕНТОВ -->
@@ -3585,9 +3599,7 @@
       setTimeout(() => { btn.disabled = false; btn.innerText = "📄 Сохранить в PDF"; }, 1500);
     };
 
-    const finishOk = (pdfUrl) => {
-      if (finished) return;
-      finished = true;
+    const completeOk = (pdfUrl, mergeInfo) => {
       stopWaiting();
       captureEditBaseline('done');
       if (pdfUrl) {
@@ -3597,10 +3609,28 @@
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        showToast("✅ Финальный PDF готов и открыт!");
+        if (mergeInfo && mergeInfo.merged) showToast("✅ PDF с документами готов" + (mergeInfo.failed ? " (не добавлено: " + mergeInfo.failed + ")" : ""));
+        else if (mergeInfo && mergeInfo.error) showToast("PDF готов, но документы объединить не удалось. Приложите их вручную");
+        else showToast("✅ Финальный PDF готов и открыт!");
       }
       setTimeout(openChecklistModal, 800);
       loadAppData();
+    };
+    const finishOk = (pdfUrl) => {
+      if (finished) return;
+      finished = true;
+      // Если к расходам приложены документы, склеиваем всё в один PDF: печатная форма → адресный лист → документы
+      if (pdfUrl && window.expensesWithDocs && window.expensesWithDocs().length) {
+        clearInterval(tickTimer); clearInterval(pollTimer); clearTimeout(guardTimer);
+        document.getElementById('loader_modal_title').innerText = 'Собираю пакет документов';
+        const setMsg = (t) => { document.getElementById('loader_modal_desc').innerText = t; };
+        setMsg('Подготовка…');
+        window.mergeDocsIntoPdf(pdfUrl, tripIdForPdf, setMsg)
+          .then(r => completeOk((r && r.url) || pdfUrl, r && r.url ? r : { error: true }))
+          .catch(e => { console.error(e); completeOk(pdfUrl, { error: true }); });
+        return;
+      }
+      completeOk(pdfUrl);
     };
 
     // Счётчик секунд в окне: показывает, что процесс идёт, и не даёт окну «замереть»
@@ -5002,7 +5032,7 @@
     box.innerHTML = store.expenses.map(e => `
       <div style="display:flex; justify-content:space-between; align-items:center; background:#fff; padding:8px; border-radius:8px; margin-bottom:5px; border:1px solid #e5e5ea;">
         <div style="flex:1; min-width:0; padding-right:8px;">
-          <strong>${e.name}</strong>${e.docs ? ` <span title="Приложено документов: ${e.docs}" style="font-size:12px; font-weight:700; color:#0369a1; background:#e0f2fe; border-radius:10px; padding:1px 7px; white-space:nowrap;">📎 ${e.docs}</span>` : ''}<br>
+          <strong>${e.name}</strong>${e.docs ? ` <span title="Приложено документов: ${e.docs}" onclick="event.stopPropagation(); openDocsViewer('${e.rcId || ''}')" style="cursor:pointer; font-size:12px; font-weight:700; color:#0369a1; background:#e0f2fe; border-radius:10px; padding:1px 7px; white-space:nowrap;">📎 ${e.docs}</span>` : ''}<br>
           <small style="color:#8e8e93;">${formatRuDateString(e.date)} | № ${e.no}</small>
         </div>
         <div style="display:flex; gap:6px; align-items:center;">
@@ -5286,6 +5316,217 @@
       document.querySelector('#tbl_taxi tbody').innerHTML = store.taxis.map(t => `<tr><td>${t.date}</td><td>${t.route}</td><td>${t.purpose}</td><td class="text-right">${Number(t.sum).toLocaleString('ru-RU', {minimumFractionDigits:2})}</td></tr>`).join('');
     } else cardTaxi.style.display = 'none';
   }
+</script>
+<script id="docs-js">
+/* Документы к расходам: просмотр в окне, загрузка из приложения, склейка итогового PDF */
+(function () {
+  const CDN = {
+    pdfjs: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
+    pdfjsWorker: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js',
+    pdflib: 'https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js'
+  };
+  window.__docsCdn = CDN;
+  const loaded = {};
+  function loadScript(url) {
+    if (!loaded[url]) loaded[url] = new Promise((res, rej) => { const el = document.createElement('script'); el.src = url; el.onload = res; el.onerror = () => rej(new Error('Не загрузилась библиотека')); document.head.appendChild(el); });
+    return loaded[url];
+  }
+  async function ensurePdfJs() {
+    if (!window.pdfjsLib) await loadScript(CDN.pdfjs);
+    if (!window.__pdfWorkerSet) {
+      try { const t = await (await fetch(CDN.pdfjsWorker)).text(); window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(new Blob([t], { type: 'text/javascript' })); }
+      catch (e) { window.pdfjsLib.GlobalWorkerOptions.workerSrc = CDN.pdfjsWorker; }
+      window.__pdfWorkerSet = true;
+    }
+    return window.pdfjsLib;
+  }
+  async function ensurePdfLib() { if (!window.PDFLib) await loadScript(CDN.pdflib); return window.PDFLib; }
+
+  async function api(payload) {
+    const r = await fetch(GOOGLE_SHEET_API, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(Object.assign({ telegram_user: getTelegramUser(), for_tg_id: receiptSubjectTgId() }, payload)) });
+    const j = await r.json();
+    if (!j || j.status !== 'ok') throw new Error((j && j.message) || 'Ошибка сервера');
+    return j;
+  }
+  function b64ToBytes(b64) { const bin = atob(b64); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u; }
+  function bytesToB64(u8) { let s = ''; const ch = 0x8000; for (let i = 0; i < u8.length; i += ch) s += String.fromCharCode.apply(null, u8.subarray(i, i + ch)); return btoa(s); }
+  const isPdfBytes = (u) => u.length > 4 && u[0] === 0x25 && u[1] === 0x50 && u[2] === 0x44 && u[3] === 0x46;
+  const isPng = (u) => u.length > 8 && u[0] === 0x89 && u[1] === 0x50 && u[2] === 0x4e && u[3] === 0x47;
+  const isJpg = (u) => u.length > 3 && u[0] === 0xff && u[1] === 0xd8;
+  window.__docsTest = { b64ToBytes, bytesToB64 };
+
+  // ---------- Просмотр ----------
+  window.__docsPortrait = true;
+  window.toggleDocsPortrait = function () {
+    window.__docsPortrait = !window.__docsPortrait;
+    if (window.__docsLastId) window.openDocsViewer(window.__docsLastId);
+  };
+  function paintRotBtn() { const b = document.getElementById('docs_rot_btn'); if (b) { b.innerText = '↻ Все в книжную: ' + (window.__docsPortrait ? 'вкл' : 'выкл'); b.style.background = window.__docsPortrait ? '#007aff' : '#64748b'; } }
+  window.closeDocsViewer = function () { document.getElementById('docs_modal').style.display = 'none'; document.getElementById('docs_body').innerHTML = ''; window.__docsViewToken = (window.__docsViewToken || 0) + 1; };
+  window.openDocsViewer = async function (rcId) {
+    if (!rcId) { showToast('Документ не привязан к расходу'); return; }
+    const modal = document.getElementById('docs_modal'), body = document.getElementById('docs_body');
+    const token = (window.__docsViewToken = (window.__docsViewToken || 0) + 1);
+    window.__docsLastId = rcId; paintRotBtn();
+    modal.style.display = 'flex';
+    body.innerHTML = '<div style="color:#cbd5e1; text-align:center; padding:40px 10px;">⏳ Загружаю документы…</div>';
+    try {
+      const list = (await api({ action: 'receipt_docs', id: rcId })).docs || [];
+      document.getElementById('docs_title').innerText = '📎 Документы расхода: ' + list.length;
+      body.innerHTML = '';
+      for (let i = 0; i < list.length; i++) {
+        if (token !== window.__docsViewToken) return;
+        const wrap = document.createElement('div');
+        wrap.style.cssText = 'background:#fff; border-radius:12px; margin-bottom:12px; padding:8px; overflow:hidden;';
+        wrap.innerHTML = '<div style="font-size:12px; font-weight:700; color:#475569; margin:2px 4px 6px;">Документ ' + (i + 1) + ' из ' + list.length + '</div><div class="dv-pages" style="color:#64748b; padding:14px; text-align:center;">⏳ Загрузка…</div>';
+        body.appendChild(wrap);
+        const pages = wrap.querySelector('.dv-pages');
+        try {
+          const f = await api({ action: 'receipt_blob', rid: list[i].rid });
+          const bytes = b64ToBytes(f.b64);
+          pages.style.cssText = ''; pages.innerHTML = '';
+          if (isPdfBytes(bytes)) {
+            const pdfjs = await ensurePdfJs();
+            const pdf = await pdfjs.getDocument({ data: bytes }).promise;
+            const cw = Math.max(280, wrap.clientWidth - 16);
+            for (let n = 1; n <= pdf.numPages; n++) {
+              if (token !== window.__docsViewToken) return;
+              const page = await pdf.getPage(n);
+              const v1 = page.getViewport({ scale: 1 });
+              const dpr = Math.min(2, window.devicePixelRatio || 1);
+              const turn = window.__docsPortrait && v1.width > v1.height;   // альбомную страницу показываем и склеиваем повёрнутой в книжную
+              const rot = turn ? (page.rotate + 90) % 360 : page.rotate;
+              const vBase = page.getViewport({ scale: 1, rotation: rot });
+              const vp = page.getViewport({ scale: (cw / vBase.width) * dpr, rotation: rot });
+              const cv = document.createElement('canvas'); cv.width = vp.width; cv.height = vp.height;
+              cv.style.cssText = 'width:100%; height:auto; display:block; border:1px solid #e2e8f0; margin-bottom:6px;';
+              pages.appendChild(cv);
+              await page.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise;
+            }
+          } else {
+            const img = document.createElement('img');
+            img.style.cssText = 'width:100%; height:auto; display:block;';
+            img.onload = () => {
+              if (window.__docsPortrait && img.naturalWidth > img.naturalHeight) {
+                const cv = document.createElement('canvas'); cv.width = img.naturalHeight; cv.height = img.naturalWidth;
+                const cx = cv.getContext('2d'); cx.translate(cv.width, 0); cx.rotate(Math.PI / 2); cx.drawImage(img, 0, 0);
+                cv.style.cssText = 'width:100%; height:auto; display:block;'; img.replaceWith(cv);
+              }
+            };
+            img.src = 'data:' + (f.mime || 'image/jpeg') + ';base64,' + f.b64;
+            pages.appendChild(img);
+          }
+        } catch (eDoc) { pages.style.color = '#b91c1c'; pages.innerText = 'Не удалось показать документ: ' + (eDoc.message || eDoc); }
+      }
+      if (!list.length) body.innerHTML = '<div style="color:#cbd5e1; text-align:center; padding:40px 10px;">Документов нет</div>';
+    } catch (e) { body.innerHTML = '<div style="color:#fecaca; text-align:center; padding:40px 10px;">Не удалось загрузить: ' + escHtml(e.message || e) + '</div>'; }
+  };
+
+  // ---------- Загрузка из приложения ----------
+  function fileToJpegB64(file) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file); const img = new Image();
+      img.onload = () => {
+        const max = 2200; let w = img.naturalWidth, h = img.naturalHeight; const k = Math.min(1, max / Math.max(w, h));
+        w = Math.round(w * k); h = Math.round(h * k);
+        const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+        const cx = cv.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0, 0, w, h); cx.drawImage(img, 0, 0, w, h);
+        URL.revokeObjectURL(url); resolve(cv.toDataURL('image/jpeg', 0.86).split(',')[1]);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Не удалось открыть изображение')); };
+      img.src = url;
+    });
+  }
+  function fileToB64(file) {
+    return new Promise((resolve, reject) => { const r = new FileReader(); r.onload = () => resolve(String(r.result).split(',')[1]); r.onerror = () => reject(new Error('Не удалось прочитать файл')); r.readAsDataURL(file); });
+  }
+  window.uploadDocsFromApp = async function (input) {
+    const files = Array.from((input && input.files) || []); if (input) input.value = '';
+    if (!files.length) return;
+    const tid = (document.getElementById('p_trip_id').value || (store.passport && store.passport.tripId) || '').trim();
+    let ok = 0, bad = 0, last = null;
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i];
+      showToast('Распознаю документ ' + (i + 1) + ' из ' + files.length + '…');
+      try {
+        const isPdf = f.type === 'application/pdf' || /\.pdf$/i.test(f.name);
+        if (!isPdf && !/^image\//.test(f.type)) throw new Error('Формат не поддерживается');
+        if (f.size > 12 * 1024 * 1024 && isPdf) throw new Error('PDF больше 12 МБ');
+        const b64 = isPdf ? await fileToB64(f) : await fileToJpegB64(f);
+        const res = await api({ action: 'receipt_upload', name: f.name, mime: isPdf ? 'application/pdf' : 'image/jpeg', b64: b64, trip_id: tid });
+        botReceipts = botReceipts.filter(x => x.id !== res.item.id); botReceipts.unshift(res.item);
+        last = res; ok++;
+      } catch (e) { bad++; console.error(e); showToast('Не принят «' + f.name + '»: ' + (e.message || e)); await new Promise(r => setTimeout(r, 1400)); }
+    }
+    renderBotReceipts();
+    if (ok) {
+      showToast(ok === 1 && last && last.recognized ? 'Распознано, проверьте данные' : (bad ? 'Добавлено документов: ' + ok + ', ошибок: ' + bad : 'Добавлено документов: ' + ok));
+      if (ok === 1 && files.length === 1) useBotReceipt(last.item.id);
+    }
+  };
+
+  // ---------- Склейка итогового PDF ----------
+  // Порядок: печатная форма (отчёт, затем адресный лист) → документы по расходам в порядке дат; у PDF сохраняются все страницы, фото ложатся на листы A4
+  window.expensesWithDocs = function () {
+    const seen = {}; const out = [];
+    [...store.expenses].sort((a, b) => parseDateToTimestamp(a.date) - parseDateToTimestamp(b.date)).forEach(e => { if (e.rcId && !seen[e.rcId]) { seen[e.rcId] = 1; out.push(e.rcId); } });
+    return out;
+  };
+  window.mergeDocsIntoPdf = async function (pdfUrl, tripId, onProgress, apiFn) {
+    const call = apiFn || api;
+    const PDFLib = await ensurePdfLib();
+    const ids = window.expensesWithDocs();
+    if (!ids.length) return null;
+    onProgress && onProgress('Загружаю печатную форму…');
+    const base = b64ToBytes((await call({ action: 'get_pdf_blob', url: pdfUrl })).b64);
+    const out = await PDFLib.PDFDocument.load(base, { ignoreEncryption: true });
+    const A4 = [595.28, 841.89], M = 28;
+    let okDocs = 0, bad = 0, total = 0, n = 0;
+    for (const id of ids) {
+      let list = [];
+      try { list = (await call({ action: 'receipt_docs', id: id })).docs || []; } catch (e) { bad++; continue; }
+      for (const d of list) {
+        total++; n++;
+        onProgress && onProgress('Добавляю документы: ' + n + '…');
+        try {
+          const bytes = b64ToBytes((await call({ action: 'receipt_blob', rid: d.rid })).b64);
+          if (isPdfBytes(bytes)) {
+            const src = await PDFLib.PDFDocument.load(bytes, { ignoreEncryption: true });
+            const pages = await out.copyPages(src, src.getPageIndices());
+            pages.forEach(pg => {
+              // альбомные страницы поворачиваем по часовой стрелке в книжную, книжные не трогаем
+              const sz = pg.getSize(); const ang = ((pg.getRotation().angle % 360) + 360) % 360;
+              const landscape = (ang === 90 || ang === 270) ? sz.height > sz.width : sz.width > sz.height;
+              if (landscape) pg.setRotation(PDFLib.degrees(ang === 90 ? 0 : (ang + 90) % 360));   // 90° → 0: книжная страница, лежавшая «на боку», встаёт как задумано
+              out.addPage(pg);
+            });
+          } else {
+            const img = isPng(bytes) ? await out.embedPng(bytes) : (isJpg(bytes) ? await out.embedJpg(bytes) : null);
+            if (!img) throw new Error('формат изображения');
+            const page = out.addPage(A4);
+            if (img.width > img.height) {
+              // альбомное фото кладём на книжный лист, повернув на 90° по часовой стрелке
+              const k = Math.min((A4[0] - 2 * M) / img.height, (A4[1] - 2 * M) / img.width);
+              const w = img.width * k, h = img.height * k;
+              page.drawImage(img, { x: (A4[0] - h) / 2, y: (A4[1] + w) / 2, width: w, height: h, rotate: PDFLib.degrees(-90) });
+            } else {
+              const k = Math.min((A4[0] - 2 * M) / img.width, (A4[1] - 2 * M) / img.height);
+              const w = img.width * k, h = img.height * k;
+              page.drawImage(img, { x: (A4[0] - w) / 2, y: A4[1] - M - h, width: w, height: h });
+            }
+          }
+          okDocs++;
+        } catch (e) { bad++; console.error('merge doc', d.rid, e); }
+      }
+    }
+    if (!okDocs) return { url: '', merged: 0, failed: bad };
+    onProgress && onProgress('Сохраняю общий PDF…');
+    const bytesOut = await out.save();
+    const name = 'Пакет_' + String((store.passport && store.passport.fio) || 'отчёт').replace(/\s+/g, '_') + '_' + new Date().toISOString().slice(0, 10);
+    const res = await call({ action: 'attach_final_pdf', trip_id: tripId, b64: bytesToB64(bytesOut), name: name, merged: okDocs, failed: bad });
+    return { url: res.url, merged: okDocs, failed: bad };
+  };
+})();
 </script>
 <script id="tg-shell-js">
 /* Оболочка мини-приложения: полный экран, запрет закрытия свайпом, кнопка «Назад» вместо «Закрыть» внутри разделов */
