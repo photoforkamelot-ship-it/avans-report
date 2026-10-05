@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta name="app-build" content="20261006-09">
+  <meta name="app-build" content="20261006-10">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -672,10 +672,7 @@ body.cap-on #docs_modal{padding-top:46px;}
     /* Жидкая «капля» под активной вкладкой: перетекает между кнопками */
     #top_tabs .tab-btn { position: relative; z-index: 1; }
     #top_tabs .tab-btn.active { background: transparent !important; box-shadow: none !important; }
-    #tab_blob { position: absolute; z-index: 0; top: 0; left: 0; height: 48px; border-radius: 22px; pointer-events: none; opacity: 0;
-      background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(255,255,255,0.78));
-      box-shadow: 0 4px 14px rgba(31,41,80,0.16), inset 0 1px 0 rgba(255,255,255,0.9), 0 0 0 1px rgba(255,255,255,0.6);
-      will-change: transform, width; }
+    #tab_blob { position: absolute; z-index: 0; left: 0; top: 0; pointer-events: none; overflow: visible; filter: drop-shadow(0 5px 10px rgba(31,41,80,0.18)); }
     /* Нижний бар: неактивные значки серые однотонные, активный закрашивается цветом */
     .top-tabs .tab-btn .te { filter: grayscale(1) brightness(0.62) contrast(1.05); opacity: 0.7; transition: filter .25s ease, opacity .25s ease, transform .25s ease; }
     .top-tabs .tab-btn .dl { color: #7a8194; transition: color .25s ease; }
@@ -5465,49 +5462,89 @@ body.cap-on #docs_modal{padding-top:46px;}
 </script>
 <script id="blob-js">
 (function () {
+  const NS = 'http://www.w3.org/2000/svg';
   const bar = () => document.getElementById('top_tabs');
-  let blob = null, first = true, lastL = 0, lastW = 0;
+  let svg = null, body = null, glow = null, rafId = 0;
+  let cur = { l: 0, r: 0, t: 0, h: 0 }, ready = false;
+  const lerp = (a, b, k) => a + (b - a) * k;
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const eOut = (k) => 1 - Math.pow(1 - k, 3.2);
+  const eIO = (k) => k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
   function ensure() {
-    const b = bar(); if (!b) return null;
-    if (!blob || blob.parentNode !== b) { blob = document.createElement('div'); blob.id = 'tab_blob'; b.insertBefore(blob, b.firstChild); first = true; }
-    return blob;
+    const b = bar(); if (!b) return false;
+    if (svg && svg.parentNode === b) return true;
+    svg = document.createElementNS(NS, 'svg'); svg.id = 'tab_blob';
+    svg.innerHTML = '<defs>' +
+      '<linearGradient id="tbFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0.98"/><stop offset="1" stop-color="#eef4ff" stop-opacity="0.80"/></linearGradient>' +
+      '<linearGradient id="tbRim" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="1"/><stop offset="0.5" stop-color="#cfe4ff" stop-opacity="0.55"/><stop offset="1" stop-color="#fff" stop-opacity="0.95"/></linearGradient>' +
+      '<radialGradient id="tbGlow"><stop offset="0" stop-color="#bfe0ff" stop-opacity="0.95"/><stop offset="1" stop-color="#bfe0ff" stop-opacity="0"/></radialGradient></defs>' +
+      '<path id="tbBody" fill="url(#tbFill)" stroke="url(#tbRim)" stroke-width="1.4"/><ellipse id="tbGlowEl" fill="url(#tbGlow)" opacity="0"/>';
+    b.insertBefore(svg, b.firstChild);
+    body = svg.querySelector('#tbBody'); glow = svg.querySelector('#tbGlowEl');
+    ready = false; return true;
   }
+  // капля: ведущий край толще и круглее, хвост тоньше и острее
+  function draw(l, r, t, h, taper, lead) {
+    const w = Math.max(10, r - l), R = Math.min(22, h / 2);
+    const rl = lead < 0 ? R : Math.max(5, R - taper * 0.9);   // радиус слева
+    const rr = lead > 0 ? R : Math.max(5, R - taper * 0.9);   // радиус справа
+    const bulge = taper > 0 ? Math.min(3, taper * 0.45) : 0;  // ведущий край чуть толще
+    const tl = lead < 0 ? -bulge : taper, tr = lead > 0 ? -bulge : taper;  // втяжка сверху/снизу на краях
+    const y0 = t, y1 = t + h;
+    const d = 'M' + (l + rl) + ',' + (y0 + tl) +
+      ' L' + (r - rr) + ',' + (y0 + tr) +
+      ' Q' + r + ',' + (y0 + tr) + ' ' + r + ',' + (t + h / 2) +
+      ' Q' + r + ',' + (y1 - tr) + ' ' + (r - rr) + ',' + (y1 - tr) +
+      ' L' + (l + rl) + ',' + (y1 - tl) +
+      ' Q' + l + ',' + (y1 - tl) + ' ' + l + ',' + (t + h / 2) +
+      ' Q' + l + ',' + (y0 + tl) + ' ' + (l + rl) + ',' + (y0 + tl) + 'Z';
+    body.setAttribute('d', d);
+    // свечение на ведущей кромке
+    if (taper > 0.4) {
+      const gx = lead > 0 ? r - 6 : l + 6;
+      glow.setAttribute('cx', gx); glow.setAttribute('cy', t + h / 2); glow.setAttribute('rx', 16 + taper); glow.setAttribute('ry', h / 2 + 2);
+      glow.setAttribute('opacity', String(clamp(taper / 6, 0, 0.9)));
+    } else glow.setAttribute('opacity', '0');
+  }
+  function target() {
+    const b = bar(), a = b && b.querySelector('.tab-btn.active');
+    if (!a || a.offsetWidth === 0) return null;
+    return { l: a.offsetLeft, r: a.offsetLeft + a.offsetWidth, t: a.offsetTop, h: a.offsetHeight };
+  }
+  function size() { const b = bar(); svg.setAttribute('width', b.clientWidth); svg.setAttribute('height', b.clientHeight); svg.style.width = b.clientWidth + 'px'; svg.style.height = b.clientHeight + 'px'; }
   function place(animate) {
-    const b = bar(), bl = ensure(); if (!b || !bl) return;
-    const a = b.querySelector('.tab-btn.active');
-    if (!a || a.offsetWidth === 0) { bl.style.opacity = '0'; return; }
-    const l = a.offsetLeft, w = a.offsetWidth, t = a.offsetTop, h = a.offsetHeight;
-    bl.style.top = t + 'px'; bl.style.height = h + 'px'; bl.style.left = '0px';
-    bl.style.opacity = '1';
-    if (first || !animate) { bl.style.width = w + 'px'; bl.style.transform = 'translateX(' + l + 'px)'; first = false; lastL = l; lastW = w; return; }
-    if (l === lastL && w === lastW) return;
-    const dist = Math.abs(l - lastL), dir = l > lastL ? 1 : -1;
-    // капля растягивается в сторону движения, затем «собирается» на новом месте
-    const stretch = Math.min(1.9, 1 + dist / 260);
-    const fromL = lastL, fromW = lastW;
-    const origin = dir > 0 ? 'left center' : 'right center';
-    bl.style.transformOrigin = origin;
-    const x0 = fromL, x1 = l;
-    const midW = Math.max(fromW, w) * stretch + dist * 0.55;
-    const midX = dir > 0 ? x0 : x1 - (midW - w);
-    bl.animate([
-      { transform: 'translateX(' + x0 + 'px)', width: fromW + 'px', borderRadius: '22px' },
-      { transform: 'translateX(' + (dir > 0 ? x0 : midX) + 'px)', width: midW + 'px', borderRadius: '24px', offset: 0.45 },
-      { transform: 'translateX(' + x1 + 'px)', width: w + 'px', borderRadius: '22px' }
-    ], { duration: 520, easing: 'cubic-bezier(.3,1.25,.45,1)', fill: 'forwards' }).onfinish = () => {
-      bl.style.width = w + 'px'; bl.style.transform = 'translateX(' + x1 + 'px)';
-      try { bl.getAnimations().forEach(an => an.cancel()); } catch (e) {}
-    };
+    if (!ensure()) return;
+    const T = target();
+    if (!T) { svg.style.opacity = '0'; return; }
+    svg.style.opacity = '1'; size();
+    if (!ready || !animate) { cancelAnimationFrame(rafId); cur = T; ready = true; draw(T.l, T.r, T.t, T.h, 0, 0); return; }
+    if (Math.abs(T.l - cur.l) < 1 && Math.abs(T.r - cur.r) < 1) return;
+    cancelAnimationFrame(rafId);
+    const from = { l: cur.l, r: cur.r, t: cur.t, h: cur.h }, dir = T.l > from.l ? 1 : -1;
+    const dist = Math.abs(T.l - from.l), dur = clamp(420 + dist * 0.9, 480, 820), t0 = performance.now();
     try { if (window.Hap) Hap.tick(); } catch (e) {}
-    lastL = l; lastW = w;
+    function frame(now) {
+      const k = clamp((now - t0) / dur, 0, 1);
+      // ведущий край бежит быстрее, хвост подтягивается с задержкой: капля вытягивается и собирается
+      const kLead = eOut(k), kTrail = eIO(clamp((k - 0.10) / 0.90, 0, 1));
+      let l, r;
+      if (dir > 0) { r = lerp(from.r, T.r, kLead); l = lerp(from.l, T.l, kTrail); }
+      else { l = lerp(from.l, T.l, kLead); r = lerp(from.r, T.r, kTrail); }
+      const tt = lerp(from.t, T.t, k), hh = lerp(from.h, T.h, k);
+      const extra = (r - l) - lerp(from.r - from.l, T.r - T.l, k);       // насколько вытянута капля
+      const taper = clamp(extra / 14, 0, 9) * (k < 1 ? 1 : 0);
+      draw(l, r, tt, hh, taper, dir);
+      cur = { l: l, r: r, t: tt, h: hh };
+      if (k < 1) rafId = requestAnimationFrame(frame); else { cur = T; draw(T.l, T.r, T.t, T.h, 0, 0); }
+    }
+    rafId = requestAnimationFrame(frame);
   }
   function init() {
     const b = bar(); if (!b) return setTimeout(init, 300);
     place(false);
-    const mo = new MutationObserver(() => place(true));
-    mo.observe(b, { attributes: true, subtree: true, attributeFilter: ['class', 'style'] });
-    window.addEventListener('resize', () => { first = true; place(false); });
-    setInterval(() => { const a = b.querySelector('.tab-btn.active'); if (a && (a.offsetLeft !== lastL || a.offsetWidth !== lastW) && !(blob && blob.getAnimations().length)) place(false); }, 800);
+    new MutationObserver(() => place(true)).observe(b, { attributes: true, subtree: true, attributeFilter: ['class', 'style'], childList: false });
+    window.addEventListener('resize', () => { ready = false; place(false); });
+    setInterval(() => { const T = target(); if (T && !rafId && (Math.abs(T.l - cur.l) > 1 || Math.abs(T.r - cur.r) > 1)) place(false); }, 900);
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();
