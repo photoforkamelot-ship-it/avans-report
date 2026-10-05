@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta name="app-build" content="20261006-05">
+  <meta name="app-build" content="20261006-06">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -670,6 +670,30 @@ body.cap-on #docs_modal{padding-top:46px;}
     body.proc-on #cap_pill { z-index: 10049 !important; }
     @keyframes cappulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(90, 200, 250, 0.0); filter: brightness(1); } 50% { box-shadow: 0 0 22px 6px rgba(90, 200, 250, 0.55); filter: brightness(1.25); } }
     /* Тестовый режим: по центру сразу под вырезом, мигает */
+
+    /* ===== Стекло по всему приложению: фон-«обои», карточки, шапки, поля ===== */
+    html { background: #eef1f8; }
+    body {
+      background:
+        radial-gradient(60vmax 40vmax at 10% -5%, rgba(120, 180, 255, 0.55), transparent 60%),
+        radial-gradient(55vmax 38vmax at 105% 18%, rgba(255, 150, 210, 0.42), transparent 60%),
+        radial-gradient(60vmax 45vmax at 20% 105%, rgba(150, 255, 214, 0.40), transparent 60%),
+        #eef1f8 !important;
+      background-attachment: fixed !important;
+    }
+    .card, .ex-card, .jr-card, .tree-card, .prof-list, .prof-head {
+      background: rgba(255, 255, 255, 0.58) !important;
+      -webkit-backdrop-filter: blur(22px) saturate(180%); backdrop-filter: blur(22px) saturate(180%);
+      border: 1px solid rgba(255, 255, 255, 0.65) !important;
+      box-shadow: 0 6px 22px rgba(31, 41, 80, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.7) !important;
+    }
+    .field input, .field select, .field textarea { background: rgba(255, 255, 255, 0.62) !important; border-color: rgba(255, 255, 255, 0.8) !important; box-shadow: inset 0 1px 2px rgba(31, 41, 80, 0.06); }
+    .btn-secondary { background: rgba(120, 120, 128, 0.16); }
+    #ext_modal, #journal_modal { background: transparent !important; }
+    #ext_modal::before, #journal_modal::before { content: ''; position: absolute; inset: 0; z-index: -1; -webkit-backdrop-filter: blur(24px) saturate(160%); backdrop-filter: blur(24px) saturate(160%); background:
+        radial-gradient(60vmax 40vmax at 10% -5%, rgba(120, 180, 255, 0.55), transparent 60%),
+        radial-gradient(55vmax 38vmax at 105% 18%, rgba(255, 150, 210, 0.42), transparent 60%), rgba(238, 241, 248, 0.82); }
+    .ex-head, .jr-head { background: rgba(255, 255, 255, 0.55) !important; -webkit-backdrop-filter: blur(24px) saturate(180%); backdrop-filter: blur(24px) saturate(180%); border-bottom: 1px solid rgba(255, 255, 255, 0.7) !important; padding-top: calc(var(--tg-top, 0px) + 6px) !important; }
     #test_badge { top: calc(env(safe-area-inset-top, 44px) - 4px) !important; bottom: auto !important; left: 50% !important; transform: translateX(-50%); z-index: 10060 !important; animation: testblink 1.2s ease-in-out infinite; white-space: nowrap; font-size: 10.5px !important; padding: 3px 10px !important; }
     @keyframes testblink { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
     body.test-on #cap_pill { top: calc(var(--tg-top, 0px) + 34px); }
