@@ -5854,6 +5854,49 @@ body.cap-on #docs_modal{padding-top:46px;}
     document.getElementById('my_profile_modal').style.display = 'flex';
   };
   window.closeMyProfileModal = function () { document.getElementById('my_profile_modal').style.display = 'none'; };
+  // Картинка «было → стало» 1254×1254: сверху прежние значения, снизу новые
+  function makeChangeCollage(rows) {
+    const W = 1254, H = 1254, half = H / 2;
+    const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+    const c = cv.getContext('2d');
+    const rr = (x, y, w, h, r) => { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); };
+    const fit = (t, maxW, size, weight) => { let sz = size; c.font = weight + ' ' + sz + 'px -apple-system, Helvetica, Arial, sans-serif'; while (c.measureText(t).width > maxW && sz > 22) { sz -= 2; c.font = weight + ' ' + sz + 'px -apple-system, Helvetica, Arial, sans-serif'; } let s = t; while (c.measureText(s).width > maxW && s.length > 3) s = s.slice(0, -2); return s === t ? t : s + '…'; };
+    const part = (y0, bg, accent, title, key, strike) => {
+      c.fillStyle = bg; c.fillRect(0, y0, W, half);
+      c.fillStyle = accent; rr(48, y0 + 36, 200, 64, 32); c.fill();
+      c.fillStyle = '#fff'; c.font = '700 34px -apple-system, Helvetica, Arial, sans-serif'; c.textBaseline = 'middle'; c.textAlign = 'center'; c.fillText(title, 148, y0 + 69);
+      const n = Math.min(rows.length, 4), top = y0 + 128, avail = half - 128 - 36, gap = 16;
+      const h = Math.min(130, (avail - gap * (n - 1)) / n);
+      for (let i = 0; i < n; i++) {
+        const y = top + i * (h + gap);
+        c.fillStyle = '#fff'; rr(48, y, W - 96, h, 22); c.fill();
+        c.strokeStyle = accent; c.lineWidth = 3; rr(48, y, W - 96, h, 22); c.stroke();
+        c.textAlign = 'left'; c.fillStyle = '#64748b'; c.font = '600 26px -apple-system, Helvetica, Arial, sans-serif';
+        c.fillText(rows[i].label, 76, y + h * 0.30);
+        const val = String(rows[i][key] || '—');
+        c.fillStyle = strike ? '#94a3b8' : '#0f172a';
+        const t = fit(val, W - 96 - 56, 44, '700'); c.fillText(t, 76, y + h * 0.68);
+        if (strike && rows[i][key]) { const wd = c.measureText(t).width; c.strokeStyle = '#94a3b8'; c.lineWidth = 3; c.beginPath(); c.moveTo(76, y + h * 0.68); c.lineTo(76 + wd, y + h * 0.68); c.stroke(); }
+      }
+      if (rows.length > 4) { c.fillStyle = '#64748b'; c.font = '600 28px -apple-system, Helvetica, Arial, sans-serif'; c.textAlign = 'right'; c.fillText('и ещё изменений: ' + (rows.length - 4), W - 60, y0 + 70); }
+    };
+    part(0, '#eef0f4', '#ef4444', 'БЫЛО', 'from', true);
+    part(half, '#e8f7ee', '#22a559', 'СТАЛО', 'to', false);
+    c.fillStyle = '#0f172a'; c.beginPath(); c.arc(W / 2, half, 36, 0, Math.PI * 2); c.fill();
+    c.fillStyle = '#fff'; c.font = '700 40px -apple-system, Helvetica, Arial, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('↓', W / 2, half + 2);
+    return cv.toDataURL('image/png').split(',')[1];
+  }
+  function profileDiffRows(prof, cu) {
+    const dg = x => String(x || '').replace(/\D/g, '');
+    const rows = [];
+    const add = (label, from, to) => rows.push({ label: label, from: String(from || ''), to: String(to || '') });
+    if (prof.fio !== String(cu.fio || '')) add('ФИО', cu.fio, prof.fio);
+    if ((prof.tab || '') !== dg(cu.tab)) add('Табельный номер', cu.tab, prof.tab);
+    if (String(prof.role || '').trim() !== String(cu.role || '').trim()) add('Должность', cu.role, prof.role);
+    if (dg(prof.phone) && dg(prof.phone) !== dg(cu.phone)) add('Телефон', cu.phone, prof.phone);
+    if ((prof.bankInn || prof.bankBik || prof.bankAcc) && (dg(prof.bankInn) !== dg(cu.bankInn) || dg(prof.bankBik) !== dg(cu.bankBik) || dg(prof.bankAcc) !== dg(cu.bankAcc))) add('Банковские реквизиты', cu.bankAcc ? 'счёт ' + cu.bankAcc : '', 'счёт ' + prof.bankAcc);
+    return rows;
+  }
   window.saveMyProfile = function () {
     const v = id => document.getElementById(id).value.trim();
     const dg = x => String(x || '').replace(/\D/g, '');
@@ -5868,7 +5911,9 @@ body.cap-on #docs_modal{padding-top:46px;}
       if (prof.bankAcc.length !== 20) { showToast('Счёт: ровно 20 цифр'); return; }
     }
     const btn = document.getElementById('mp_save_btn'); btn.disabled = true; btn.textContent = 'Сохраняю…';
-    empApi({ action: 'update_my_profile', telegram_user: getTelegramUser(), profile: prof }, 'Данные сохранены', function () {
+    let collage = '';
+    try { const dr = profileDiffRows(prof, globalAppData.currentUser || {}); if (dr.length) collage = makeChangeCollage(dr); } catch (eCg) { console.error(eCg); }
+    empApi({ action: 'update_my_profile', telegram_user: getTelegramUser(), profile: prof, change_collage_b64: collage }, 'Данные сохранены', function () {
       const cu2 = globalAppData.currentUser; if (cu2) Object.assign(cu2, prof);
       closeMyProfileModal(); renderProfile();
     });
