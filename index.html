@@ -180,13 +180,22 @@
     .nav-bar.nav-static { position: static; margin: 0 0 10px 0; flex: none; padding: 0; background: none; border: 0; -webkit-backdrop-filter: none; backdrop-filter: none; }
 
     /* Полоса шагов */
-    .stepper { display: flex; gap: 6px; margin: 0 0 10px 0; }
-    .stepper button { flex: 1; border: none; background: none; padding: 0; text-align: left; cursor: pointer; font-family: inherit; -webkit-tap-highlight-color: transparent; }
-    .stepper .bar { height: 5px; border-radius: 3px; background: #d1d5db; margin-bottom: 4px; transition: background 0.2s; }
-    .stepper .lbl { font-size: 11px; font-weight: 600; color: #8e8e93; }
-    .stepper button.done .bar { background: #9cc9ff; }
-    .stepper button.cur .bar { background: var(--primary); }
+    .stepper { margin: 0 0 10px 0; }
+    .stepper .st-wrap { position: relative; height: 38px; margin: 0 8px; }
+    .stepper .st-track { position: absolute; left: 0; right: 0; top: 6px; height: 4px; border-radius: 2px; background: #d1d5db; }
+    .stepper .st-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; border-radius: 2px; background: var(--primary); transition: width .7s cubic-bezier(.22,.8,.3,1); }
+    .stepper button { position: absolute; top: 0; border: none; background: none; padding: 0; text-align: left; cursor: pointer; font-family: inherit; -webkit-tap-highlight-color: transparent; margin-left: -7px; }
+    .stepper .dot { display: block; width: 14px; height: 14px; border-radius: 50%; background: #fff; border: 2px solid #c7ccd4; box-sizing: border-box; transition: background .35s, border-color .35s, box-shadow .35s; }
+    .stepper .dot.fin { position: absolute; top: 1px; margin-left: -7px; font-size: 9px; line-height: 10px; color: #fff; text-align: center; }
+    .stepper .lbl { font-size: 11px; font-weight: 600; color: #8e8e93; margin-top: 5px; white-space: nowrap; }
+    .stepper button.on .dot, .stepper .dot.fin.on { background: var(--primary); border-color: var(--primary); }
+    .stepper button.on .lbl { color: #5b7fb0; }
+    .stepper button.cur .dot { box-shadow: 0 0 0 4px rgba(0,122,255,.22); animation: stPulse 2s ease-in-out infinite; }
     .stepper button.cur .lbl { color: var(--primary); }
+    .stepper .dot.fin.on { animation: stPop .5s ease; }
+    @keyframes stPulse { 0%,100% { box-shadow: 0 0 0 3px rgba(0,122,255,.22); } 50% { box-shadow: 0 0 0 6px rgba(0,122,255,.08); } }
+    @keyframes stPop { 0% { transform: scale(.4); } 60% { transform: scale(1.3); } 100% { transform: scale(1); } }
+    @media (prefers-reduced-motion: reduce) { .stepper .st-fill { transition: none; } .stepper button.cur .dot, .stepper .dot.fin.on { animation: none; } }
 
     /* Шаг 3: проверка расходов */
     .rv-sec { margin: 0 0 14px 0; }
@@ -565,7 +574,6 @@
     .nav-bar { padding-bottom: calc(10px + max(env(safe-area-inset-bottom, 0px), var(--tg-bottom, 0px))); background: rgba(242,242,247,0.72); -webkit-backdrop-filter: blur(22px) saturate(180%); backdrop-filter: blur(22px) saturate(180%); }
     /* Полоса шагов закреплена сверху под кнопкой «Закрыть» */
     .stepper { position: sticky; top: var(--tg-top, 0px); z-index: 35; margin: 0 -10px 10px; padding: 8px 10px 4px; background: rgba(242,242,247,0.72); -webkit-backdrop-filter: blur(18px) saturate(180%); backdrop-filter: blur(18px) saturate(180%); }
-    .stepper .bar { transition: background .35s ease; }
 
     /* Нижняя панель: равные кнопки, подпись под значком, бейдж черновиков */
     .header-bar { margin: 0; min-height: 0; }
@@ -631,10 +639,14 @@
     </div>
 
     <div class="stepper" id="stepper">
-      <button type="button" data-s="1" class="cur" onclick="stepperGo(1)"><div class="bar"></div><div class="lbl">1 Сведения</div></button>
-      <button type="button" data-s="2" onclick="stepperGo(2)"><div class="bar"></div><div class="lbl">2 Расходы</div></button>
-      <button type="button" data-s="3" onclick="stepperGo(3)"><div class="bar"></div><div class="lbl">3 Проверка</div></button>
-      <button type="button" data-s="4" onclick="stepperGo(4)"><div class="bar"></div><div class="lbl">4 Итог</div></button>
+      <div class="st-wrap">
+        <div class="st-track"><div class="st-fill" id="st_fill"></div></div>
+        <button type="button" data-s="1" class="cur on" style="left:0%" onclick="stepperGo(1)"><span class="dot"></span><div class="lbl">1 Сведения</div></button>
+        <button type="button" data-s="2" style="left:28%" onclick="stepperGo(2)"><span class="dot"></span><div class="lbl">2 Расходы</div></button>
+        <button type="button" data-s="3" style="left:56%" onclick="stepperGo(3)"><span class="dot"></span><div class="lbl">3 Проверка</div></button>
+        <button type="button" data-s="4" style="left:84%" onclick="stepperGo(4)"><span class="dot"></span><div class="lbl">4 Итог</div></button>
+        <span class="dot fin" id="st_fin" style="left:100%">✓</span>
+      </div>
     </div>
 
     <!-- ШАГ 1: ПАСПОРТ -->
@@ -3453,6 +3465,7 @@
     }
     if (a1) a1.style.opacity = stage === 'none' ? '1' : '0.45';
     if (a2) a2.style.opacity = stage === 'excel' ? '1' : '0.45';
+    updateStepper();
   }
   function markStep4ButtonsSaved(stage) { applyStep4Stage(stage || 'excel'); }
   function markStep4ButtonsUnsaved() { applyStep4Stage('none'); }
@@ -4716,13 +4729,43 @@
     updateActionsTab();
   }
 
+  // Полоса растёт по мере заполнения: точка достигается, когда шаг начат; линия идёт к следующей точке, но не доходит до неё,
+  // пока шаг не завершён (1 сведения → 2 расходы → 3 проверка/Excel → 4 итог/PDF)
+  function passportFillRatio() {
+    const ids = ['p_fio', 'p_role', 'p_city', 'p_date_range'];
+    let n = 0;
+    ids.forEach(id => { const el = document.getElementById(id); if (el && String(el.value || '').trim()) n++; });
+    return n / ids.length;
+  }
+  function stepperProgress(s) {
+    const POS = [0, 28, 56, 84, 100];
+    let p = 0, reached = 1, fin = false;
+    if (s <= 1) { p = POS[1] * (0.12 + 0.72 * passportFillRatio()); reached = 1; }
+    else if (s === 2) {
+      const n = (store.expenses || []).length;
+      const f = n === 0 ? 0.1 : Math.min(0.85, 0.3 + 0.15 * n);
+      p = POS[1] + (POS[2] - POS[1]) * f; reached = 2;
+    }
+    else if (s === 3) { p = POS[2] + (POS[3] - POS[2]) * 0.3; reached = 3; }
+    else {
+      if (step4Stage === 'done') { p = 100; reached = 4; fin = true; }
+      else if (step4Stage === 'excel') { p = POS[3] + (POS[4] - POS[3]) * 0.4; reached = 4; }
+      else { p = POS[2] + (POS[3] - POS[2]) * 0.7; reached = 3; }
+    }
+    return { p: p, reached: reached, fin: fin };
+  }
   function updateStepper(s) {
+    if (!s) s = curStepNum() || 1;
+    const st = stepperProgress(s);
     document.querySelectorAll('#stepper button').forEach(b => {
       const n = Number(b.getAttribute('data-s'));
       b.classList.toggle('cur', n === s);
-      b.classList.toggle('done', n < s);
+      b.classList.toggle('on', n <= st.reached);
     });
+    const f = document.getElementById('st_fill'); if (f) f.style.width = st.p + '%';
+    const fin = document.getElementById('st_fin'); if (fin) fin.classList.toggle('on', st.fin);
   }
+  document.addEventListener('input', function (e) { if (e.target && e.target.closest && e.target.closest('#step-1')) updateStepper(); });
   function stepperGo(n) {
     if (n > 1 && !validateFields(['p_fio', 'p_role', 'p_city', 'p_date_range'])) { showToast('Заполните обязательные поля'); goToStep(1); return; }
     goToStep(n);
@@ -4954,6 +4997,7 @@
   function renderExpenseList() {
     const box = document.getElementById('list_expenses');
     document.getElementById('lbl_count').innerText = store.expenses.length;
+    updateStepper();
     if (store.expenses.length === 0) { box.innerHTML = 'Пока ничего не добавлено.'; return; }
     box.innerHTML = store.expenses.map(e => `
       <div style="display:flex; justify-content:space-between; align-items:center; background:#fff; padding:8px; border-radius:8px; margin-bottom:5px; border:1px solid #e5e5ea;">
