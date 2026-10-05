@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta name="app-build" content="20261006-10">
+  <meta name="app-build" content="20261006-11">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -662,12 +662,12 @@ body.cap-on #docs_modal{padding-top:46px;}
     [id$="_modal"]:not(#docs_modal):not(#ext_modal):not(#journal_modal) .btn-secondary { background: rgba(120, 120, 128, 0.18) !important; color: #0f172a; }
     [id$="_modal"]:not(#docs_modal):not(#ext_modal):not(#journal_modal) .btn-primary { box-shadow: 0 4px 14px rgba(0, 122, 255, 0.35); }
     [id$="_modal"]:not(#docs_modal):not(#ext_modal):not(#journal_modal) input, [id$="_modal"]:not(#docs_modal):not(#ext_modal):not(#journal_modal) select, [id$="_modal"]:not(#docs_modal):not(#ext_modal):not(#journal_modal) textarea { background: rgba(255, 255, 255, 0.52); }
-    #proc_modal { background: rgba(18, 24, 38, 0.22) !important; -webkit-backdrop-filter: blur(9px) saturate(150%); backdrop-filter: blur(9px) saturate(150%); }
+    #proc_modal { background: rgba(18, 24, 38, 0.10) !important; -webkit-backdrop-filter: blur(2px) saturate(130%); backdrop-filter: blur(2px) saturate(130%); }
+    #proc_modal .pm-box { background: rgba(255, 255, 255, 0.40) !important; -webkit-backdrop-filter: blur(8px) saturate(170%) !important; backdrop-filter: blur(8px) saturate(170%) !important; }
     .pm-bar { background: rgba(120, 120, 128, 0.22) !important; }
     .pm-st .i { background: rgba(120, 120, 128, 0.22); }
     /* Капсула позади окна процесса: мигает на размытом фоне */
     #cap_pill.pulse { animation: cappulse 1.3s ease-in-out infinite; }
-    body.proc-on #cap_pill { z-index: 10049 !important; }
     @keyframes cappulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(90, 200, 250, 0.0); filter: brightness(1); } 50% { box-shadow: 0 0 22px 6px rgba(90, 200, 250, 0.55); filter: brightness(1.25); } }
     /* Жидкая «капля» под активной вкладкой: перетекает между кнопками */
     #top_tabs .tab-btn { position: relative; z-index: 1; }
@@ -703,9 +703,38 @@ body.cap-on #docs_modal{padding-top:46px;}
         radial-gradient(60vmax 40vmax at 10% -5%, rgba(120, 180, 255, 0.55), transparent 60%),
         radial-gradient(55vmax 38vmax at 105% 18%, rgba(255, 150, 210, 0.42), transparent 60%), rgba(238, 241, 248, 0.62); }
     .ex-head, .jr-head { background: rgba(255, 255, 255, 0.41) !important; -webkit-backdrop-filter: blur(12px) saturate(180%); backdrop-filter: blur(12px) saturate(180%); border-bottom: 1px solid rgba(255, 255, 255, 0.52) !important; padding-top: calc(var(--tg-top, 0px) - 8px) !important; }
-    #test_badge { top: calc(env(safe-area-inset-top, 44px) - 4px) !important; bottom: auto !important; left: 50% !important; transform: translateX(-50%); z-index: 10060 !important; animation: testblink 1.2s ease-in-out infinite; white-space: nowrap; font-size: 10.5px !important; padding: 3px 10px !important; }
-    @keyframes testblink { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
-    body.test-on #cap_pill { top: calc(var(--tg-top, 0px) + 34px); }
+  </style>
+  <style id="top-css">
+    /* ===== Верх: стекло под кнопками Telegram, капсула и плашка «ТЕСТ» по очереди ===== */
+    #top_glass { position: fixed; left: 0; right: 0; top: 0; height: calc(var(--tg-top, 0px) - 4px); z-index: 9000; pointer-events: none;
+      -webkit-backdrop-filter: blur(10px) saturate(160%); backdrop-filter: blur(10px) saturate(160%);
+      background: linear-gradient(rgba(238,241,248,.62), rgba(238,241,248,0));
+      -webkit-mask-image: linear-gradient(#000 62%, transparent); mask-image: linear-gradient(#000 62%, transparent); }
+    #cap_pill, #test_badge { position: fixed !important; left: 50% !important; top: calc(var(--tg-safe, env(safe-area-inset-top, 0px)) + 4px) !important; bottom: auto !important;
+      height: 34px; box-sizing: border-box; line-height: 34px; padding: 0 15px !important; border-radius: 17px !important; font-size: 14px !important; white-space: nowrap;
+      max-width: calc(100vw - 170px); z-index: 8500 !important; opacity: 0; animation: none !important; }
+    #cap_pill { display: flex; align-items: center; line-height: normal; transform: translate(-50%, -24px) scale(.92) !important; transition: transform .3s cubic-bezier(.2,.9,.3,1.2), opacity .5s, filter .5s !important; }
+    #cap_pill.on.t-top { opacity: 1; transform: translate(-50%, 0) !important; z-index: 20001 !important; filter: none; }
+    #cap_pill.on.t-back { opacity: .3; transform: translate(-50%, 0) !important; z-index: 8500 !important; filter: blur(1.5px); }
+    #cap_pill.on.pulse { animation: capalt 2.6s ease-in-out infinite !important; }
+    @keyframes capalt { 0%, 50% { opacity: 1; z-index: 20001; filter: none; } 52% { opacity: 1; z-index: 8500; } 78% { opacity: .3; z-index: 8500; filter: blur(1.5px); } 100% { opacity: 1; z-index: 20001; filter: none; } }
+    #test_badge { transform: translateX(-50%) !important; text-align: center; transition: opacity .5s, filter .5s; box-shadow: 0 6px 18px rgba(245,158,11,.4); }
+    #test_badge.tb-top { opacity: 1; z-index: 20001 !important; filter: none; }
+    #test_badge.tb-back { opacity: .3; z-index: 8500 !important; filter: blur(1.5px); }
+    /* Клавиатура: нижние панели прячутся под неё, «Сохранить» остаётся над ней */
+    body.kb .top-tabs, body.kb .nav-bar { display: none !important; }
+    body.kb #exp_save_row { bottom: 6px !important; }
+    /* Плавная смена шага: уходящий и входящий шаги едут вместе */
+    #tab-form { position: relative; overflow-x: clip; }
+    @keyframes slFwd { from { opacity: 0; transform: translateX(56px); } to { opacity: 1; transform: none; } }
+    @keyframes slBack { from { opacity: 0; transform: translateX(-56px); } to { opacity: 1; transform: none; } }
+    .step-content.sl-fwd { animation: slFwd .42s cubic-bezier(.22,.8,.3,1); }
+    .step-content.sl-back { animation: slBack .42s cubic-bezier(.22,.8,.3,1); }
+    @keyframes slOutF { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateX(-56px) scale(.97); } }
+    @keyframes slOutB { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateX(56px) scale(.97); } }
+    .step-content.sl-out { display: block !important; position: absolute; left: 0; right: 0; top: 0; pointer-events: none; z-index: 0; }
+    .step-content.sl-out.f { animation: slOutF .36s cubic-bezier(.4,0,.6,1) forwards; }
+    .step-content.sl-out.b { animation: slOutB .36s cubic-bezier(.4,0,.6,1) forwards; }
   </style>
 </head>
 <body>
@@ -1054,6 +1083,7 @@ body.cap-on #docs_modal{padding-top:46px;}
         <button type="button" class="prof-row" onclick="openSignatureModal()"><span class="pr-i">✍️</span><span class="pr-t"><b>Подпись</b><small id="prof_sig_hint">Подпись для печатных форм</small></span><span class="pr-c">›</span></button>
         <button type="button" class="prof-row" onclick="openNotificationSettingsModal()"><span class="pr-i">🔔</span><span class="pr-t"><b>Уведомления Telegram</b><small>Какие сообщения присылает бот</small></span><span class="pr-badge" id="prof_notif_badge"></span><span class="pr-c">›</span></button>
         <button type="button" class="prof-row" onclick="Hap.toggle()"><span class="pr-i">📳</span><span class="pr-t"><b>Вибрация</b><small>Тактильный отклик при действиях: <span id="prof_hap_state">включена</span> · версия <span id="app_build_lbl">…</span></small></span><span class="pr-c">›</span></button>
+        <button type="button" class="prof-row" onclick="SwipeCfg.toggle()"><span class="pr-i">👆</span><span class="pr-t"><b>Свайп между шагами</b><small>Листать шаги отчёта движением пальца: <span id="prof_swipe_state">включено</span></small></span><span id="prof_swipe_sw" style="width:46px;height:28px;border-radius:14px;background:#34c759;position:relative;flex:none;transition:background .2s"><i id="prof_swipe_knob" style="position:absolute;right:3px;top:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 2px 5px rgba(0,0,0,.25)"></i></span></button>
         <button type="button" class="prof-row" id="prof_row_audit" style="display:none;" onclick="openAudit()"><span class="pr-i">🧹</span><span class="pr-t"><b>Ревизия и чистка Диска</b><small>Найти и удалить документы, не относящиеся к существующим командировкам</small></span><span class="pr-c">›</span></button>
         <button type="button" class="prof-row" id="prof_row_emp" style="display:none;" onclick="switchMainTab('employees')"><span class="pr-i">👥</span><span class="pr-t"><b>База сотрудников</b><small>Данные, права и подписи команды</small></span><span class="pr-c">›</span></button>
         <button type="button" class="prof-row" onclick="openHelp()"><span class="pr-i">❓</span><span class="pr-t"><b>Инструкция</b><small>Как работать с приложением</small></span><span class="pr-c">›</span></button>
@@ -1547,6 +1577,7 @@ body.cap-on #docs_modal{padding-top:46px;}
   </div>
 </div>
 <div id="cap_pill"></div>
+<div id="top_glass"></div>
 <div id="test_badge">🧪 ТЕСТОВЫЙ РЕЖИМ</div>
 <div id="proc_modal"><div class="pm-box"><h3 id="pm_title"></h3><div class="pm-sub" id="pm_sub">Не закрывайте приложение</div><div id="pm_steps"></div><div class="pm-bar"><i id="pm_bar" style="width:0%"></i></div><div class="pm-note" id="pm_note"></div><button type="button" id="pm_close" class="btn btn-secondary" style="display:none; width:100%; margin-top:10px;" onclick="Proc.close()">Закрыть</button></div></div>
 <div id="toast"></div>
@@ -2351,7 +2382,7 @@ body.cap-on #docs_modal{padding-top:46px;}
   }
   function closeHelp() { document.getElementById('help_modal').style.display = 'none'; }
   const INSTR_FILES = { employee: ['instruction_employee.pdf', 'Памятка сотрудника'], admin: ['instruction_admin.pdf', 'Памятка администратора'] };
-  function instrUrl(kind) { return new URL(INSTR_FILES[kind][0], window.location.href).href; }
+  function instrUrl(kind) { return new URL(INSTR_FILES[kind][0], window.location.href).href.split('?')[0] + '?v=' + (window.__APP_BUILD || '1'); }
   function openInstruction(kind) {
     const url = instrUrl(kind);
     logEvent('help_pdf_open', kind);
@@ -2663,6 +2694,7 @@ body.cap-on #docs_modal{padding-top:46px;}
     document.addEventListener('touchstart', function (e) {
       ok = false;
       if (e.touches.length !== 1) return;
+      if (window.SwipeCfg && !SwipeCfg.on()) return;
       const t = e.target;
       // Свайп работает только на «ручках»: полоса шагов вверху, нижняя панель кнопок и выехавшая панель действий.
       // По самому содержимому (поля, таблицы, списки) свайп не срабатывает — чтобы не переключать шаг случайно.
@@ -4883,7 +4915,9 @@ body.cap-on #docs_modal{padding-top:46px;}
 
     const prevStep = curStepNum();
     if (prevStep && prevStep !== s) { try { Hap.tick(); } catch (eH) {} }
-    document.querySelectorAll('.step-content').forEach(el => { el.classList.remove('active'); el.classList.remove('sl-fwd'); el.classList.remove('sl-back'); });
+    const prevEl = document.querySelector('.step-content.active');
+    document.querySelectorAll('.step-content').forEach(el => { el.classList.remove('active'); el.classList.remove('sl-fwd'); el.classList.remove('sl-back'); el.classList.remove('sl-out', 'f', 'b'); });
+    if (prevEl && prevStep && prevStep !== s) { prevEl.classList.add('sl-out', s > prevStep ? 'f' : 'b'); setTimeout(() => prevEl.classList.remove('sl-out', 'f', 'b'), 380); }
     const target = document.getElementById('step-' + s);
     if (target) {
       target.classList.add('active');
@@ -5476,7 +5510,7 @@ body.cap-on #docs_modal{padding-top:46px;}
     svg = document.createElementNS(NS, 'svg'); svg.id = 'tab_blob';
     svg.innerHTML = '<defs>' +
       '<linearGradient id="tbFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0.98"/><stop offset="1" stop-color="#eef4ff" stop-opacity="0.80"/></linearGradient>' +
-      '<linearGradient id="tbRim" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="1"/><stop offset="0.5" stop-color="#cfe4ff" stop-opacity="0.55"/><stop offset="1" stop-color="#fff" stop-opacity="0.95"/></linearGradient>' +
+      '<linearGradient id="tbRim" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0.9"/><stop offset="1" stop-color="#fff" stop-opacity="0.5"/></linearGradient>' +
       '<radialGradient id="tbGlow"><stop offset="0" stop-color="#bfe0ff" stop-opacity="0.95"/><stop offset="1" stop-color="#bfe0ff" stop-opacity="0"/></radialGradient></defs>' +
       '<path id="tbBody" fill="url(#tbFill)" stroke="url(#tbRim)" stroke-width="1.4"/><ellipse id="tbGlowEl" fill="url(#tbGlow)" opacity="0"/>';
     b.insertBefore(svg, b.firstChild);
@@ -5500,11 +5534,22 @@ body.cap-on #docs_modal{padding-top:46px;}
       ' Q' + l + ',' + (y0 + tl) + ' ' + (l + rl) + ',' + (y0 + tl) + 'Z';
     body.setAttribute('d', d);
     // свечение на ведущей кромке
-    if (taper > 0.4) {
+    if (false) {
       const gx = lead > 0 ? r - 6 : l + 6;
       glow.setAttribute('cx', gx); glow.setAttribute('cy', t + h / 2); glow.setAttribute('rx', 16 + taper); glow.setAttribute('ry', h / 2 + 2);
       glow.setAttribute('opacity', String(clamp(taper / 6, 0, 0.9)));
     } else glow.setAttribute('opacity', '0');
+  }
+  // колыхание после остановки: ширина и высота дышат в противофазе, быстро затухая
+  function jelly(T) {
+    const t0 = performance.now();
+    function f(now) {
+      const tw = now - t0, a = Math.exp(-tw / 150) * Math.sin(tw / 48);
+      if (tw > 620 || Math.abs(a) < 0.015) { draw(T.l, T.r, T.t, T.h, 0, 0); rafId = 0; return; }
+      draw(T.l - a * 3, T.r + a * 3, T.t + a * 2, T.h - a * 4, 0, 0);
+      rafId = requestAnimationFrame(f);
+    }
+    rafId = requestAnimationFrame(f);
   }
   function target() {
     const b = bar(), a = b && b.querySelector('.tab-btn.active');
@@ -5532,10 +5577,11 @@ body.cap-on #docs_modal{padding-top:46px;}
       else { l = lerp(from.l, T.l, kLead); r = lerp(from.r, T.r, kTrail); }
       const tt = lerp(from.t, T.t, k), hh = lerp(from.h, T.h, k);
       const extra = (r - l) - lerp(from.r - from.l, T.r - T.l, k);       // насколько вытянута капля
-      const taper = clamp(extra / 14, 0, 9) * (k < 1 ? 1 : 0);
-      draw(l, r, tt, hh, taper, dir);
+      const taper = clamp(extra / 30, 0, 3) * (k < 1 ? 1 : 0);
+      const wb = Math.sin(k * Math.PI) * Math.sin(k * 14) * 0.5;
+      draw(l - wb, r + wb, tt + wb * 0.7, hh - wb * 1.4, taper, dir);
       cur = { l: l, r: r, t: tt, h: hh };
-      if (k < 1) rafId = requestAnimationFrame(frame); else { cur = T; draw(T.l, T.r, T.t, T.h, 0, 0); }
+      if (k < 1) rafId = requestAnimationFrame(frame); else { cur = T; jelly(T); }
     }
     rafId = requestAnimationFrame(frame);
   }
@@ -5561,6 +5607,32 @@ body.cap-on #docs_modal{padding-top:46px;}
   setTimeout(() => { const l = document.getElementById('app_build_lbl'); if (l) l.innerText = window.__APP_BUILD || ''; }, 500);
 })();
 </script>
+<script id="top-js">
+(function () {
+  // клавиатура
+  const isTxt = (el) => !!(el && el.matches && el.matches('input:not([type=checkbox]):not([type=radio]):not([type=button]):not([type=file]):not([type=submit]):not([type=range]), textarea') && !el.readOnly);
+  function kb() { const vv = window.visualViewport; const small = vv && (window.innerHeight - vv.height > 150); document.body.classList.toggle('kb', !!(isTxt(document.activeElement) || small)); }
+  document.addEventListener('focusin', () => setTimeout(kb, 30));
+  document.addEventListener('focusout', () => setTimeout(kb, 150));
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', kb);
+  // плашка «ТЕСТ» мигает по очереди с капсулой: капсула приоритетнее
+  function tick() {
+    const b = document.getElementById('test_badge'), c = document.getElementById('cap_pill');
+    if (!b || getComputedStyle(b).display === 'none') return;
+    if (c && c.classList.contains('on')) { b.classList.remove('tb-top', 'tb-back'); return; }
+    b.classList.remove('tb-back'); b.classList.add('tb-top');
+    setTimeout(() => { if (!b.classList.contains('tb-top')) return; b.classList.remove('tb-top'); b.classList.add('tb-back'); setTimeout(() => b.classList.remove('tb-back'), 800); }, 1400);
+  }
+  setInterval(tick, 3800); setTimeout(tick, 1200);
+  // свайп между шагами: включается в Профиле
+  window.SwipeCfg = {
+    on() { try { return localStorage.getItem('swipe_off') !== '1'; } catch (e) { return true; } },
+    paint() { const t = document.getElementById('prof_swipe_state'), k = document.getElementById('prof_swipe_knob'), sw = document.getElementById('prof_swipe_sw'); const v = this.on(); if (t) { t.innerText = v ? 'включено' : 'выключено'; } if (sw) sw.style.background = v ? '#34c759' : '#c7c7cc'; if (k) { k.style.right = v ? '3px' : 'auto'; k.style.left = v ? 'auto' : '3px'; } },
+    toggle() { const v = !this.on(); try { localStorage.setItem('swipe_off', v ? '0' : '1'); } catch (e) {} this.paint(); try { Hap.tap(); } catch (e) {} showToast('Свайп между шагами ' + (v ? 'включён' : 'выключен')); }
+  };
+  setTimeout(() => SwipeCfg.paint(), 400);
+})();
+</script>
 <script id="proc-js">
 /* Вибрация, капсула-статус сверху и окно хода долгих процессов */
 (function () {
@@ -5582,7 +5654,8 @@ body.cap-on #docs_modal{padding-top:46px;}
   let capTimer = null;
   function paint(html) {
     const el = document.getElementById('cap_pill'); if (!el) return;
-    el.classList.remove('pulse'); el.innerHTML = html; el.classList.add('on'); document.body.classList.add('cap-on');
+    el.classList.remove('pulse', 't-back'); el.innerHTML = html; el.classList.add('on', 't-top'); document.body.classList.add('cap-on');
+    const tbd = document.getElementById('test_badge'); if (tbd) tbd.classList.remove('tb-top', 'tb-back');
   }
   const esc = (t) => String(t == null ? '' : t).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
   window.Cap = {
@@ -5590,9 +5663,9 @@ body.cap-on #docs_modal{padding-top:46px;}
       clearTimeout(capTimer);
       paint('<div class="sp"></div><span class="tx">' + esc(text) + '</span>' + (frac != null ? '<div class="bar"><i style="width:' + Math.round(frac * 100) + '%"></i></div>' : ''));
     },
-    done(text, ms) { clearTimeout(capTimer); paint('<span class="ic" style="color:#34c759">✓</span><span class="tx">' + esc(text) + '</span>'); Hap.ok(); capTimer = setTimeout(() => Cap.hide(), ms || 2200); },
-    err(text, ms) { clearTimeout(capTimer); paint('<span class="ic" style="color:#ff453a">!</span><span class="tx">' + esc(text) + '</span>'); Hap.err(); capTimer = setTimeout(() => Cap.hide(), ms || 3800); },
-    hide() { clearTimeout(capTimer); const el = document.getElementById('cap_pill'); if (el) { el.classList.remove('on'); el.classList.remove('pulse'); } document.body.classList.remove('cap-on'); }
+    done(text, ms) { clearTimeout(capTimer); paint('<span class="ic" style="color:#34c759">✓</span><span class="tx">' + esc(text) + '</span>'); Hap.ok(); const m = ms || 2200; capTimer = setTimeout(() => { const e = document.getElementById('cap_pill'); if (e) { e.classList.remove('t-top'); e.classList.add('t-back'); } capTimer = setTimeout(() => Cap.hide(), 700); }, Math.max(600, m - 700)); },
+    err(text, ms) { clearTimeout(capTimer); paint('<span class="ic" style="color:#ff453a">!</span><span class="tx">' + esc(text) + '</span>'); Hap.err(); const m = ms || 3800; capTimer = setTimeout(() => { const e = document.getElementById('cap_pill'); if (e) { e.classList.remove('t-top'); e.classList.add('t-back'); } capTimer = setTimeout(() => Cap.hide(), 700); }, Math.max(600, m - 700)); },
+    hide() { clearTimeout(capTimer); const el = document.getElementById('cap_pill'); if (el) { el.classList.remove('on', 'pulse', 't-top', 't-back'); } document.body.classList.remove('cap-on'); }
   };
 
   // ----- Окно хода процесса -----
@@ -6098,6 +6171,7 @@ body.cap-on #docs_modal{padding-top:46px;}
       const s = (tgw && tgw.safeAreaInset) || {}, c = (tgw && tgw.contentSafeAreaInset) || {};
       root.style.setProperty('--tg-top', ((s.top || 0) + (c.top || 0)) + 'px');
       root.style.setProperty('--tg-bottom', (s.bottom || 0) + 'px');
+      if (s.top) root.style.setProperty('--tg-safe', s.top + 'px');
     } catch (e) {}
   }
   if (tgw) {
