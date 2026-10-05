@@ -3,6 +3,24 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="app-build" content="20261006-02">
+  <script>
+  /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
+  (function () {
+    try {
+      var cur = document.querySelector('meta[name="app-build"]').content;
+      window.__APP_BUILD = cur;
+      fetch(location.pathname + '?_chk=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.text(); }).then(function (t) {
+        var m = /name="app-build" content="([^"]+)"/.exec(t);
+        if (!m || m[1] === cur) return;
+        var k = 'app_reload_' + m[1];
+        if (sessionStorage.getItem(k)) return;
+        sessionStorage.setItem(k, '1');
+        location.replace(location.pathname + '?v=' + m[1] + location.hash);
+      }).catch(function () {});
+    } catch (e) {}
+  })();
+  </script>
   <title>Управление командировками и авансовыми отчетами</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -177,6 +195,7 @@
     .nav-bar .btn { height: 50px; font-size: 15px; font-weight: 700; border-radius: 14px; }
     .nav-bar .nav-back { flex: 1; }
     .nav-bar .nav-next { flex: 2; }
+    #exp_save_row { position: sticky; bottom: calc(var(--nav-h, 76px) + 6px); z-index: 25; background: #f2f2f7; padding: 8px 0 4px; box-shadow: 0 -8px 10px -6px #f2f2f7; }
     .nav-bar.nav-static { position: static; margin: 0 0 10px 0; flex: none; padding: 0; background: none; border: 0; -webkit-backdrop-filter: none; backdrop-filter: none; }
 
     /* Полоса шагов */
@@ -796,7 +815,7 @@ body.cap-on #docs_modal{padding-top:46px;}
             <div class="field"><label>Наименование расхода <span class="req-star">*</span></label><input type="text" id="e_misc_name" placeholder="Хозтовары"></div>
           </div>
 
-          <div style="display:flex; gap:6px; margin-top:8px;">
+          <div id="exp_save_row" style="display:flex; gap:6px; margin-top:8px;">
             <button type="button" class="btn btn-primary" onclick="saveExpense()">Сохранить</button>
             <button type="button" class="btn btn-secondary" onclick="closeExpense()">Отмена</button>
           </div>
@@ -971,7 +990,7 @@ body.cap-on #docs_modal{padding-top:46px;}
         <button type="button" class="prof-row" onclick="openMyProfileModal()"><span class="pr-i">🪪</span><span class="pr-t"><b>Мои данные</b><small>ФИО, должность, табельный номер, телефон, банковские реквизиты</small></span><span class="pr-c">›</span></button>
         <button type="button" class="prof-row" onclick="openSignatureModal()"><span class="pr-i">✍️</span><span class="pr-t"><b>Подпись</b><small id="prof_sig_hint">Подпись для печатных форм</small></span><span class="pr-c">›</span></button>
         <button type="button" class="prof-row" onclick="openNotificationSettingsModal()"><span class="pr-i">🔔</span><span class="pr-t"><b>Уведомления Telegram</b><small>Какие сообщения присылает бот</small></span><span class="pr-badge" id="prof_notif_badge"></span><span class="pr-c">›</span></button>
-        <button type="button" class="prof-row" onclick="Hap.toggle()"><span class="pr-i">📳</span><span class="pr-t"><b>Вибрация</b><small>Тактильный отклик при действиях: <span id="prof_hap_state">включена</span></small></span><span class="pr-c">›</span></button>
+        <button type="button" class="prof-row" onclick="Hap.toggle()"><span class="pr-i">📳</span><span class="pr-t"><b>Вибрация</b><small>Тактильный отклик при действиях: <span id="prof_hap_state">включена</span> · версия <span id="app_build_lbl">…</span></small></span><span class="pr-c">›</span></button>
         <button type="button" class="prof-row" id="prof_row_audit" style="display:none;" onclick="openAudit()"><span class="pr-i">🧹</span><span class="pr-t"><b>Ревизия и чистка Диска</b><small>Найти и удалить документы, не относящиеся к существующим командировкам</small></span><span class="pr-c">›</span></button>
         <button type="button" class="prof-row" id="prof_row_emp" style="display:none;" onclick="switchMainTab('employees')"><span class="pr-i">👥</span><span class="pr-t"><b>База сотрудников</b><small>Данные, права и подписи команды</small></span><span class="pr-c">›</span></button>
         <button type="button" class="prof-row" onclick="openHelp()"><span class="pr-i">❓</span><span class="pr-t"><b>Инструкция</b><small>Как работать с приложением</small></span><span class="pr-c">›</span></button>
@@ -2587,7 +2606,10 @@ body.cap-on #docs_modal{padding-top:46px;}
       const tf = document.getElementById('tab-form');
       const inDrawer = t.closest && t.closest('#act_drawer');
       const inHandle = t.closest && t.closest('.stepper, .nav-bar, #act_tab');
-      if (!inDrawer && (!inHandle || !tf || tf.style.display === 'none' || !tf.contains(t))) return;
+      const inContent = !!(tf && tf.style.display !== 'none' && tf.contains(t));
+      const addOpen = (function () { const a = document.getElementById('add-box'); return a && a.style.display !== 'none'; })();
+      const hScroll = (function () { let n = t; while (n && n !== document.body) { if (n.scrollWidth > n.clientWidth + 4 && /(auto|scroll)/.test(getComputedStyle(n).overflowX)) return true; n = n.parentElement; } return false; })();
+      if (!inDrawer && !(inHandle && inContent) && !(inContent && !addOpen && !hScroll && !(t.closest && t.closest('details, [contenteditable], .no-swipe')))) return;
       if (t.closest && t.closest('input, select, textarea, canvas, .flatpickr-calendar')) return;
       if (e.touches[0].clientX < 24 || anyModalOpen()) return;
       sx = e.touches[0].clientX; sy = e.touches[0].clientY; st = Date.now(); ok = true;
@@ -2595,7 +2617,7 @@ body.cap-on #docs_modal{padding-top:46px;}
     document.addEventListener('touchend', function (e) {
       if (!ok) return; ok = false;
       const c = e.changedTouches[0], dx = c.clientX - sx, dy = c.clientY - sy;
-      if (Math.abs(dx) < 80 || Math.abs(dx) < Math.abs(dy) * 2 || Date.now() - st > 700) return;
+      if (Math.abs(dx) < 90 || Math.abs(dx) < Math.abs(dy) * 2.2 || Date.now() - st > 700) return;
       swipeStep(dx < 0 ? 'next' : 'prev');
     }, { passive: true });
   })();
@@ -4795,6 +4817,7 @@ body.cap-on #docs_modal{padding-top:46px;}
     }
 
     const prevStep = curStepNum();
+    if (prevStep && prevStep !== s) { try { Hap.tick(); } catch (eH) {} }
     document.querySelectorAll('.step-content').forEach(el => { el.classList.remove('active'); el.classList.remove('sl-fwd'); el.classList.remove('sl-back'); });
     const target = document.getElementById('step-' + s);
     if (target) {
@@ -5075,7 +5098,7 @@ body.cap-on #docs_modal{padding-top:46px;}
     triggerCloudAutoSave();
     renderExpenseList();
     if (rcUse) markReceiptUsed(rcUse);
-    showToast("Позиция сохранена!");
+    Cap.done('Позиция сохранена', 1600);
   }
 
   function renderExpenseList() {
@@ -5371,6 +5394,17 @@ body.cap-on #docs_modal{padding-top:46px;}
       document.querySelector('#tbl_taxi tbody').innerHTML = store.taxis.map(t => `<tr><td>${t.date}</td><td>${t.route}</td><td>${t.purpose}</td><td class="text-right">${Number(t.sum).toLocaleString('ru-RU', {minimumFractionDigits:2})}</td></tr>`).join('');
     } else cardTaxi.style.display = 'none';
   }
+</script>
+<script id="ux-js">
+(function () {
+  function setNavH() { try { const n = document.querySelector('.step-content.active .nav-bar') || document.querySelector('.nav-bar'); if (n) document.documentElement.style.setProperty('--nav-h', n.offsetHeight + 'px'); } catch (e) {} }
+  setInterval(setNavH, 600); window.addEventListener('resize', setNavH); setTimeout(setNavH, 300);
+  // при открытии формы расхода и смене категории подводим кнопку «Сохранить» в видимую зону
+  function showSave() { const r = document.getElementById('exp_save_row'); if (r && r.offsetParent) { const b = r.getBoundingClientRect(), lim = window.innerHeight - (parseInt(getComputedStyle(document.documentElement).getPropertyValue('--nav-h')) || 76) - 8; if (b.bottom > lim) window.scrollBy({ top: b.bottom - lim + 8, behavior: 'smooth' }); } }
+  document.addEventListener('focusin', (e) => { if (e.target.closest && e.target.closest('#add-box')) setTimeout(showSave, 350); });
+  const ab = document.getElementById('add-box'); if (ab) new MutationObserver(() => setTimeout(showSave, 200)).observe(ab, { attributes: true, subtree: true, attributeFilter: ['style', 'class'] });
+  setTimeout(() => { const l = document.getElementById('app_build_lbl'); if (l) l.innerText = window.__APP_BUILD || ''; }, 500);
+})();
 </script>
 <script id="proc-js">
 /* Вибрация, капсула-статус сверху и окно хода долгих процессов */
@@ -5740,11 +5774,61 @@ body.cap-on #docs_modal{padding-top:46px;}
   function fileToB64(file) {
     return new Promise((resolve, reject) => { const r = new FileReader(); r.onload = () => resolve(String(r.result).split(',')[1]); r.onerror = () => reject(new Error('Не удалось прочитать файл')); r.readAsDataURL(file); });
   }
+  // ---------- Сопоставление загруженного документа с уже введёнными расходами ----------
+  const normNo = (v) => String(v == null ? '' : v).replace(/[^0-9a-zа-яё]/gi, '').toLowerCase();
+  const expLabel = (e) => (e.name || 'Расход') + ' · ' + Number(e.sum).toLocaleString('ru-RU') + ' ₽ · ' + (e.date || '');
+  function askChoice(title, items) {
+    return new Promise(resolve => {
+      let done = false, t = null;
+      const fin = (v) => { if (done) return; done = true; clearInterval(t); resolve(v); };
+      openSheet(title, items.map(it => ({ text: it.text, danger: it.danger, cls: it.cls, fn: () => fin(it.v) })));
+      t = setInterval(() => { if (document.getElementById('sheet_modal').style.display === 'none') setTimeout(() => fin('new'), 0); }, 300);
+    });
+  }
+  function attachReceiptToExpense(item, e) {
+    e.rcId = item.id; e.docs = item.files || 1;
+    markReceiptUsed(item.id);
+    storeTouched = true; triggerCloudAutoSave(); renderExpenseList();
+    Cap.done('Документ прикреплён к расходу'); Hap.ok();
+  }
+  async function matchUploaded(item) {
+    const sum = Number(item.sum) || 0;
+    if (!(sum > 0) || !item.date) return false;
+    const no = normNo(item.no), ts = parseDateToTimestamp(item.date);
+    const exact = [], prob = []; let dup = null;
+    (store.expenses || []).forEach(e => {
+      if (Math.abs((Number(e.sum) || 0) - sum) > 0.005 || parseDateToTimestamp(e.date) !== ts) return;
+      const eno = normNo(e.no), known = !!(no && eno);
+      if (e.rcId) { if (known && no === eno && !dup) dup = e; return; }
+      if (known && no !== eno) return;
+      (known ? exact : prob).push(e);
+    });
+    if (exact.length === 1) { attachReceiptToExpense(item, exact[0]); return true; }
+    const cands = exact.concat(prob).slice(0, 5);
+    if (cands.length) {
+      Cap.hide();
+      const v = await askChoice('В отчёте уже есть расход на такую же сумму и дату. Прикрепить документ к нему или создать новый расход?',
+        cands.map((e, i) => ({ text: '📎 Прикрепить к: ' + expLabel(e), cls: i ? 'btn-secondary' : 'btn-primary', v: i })).concat([{ text: '➕ Создать новый расход', v: 'new' }]));
+      if (typeof v === 'number') { attachReceiptToExpense(item, cands[v]); return true; }
+      return false;
+    }
+    if (dup) {
+      Cap.hide();
+      const v = await askChoice('Такой документ уже есть в отчёте: ' + expLabel(dup) + '. Совпали сумма, дата и номер. Добавить ещё один?',
+        [{ text: '🗑 Не добавлять', danger: true, v: 'drop' }, { text: '➕ Всё равно добавить', v: 'new' }]);
+      if (v === 'drop') {
+        try { await fetch(GOOGLE_SHEET_API, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'receipt_dismiss', telegram_user: getTelegramUser(), id: item.id, for_tg_id: receiptSubjectTgId() }) }); } catch (e) {}
+        botReceipts = botReceipts.filter(x => x.id !== item.id); renderBotReceipts();
+        Cap.done('Дубль не добавлен'); return true;
+      }
+    }
+    return false;
+  }
   window.uploadDocsFromApp = async function (input) {
     const files = Array.from((input && input.files) || []); if (input) input.value = '';
     if (!files.length) return;
     const tid = (document.getElementById('p_trip_id').value || (store.passport && store.passport.tripId) || '').trim();
-    let ok = 0, bad = 0, last = null;
+    let ok = 0, bad = 0, last = null, handled = 0;
     for (let i = 0; i < files.length; i++) {
       const f = files[i];
       Cap.show('Распознаю документ ' + (i + 1) + ' из ' + files.length, i / files.length);
@@ -5756,13 +5840,14 @@ body.cap-on #docs_modal{padding-top:46px;}
         const res = await api({ action: 'receipt_upload', name: f.name, mime: isPdf ? 'application/pdf' : 'image/jpeg', b64: b64, trip_id: tid });
         botReceipts = botReceipts.filter(x => x.id !== res.item.id); botReceipts.unshift(res.item);
         last = res; ok++;
+        try { if (await matchUploaded(res.item)) { handled++; } } catch (eM) { console.error(eM); }
       } catch (e) { bad++; console.error(e); Cap.err('Не принят «' + f.name + '»: ' + (e.message || e), 5000); await new Promise(r => setTimeout(r, 1800)); }
     }
     renderBotReceipts();
     if (!ok) Cap.hide();
     if (ok) {
       Cap.done(ok === 1 && last && last.recognized ? 'Распознано, проверьте данные' : (bad ? 'Добавлено документов: ' + ok + ', ошибок: ' + bad : 'Добавлено документов: ' + ok));
-      if (ok === 1 && files.length === 1) useBotReceipt(last.item.id);
+      if (ok === 1 && files.length === 1 && !handled) useBotReceipt(last.item.id);
     }
   };
 
