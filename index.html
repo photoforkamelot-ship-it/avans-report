@@ -544,6 +544,28 @@
     .busy-notice-line { font-size: 14px; line-height: 1.4; margin-bottom: 8px; color: #1c1c1e; }
     .busy-notice-hint { font-size: 12px; color: #6c6c70; margin-top: 4px; }
 
+
+/* Капсула-статус и окно хода процесса */
+#cap_pill{position:fixed; left:50%; top:calc(var(--tg-top, 0px) + 10px); transform:translate(-50%,-140%); opacity:0; transition:transform .28s cubic-bezier(.2,.9,.3,1.2), opacity .2s; z-index:10060; background:#000; color:#fff; border-radius:22px; padding:8px 16px; display:flex; align-items:center; gap:9px; font-size:13px; font-weight:600; box-shadow:0 6px 18px rgba(0,0,0,.3); max-width:92vw; pointer-events:none;}
+#cap_pill.on{transform:translate(-50%,0); opacity:1;}
+#cap_pill .sp,.pm-sp{width:14px; height:14px; border:2.5px solid #5ac8fa; border-top-color:transparent; border-radius:50%; animation:capspin .8s linear infinite; flex:none;}
+@keyframes capspin{to{transform:rotate(360deg)}}
+#cap_pill .ic{font-size:15px; font-weight:800; flex:none;}
+#cap_pill .bar{height:4px; width:56px; background:#333; border-radius:2px; overflow:hidden; flex:none;} #cap_pill .bar i{display:block; height:100%; background:#5ac8fa; transition:width .25s;}
+#cap_pill .tx{overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+body.cap-on #docs_modal{padding-top:46px;}
+#proc_modal{display:none; position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:10050; align-items:center; justify-content:center; padding:16px;}
+#proc_modal .pm-box{background:#fff; border-radius:18px; padding:18px; width:100%; max-width:380px; box-shadow:0 14px 40px rgba(0,0,0,.35);}
+#proc_modal h3{margin:0 0 4px; font-size:16px; text-align:center; color:#0f172a;}
+#proc_modal .pm-sub{font-size:11.5px; color:#64748b; text-align:center; margin-bottom:12px;}
+.pm-st{display:flex; align-items:center; gap:10px; padding:6px 0; font-size:13px; color:#94a3b8;}
+.pm-st .i{width:20px; height:20px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; background:#e2e8f0; flex:none; color:#fff;}
+.pm-st.done{color:#0f172a;} .pm-st.done .i{background:#34c759;}
+.pm-st.now{color:#0f172a; font-weight:700;} .pm-st.now .i{background:none;}
+.pm-st.err{color:#b91c1c; font-weight:700;} .pm-st.err .i{background:#ef4444;}
+.pm-st small{margin-left:auto; font-weight:600; color:#64748b; font-size:11.5px; text-align:right;}
+.pm-bar{height:6px; background:#e2e8f0; border-radius:3px; margin:12px 0 6px; overflow:hidden;} .pm-bar i{display:block; height:100%; background:#007aff; border-radius:3px; transition:width .35s;}
+.pm-note{font-size:11px; color:#b45309; text-align:center; margin-top:6px; min-height:14px;}
     #toast {
       position: fixed; bottom: 96px; left: 50%; transform: translateX(-50%);
       background: rgba(0,0,0,0.85); color: white; padding: 8px 16px; border-radius: 18px;
@@ -942,6 +964,7 @@
         <button type="button" class="prof-row" onclick="openMyProfileModal()"><span class="pr-i">🪪</span><span class="pr-t"><b>Мои данные</b><small>ФИО, должность, табельный номер, телефон, банковские реквизиты</small></span><span class="pr-c">›</span></button>
         <button type="button" class="prof-row" onclick="openSignatureModal()"><span class="pr-i">✍️</span><span class="pr-t"><b>Подпись</b><small id="prof_sig_hint">Подпись для печатных форм</small></span><span class="pr-c">›</span></button>
         <button type="button" class="prof-row" onclick="openNotificationSettingsModal()"><span class="pr-i">🔔</span><span class="pr-t"><b>Уведомления Telegram</b><small>Какие сообщения присылает бот</small></span><span class="pr-badge" id="prof_notif_badge"></span><span class="pr-c">›</span></button>
+        <button type="button" class="prof-row" onclick="Hap.toggle()"><span class="pr-i">📳</span><span class="pr-t"><b>Вибрация</b><small>Тактильный отклик при действиях: <span id="prof_hap_state">включена</span></small></span><span class="pr-c">›</span></button>
         <button type="button" class="prof-row" id="prof_row_emp" style="display:none;" onclick="switchMainTab('employees')"><span class="pr-i">👥</span><span class="pr-t"><b>База сотрудников</b><small>Данные, права и подписи команды</small></span><span class="pr-c">›</span></button>
         <button type="button" class="prof-row" onclick="openHelp()"><span class="pr-i">❓</span><span class="pr-t"><b>Инструкция</b><small>Как работать с приложением</small></span><span class="pr-c">›</span></button>
       </div>
@@ -1426,6 +1449,8 @@
     <button type="button" class="btn btn-secondary" style="height:48px; font-size:15px; width:100%; margin-top:6px;" onclick="closeMissingData()">Понятно, напомните позже</button>
   </div>
 </div>
+<div id="cap_pill"></div>
+<div id="proc_modal"><div class="pm-box"><h3 id="pm_title"></h3><div class="pm-sub" id="pm_sub">Не закрывайте приложение</div><div id="pm_steps"></div><div class="pm-bar"><i id="pm_bar" style="width:0%"></i></div><div class="pm-note" id="pm_note"></div><button type="button" id="pm_close" class="btn btn-secondary" style="display:none; width:100%; margin-top:10px;" onclick="Proc.close()">Закрыть</button></div></div>
 <div id="toast"></div>
 <div id="busy_notice" onclick="hideBusyNotice()"></div>
 
@@ -3513,9 +3538,7 @@
     btn.disabled = true;
     btn.innerText = "⏳ Формирование Excel...";
 
-    document.getElementById('loader_modal_title').innerText = "Пожалуйста, подождите";
-    document.getElementById('loader_modal_desc').innerText = "Идёт формирование и выгрузка Excel-таблицы авансового отчёта...";
-    document.getElementById('report_loader_modal').style.display = 'flex';
+    Proc.open('Формирую Excel-отчёт', ['Рассчитываю итоги', 'Заполняю таблицу Excel', 'Загружаю на Диск', 'Готовлю скачивание'], { holdAt: 2, perStep: 5000 });
 
     clearTimeout(autoSaveTimeout); autoSaveTimeout = null; // чтобы отложенный черновик не обогнал сдачу отчёта
     savePassport();
@@ -3538,7 +3561,8 @@
     })
     .then(r => r.json())
     .then(res => {
-      document.getElementById('report_loader_modal').style.display = 'none';
+      Proc.go(3);
+      Proc.finish('Excel готов');
       markStep4ButtonsSaved();
       captureEditBaseline(); // отчёт сдан: дальнейшие правки считаются от этого состояния
 
@@ -3555,7 +3579,7 @@
       loadAppData();
     })
     .catch(() => {
-      document.getElementById('report_loader_modal').style.display = 'none';
+      Proc.finish('Отчёт сохранён');
       markStep4ButtonsSaved();
       showToast("Отчёт сохранён! Теперь доступно сохранение в PDF");
       loadAppData();
@@ -3570,11 +3594,11 @@
     btn.disabled = true;
     btn.innerText = "⏳ Очистка строк и сборка PDF...";
 
-    const loaderTitle = "Подготовка печатной формы";
-    const loaderDesc = "Удаление пустых строк, условного форматирования и сборка многостраничного PDF...";
-    document.getElementById('loader_modal_title').innerText = loaderTitle;
-    document.getElementById('loader_modal_desc').innerText = loaderDesc;
-    document.getElementById('report_loader_modal').style.display = 'flex';
+    const hasDocsToMerge = !!(window.expensesWithDocs && window.expensesWithDocs().length);
+    window.__pdfSteps = hasDocsToMerge
+      ? ['Рассчитываю итоги', 'Формирую Excel', 'Печатная форма PDF', 'Склеиваю документы', 'Загружаю итоговый PDF', 'Отправляю в Telegram']
+      : ['Рассчитываю итоги', 'Формирую Excel', 'Печатная форма PDF', 'Загружаю итоговый PDF', 'Отправляю в Telegram'];
+    Proc.open('Формирую итоговый отчёт', window.__pdfSteps, { holdAt: 2, perStep: 9000 });
 
     clearTimeout(autoSaveTimeout); autoSaveTimeout = null;
     savePassport();
@@ -3602,13 +3626,13 @@
 
     const stopWaiting = () => {
       clearInterval(tickTimer); clearInterval(pollTimer); clearTimeout(guardTimer);
-      document.getElementById('report_loader_modal').style.display = 'none';
-      document.getElementById('loader_modal_desc').innerText = loaderDesc;
+      Proc.close();
       setTimeout(() => { btn.disabled = false; btn.innerText = "📄 Сохранить в PDF"; }, 1500);
     };
 
     const completeOk = (pdfUrl, mergeInfo) => {
       stopWaiting();
+      if (mergeInfo && (mergeInfo.error)) Cap.err('PDF готов, документы не склеены'); else Cap.done(mergeInfo && mergeInfo.merged ? 'Пакет документов готов' : 'Итоговый PDF готов');
       captureEditBaseline('done');
       if (pdfUrl) {
         const a = document.createElement("a");
@@ -3630,22 +3654,19 @@
       // Если к расходам приложены документы, склеиваем всё в один PDF: печатная форма → адресный лист → документы
       if (pdfUrl && window.expensesWithDocs && window.expensesWithDocs().length) {
         clearInterval(tickTimer); clearInterval(pollTimer); clearTimeout(guardTimer);
-        document.getElementById('loader_modal_title').innerText = 'Собираю пакет документов';
-        const setMsg = (t) => { document.getElementById('loader_modal_desc').innerText = t; };
-        setMsg('Подготовка…');
+        Proc.go(3, 'подготовка…');
+        const setMsg = (t) => { const m = /(\d+)/.exec(String(t)); Proc.extra(3, m ? 'документ ' + m[1] : String(t).slice(0, 24)); };
         window.mergeDocsIntoPdf(pdfUrl, tripIdForPdf, setMsg)
-          .then(r => completeOk((r && r.url) || pdfUrl, r && r.url ? r : { error: true }))
+          .then(r => { Proc.go(4); completeOk((r && r.url) || pdfUrl, r && r.url ? r : { error: true }); })
           .catch(e => { console.error(e); completeOk(pdfUrl, { error: true }); });
         return;
       }
+      Proc.go(window.__pdfSteps.length - 2);
       completeOk(pdfUrl);
     };
 
     // Счётчик секунд в окне: показывает, что процесс идёт, и не даёт окну «замереть»
-    tickTimer = setInterval(() => {
-      const sec = Math.round((Date.now() - startedAt) / 1000);
-      document.getElementById('loader_modal_desc').innerText = loaderDesc + " (" + sec + " с)";
-    }, 1000);
+    tickTimer = setInterval(() => {}, 60000);
 
     // Страховочный опрос реестра
     pollTimer = setInterval(() => {
@@ -3666,6 +3687,7 @@
       if (finished) return;
       finished = true;
       stopWaiting();
+      Cap.err('Идёт дольше обычного, ссылка придёт в Telegram', 5000);
       showToast("Формирование идёт дольше обычного. Ссылка на PDF придёт в Telegram");
       loadAppData();
     }, 240000);
@@ -4061,9 +4083,7 @@
 
     if (targetTripId) teamArr.forEach(m => m.tripId = targetTripId);
 
-    document.getElementById('loader_modal_title').innerText = "Формирование заявки";
-    document.getElementById('loader_modal_desc').innerText = "Пожалуйста, подождите. Идёт формирование файлов на Google Диске и уведомлений...";
-    document.getElementById('report_loader_modal').style.display = 'flex';
+    Proc.open('Формирую заявку на ДС', ['Сохраняю данные заявки', 'Формирую Excel', 'Загружаю на Диск', 'Уведомляю руководство'], { holdAt: 2, perStep: 4500 });
 
     const payload = {
       action: "save_advance_request",
@@ -4078,8 +4098,8 @@
     })
     .then(r => r.json())
     .then(res => {
-      document.getElementById('report_loader_modal').style.display = 'none';
-      if (res && res.status === 'error') { showToast(res.message || 'Заявка не создана'); return; }
+      if (res && res.status === 'error') { Proc.fail(res.message || 'Заявка не создана'); return; }
+      Proc.finish('Заявка сформирована');
 
       lastCreatedReq = { city, dStart, dEnd, team: teamArr.map(m => m.fio) };
       const fm = (n) => Number(n || 0).toLocaleString('ru-RU') + ' ₽';
@@ -4104,7 +4124,7 @@
       loadAppData();
     })
     .catch(() => {
-      document.getElementById('report_loader_modal').style.display = 'none';
+      Proc.finish('Заявки переданы на сервер');
       showToast("Заявки переданы на сервер");
       setTimeout(loadAppData, 1500);
     });
@@ -5333,6 +5353,102 @@
     } else cardTaxi.style.display = 'none';
   }
 </script>
+<script id="proc-js">
+/* Вибрация, капсула-статус сверху и окно хода долгих процессов */
+(function () {
+  function hapOn() { try { return localStorage.getItem('hap_off') !== '1'; } catch (e) { return true; } }
+  const HF = () => (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.HapticFeedback) || null;
+  window.Hap = {
+    on: hapOn,
+    set(v) { try { localStorage.setItem('hap_off', v ? '0' : '1'); } catch (e) {} const b = document.getElementById('prof_hap_state'); if (b) b.innerText = v ? 'включена' : 'выключена'; },
+    toggle() { const v = !hapOn(); this.set(v); if (v) this.tap(); showToast('Вибрация ' + (v ? 'включена' : 'выключена')); },
+    tap() { try { if (hapOn() && HF()) HF().impactOccurred('light'); } catch (e) {} },
+    tick() { try { if (hapOn() && HF()) HF().selectionChanged(); } catch (e) {} },
+    ok() { try { if (hapOn() && HF()) HF().notificationOccurred('success'); } catch (e) {} },
+    warn() { try { if (hapOn() && HF()) HF().notificationOccurred('warning'); } catch (e) {} },
+    err() { try { if (hapOn() && HF()) HF().notificationOccurred('error'); } catch (e) {} }
+  };
+  setTimeout(() => { const b = document.getElementById('prof_hap_state'); if (b) b.innerText = hapOn() ? 'включена' : 'выключена'; }, 0);
+
+  // ----- Капсула -----
+  let capTimer = null;
+  function paint(html) {
+    const el = document.getElementById('cap_pill'); if (!el) return;
+    el.innerHTML = html; el.classList.add('on'); document.body.classList.add('cap-on');
+  }
+  const esc = (t) => String(t == null ? '' : t).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+  window.Cap = {
+    show(text, frac) {
+      clearTimeout(capTimer);
+      paint('<div class="sp"></div><span class="tx">' + esc(text) + '</span>' + (frac != null ? '<div class="bar"><i style="width:' + Math.round(frac * 100) + '%"></i></div>' : ''));
+    },
+    done(text, ms) { clearTimeout(capTimer); paint('<span class="ic" style="color:#34c759">✓</span><span class="tx">' + esc(text) + '</span>'); Hap.ok(); capTimer = setTimeout(() => Cap.hide(), ms || 2200); },
+    err(text, ms) { clearTimeout(capTimer); paint('<span class="ic" style="color:#ff453a">!</span><span class="tx">' + esc(text) + '</span>'); Hap.err(); capTimer = setTimeout(() => Cap.hide(), ms || 3800); },
+    hide() { clearTimeout(capTimer); const el = document.getElementById('cap_pill'); if (el) el.classList.remove('on'); document.body.classList.remove('cap-on'); }
+  };
+
+  // ----- Окно хода процесса -----
+  // Proc.open(заголовок, [шаги], { holdAt: номер шага, на котором ждём ответ сервера, perStep: мс на шаг })
+  let st = null;
+  function render() {
+    if (!st) return;
+    document.getElementById('pm_steps').innerHTML = st.steps.map((t, i) => {
+      const c = st.err === i ? 'err' : (i < st.cur ? 'done' : (i === st.cur ? 'now' : ''));
+      const ic = c === 'done' ? '✓' : (c === 'err' ? '!' : (c === 'now' ? '<div class="pm-sp"></div>' : ''));
+      const ex = st.extra[i] ? '<small>' + esc(st.extra[i]) + '</small>' : '';
+      return '<div class="pm-st ' + c + '"><div class="i">' + ic + '</div><span>' + esc(t) + '</span>' + ex + '</div>';
+    }).join('');
+    const frac = st.fin ? 1 : Math.min(0.97, (st.cur + (st.frac || 0)) / st.steps.length);
+    document.getElementById('pm_bar').style.width = Math.round(frac * 100) + '%';
+  }
+  window.Proc = {
+    open(title, steps, o) {
+      this.stopTimers();
+      o = o || {};
+      st = { steps: steps.slice(), cur: 0, extra: {}, err: -1, hold: o.holdAt != null ? o.holdAt : steps.length - 1, per: o.perStep || 4500, t0: Date.now(), fin: false, frac: 0 };
+      document.getElementById('pm_title').innerText = title;
+      document.getElementById('pm_sub').innerText = 'Не закрывайте приложение';
+      document.getElementById('pm_note').innerText = '';
+      document.getElementById('pm_close').style.display = 'none';
+      document.getElementById('proc_modal').style.display = 'flex';
+      Hap.tap(); render();
+      st.autoT = setInterval(() => {
+        if (!st || st.fin || st.err >= 0) return;
+        if (st.manual) return;
+        if (st.cur < st.hold && Date.now() - st.stepT >= st.per) { st.cur++; st.stepT = Date.now(); Hap.tick(); render(); }
+      }, 700);
+      st.stepT = Date.now();
+      st.slowT = setTimeout(() => { if (st && !st.fin && st.err < 0) { document.getElementById('pm_note').innerText = 'Это занимает дольше обычного — не закрывайте приложение'; Hap.warn(); } }, 25000);
+    },
+    // перейти к шагу i вручную (после этого автопереход выключается), extra — пометка справа
+    go(i, extra, frac) {
+      if (!st) return;
+      st.manual = true;
+      if (i > st.cur) Hap.tick();
+      st.cur = Math.max(st.cur, i); if (extra != null) st.extra[i] = extra; st.frac = frac || 0; render();
+    },
+    extra(i, t, frac) { if (!st) return; st.extra[i] = t; st.frac = frac || 0; render(); },
+    stopTimers() { if (st) { clearInterval(st.autoT); clearTimeout(st.slowT); } },
+    finish(msg) {
+      if (!st) { Cap.done(msg || 'Готово'); return; }
+      this.stopTimers(); st.cur = st.steps.length; st.fin = true; render();
+      setTimeout(() => { document.getElementById('proc_modal').style.display = 'none'; st = null; Cap.done(msg || 'Готово'); }, 450);
+    },
+    fail(msg) {
+      if (!st) { Cap.err(msg || 'Ошибка'); return; }
+      this.stopTimers(); st.err = Math.min(st.cur, st.steps.length - 1); st.extra[st.err] = msg || 'ошибка'; render();
+      document.getElementById('pm_sub').innerText = 'Данные сохранены, можно повторить';
+      document.getElementById('pm_close').style.display = 'block'; Hap.err();
+    },
+    close() { this.stopTimers(); st = null; document.getElementById('proc_modal').style.display = 'none'; },
+    // тихое закрытие без капсулы (например, когда дальше показывается своё окно результата)
+    hide() { this.close(); },
+    active() { return !!st; }
+  };
+  // лёгкий отклик на кнопки
+  document.addEventListener('click', (e) => { const b = e.target.closest && e.target.closest('button, .tab-btn, .prof-row'); if (b) Hap.tap(); }, true);
+})();
+</script>
 <script id="docs-js">
 /* Документы к расходам: просмотр в окне, загрузка из приложения, склейка итогового PDF */
 (function () {
@@ -5508,15 +5624,15 @@
     const tid = (document.getElementById('p_trip_id').value || (store.passport && store.passport.tripId) || '').trim();
     let ok = 0;
     for (let i = 0; i < files.length; i++) {
-      showToast('Загружаю документ ' + (i + 1) + ' из ' + files.length + '…');
+      Cap.show('Загружаю документ ' + (i + 1) + ' из ' + files.length, i / files.length);
       try {
         const pl = await filePayload(files[i]);
         const res = await api({ action: 'receipt_attach', rc_id: e.rcId || '', mime: pl.mime, b64: pl.b64, name: files[i].name, trip_id: tid });
         if (typeof res.docs !== 'number') throw new Error('сервер ещё не обновлён: в Apps Script нужно создать «Новую версию» развёртывания');
         e.rcId = res.rcId; e.docs = res.docs; ok++;
-      } catch (err) { console.error(err); showToast('Не принят «' + files[i].name + '»: ' + (err.message || err)); await new Promise(r => setTimeout(r, 1400)); }
+      } catch (err) { console.error(err); Cap.err('Не принят «' + files[i].name + '»: ' + (err.message || err), 5000); await new Promise(r => setTimeout(r, 1800)); }
     }
-    if (ok) { storeTouched = true; triggerCloudAutoSave(); renderExpenseList(); showToast('Документов у расхода: ' + e.docs); }
+    if (ok) { storeTouched = true; triggerCloudAutoSave(); renderExpenseList(); Cap.done('Документов у расхода: ' + e.docs); } else { Cap.hide(); }
   };
   window.removeDocFromGroup = function (rid) {
     window.openSheet('Удалить этот документ из расхода?', [{ text: '🗑 Удалить', danger: true, fn: () => doRemoveDoc(rid) }]);
@@ -5526,14 +5642,15 @@
     const body = document.getElementById('docs_body');
     body.innerHTML = '<div style="color:#cbd5e1; text-align:center; padding:40px 10px;">⏳ Удаляю документ…</div>';
     window.__docsViewToken = (window.__docsViewToken || 0) + 1;
+    Cap.show('Удаляю документ…');
     try {
       const res = await api({ action: 'receipt_remove', id: oldRoot, rid: rid });
       if (typeof res.docs !== 'number') throw new Error('сервер ещё не обновлён: в Apps Script нужно создать «Новую версию» развёртывания');
       store.expenses.forEach(x => { if (x.rcId === oldRoot) { x.rcId = res.newRoot || ''; x.docs = res.docs; } });
       storeTouched = true; triggerCloudAutoSave(); renderExpenseList();
-      if (res.docs > 0 && res.newRoot) { showToast('Документ удалён'); openDocsViewer(res.newRoot); }
-      else { closeDocsViewer(); showToast('Документ удалён, документов не осталось'); }
-    } catch (e) { showToast('Не удалось удалить: ' + (e.message || e)); openDocsViewer(oldRoot); }
+      if (res.docs > 0 && res.newRoot) { Cap.done('Документ удалён'); openDocsViewer(res.newRoot); }
+      else { closeDocsViewer(); Cap.done('Документ удалён, вложений не осталось'); }
+    } catch (e) { Cap.err('Не удалось удалить: ' + (e.message || e), 5000); openDocsViewer(oldRoot); }
   }
 
   // ---------- Загрузка из приложения ----------
@@ -5561,7 +5678,7 @@
     let ok = 0, bad = 0, last = null;
     for (let i = 0; i < files.length; i++) {
       const f = files[i];
-      showToast('Распознаю документ ' + (i + 1) + ' из ' + files.length + '…');
+      Cap.show('Распознаю документ ' + (i + 1) + ' из ' + files.length, i / files.length);
       try {
         const isPdf = f.type === 'application/pdf' || /\.pdf$/i.test(f.name);
         if (!isPdf && !/^image\//.test(f.type)) throw new Error('Формат не поддерживается');
@@ -5570,11 +5687,12 @@
         const res = await api({ action: 'receipt_upload', name: f.name, mime: isPdf ? 'application/pdf' : 'image/jpeg', b64: b64, trip_id: tid });
         botReceipts = botReceipts.filter(x => x.id !== res.item.id); botReceipts.unshift(res.item);
         last = res; ok++;
-      } catch (e) { bad++; console.error(e); showToast('Не принят «' + f.name + '»: ' + (e.message || e)); await new Promise(r => setTimeout(r, 1400)); }
+      } catch (e) { bad++; console.error(e); Cap.err('Не принят «' + f.name + '»: ' + (e.message || e), 5000); await new Promise(r => setTimeout(r, 1800)); }
     }
     renderBotReceipts();
+    if (!ok) Cap.hide();
     if (ok) {
-      showToast(ok === 1 && last && last.recognized ? 'Распознано, проверьте данные' : (bad ? 'Добавлено документов: ' + ok + ', ошибок: ' + bad : 'Добавлено документов: ' + ok));
+      Cap.done(ok === 1 && last && last.recognized ? 'Распознано, проверьте данные' : (bad ? 'Добавлено документов: ' + ok + ', ошибок: ' + bad : 'Добавлено документов: ' + ok));
       if (ok === 1 && files.length === 1) useBotReceipt(last.item.id);
     }
   };
