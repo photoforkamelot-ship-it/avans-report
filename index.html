@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta name="app-build" content="20261006-08">
+  <meta name="app-build" content="20261006-09">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -669,6 +669,13 @@ body.cap-on #docs_modal{padding-top:46px;}
     #cap_pill.pulse { animation: cappulse 1.3s ease-in-out infinite; }
     body.proc-on #cap_pill { z-index: 10049 !important; }
     @keyframes cappulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(90, 200, 250, 0.0); filter: brightness(1); } 50% { box-shadow: 0 0 22px 6px rgba(90, 200, 250, 0.55); filter: brightness(1.25); } }
+    /* Жидкая «капля» под активной вкладкой: перетекает между кнопками */
+    #top_tabs .tab-btn { position: relative; z-index: 1; }
+    #top_tabs .tab-btn.active { background: transparent !important; box-shadow: none !important; }
+    #tab_blob { position: absolute; z-index: 0; top: 0; left: 0; height: 48px; border-radius: 22px; pointer-events: none; opacity: 0;
+      background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(255,255,255,0.78));
+      box-shadow: 0 4px 14px rgba(31,41,80,0.16), inset 0 1px 0 rgba(255,255,255,0.9), 0 0 0 1px rgba(255,255,255,0.6);
+      will-change: transform, width; }
     /* Нижний бар: неактивные значки серые однотонные, активный закрашивается цветом */
     .top-tabs .tab-btn .te { filter: grayscale(1) brightness(0.62) contrast(1.05); opacity: 0.7; transition: filter .25s ease, opacity .25s ease, transform .25s ease; }
     .top-tabs .tab-btn .dl { color: #7a8194; transition: color .25s ease; }
@@ -5455,6 +5462,55 @@ body.cap-on #docs_modal{padding-top:46px;}
       document.querySelector('#tbl_taxi tbody').innerHTML = store.taxis.map(t => `<tr><td>${t.date}</td><td>${t.route}</td><td>${t.purpose}</td><td class="text-right">${Number(t.sum).toLocaleString('ru-RU', {minimumFractionDigits:2})}</td></tr>`).join('');
     } else cardTaxi.style.display = 'none';
   }
+</script>
+<script id="blob-js">
+(function () {
+  const bar = () => document.getElementById('top_tabs');
+  let blob = null, first = true, lastL = 0, lastW = 0;
+  function ensure() {
+    const b = bar(); if (!b) return null;
+    if (!blob || blob.parentNode !== b) { blob = document.createElement('div'); blob.id = 'tab_blob'; b.insertBefore(blob, b.firstChild); first = true; }
+    return blob;
+  }
+  function place(animate) {
+    const b = bar(), bl = ensure(); if (!b || !bl) return;
+    const a = b.querySelector('.tab-btn.active');
+    if (!a || a.offsetWidth === 0) { bl.style.opacity = '0'; return; }
+    const l = a.offsetLeft, w = a.offsetWidth, t = a.offsetTop, h = a.offsetHeight;
+    bl.style.top = t + 'px'; bl.style.height = h + 'px'; bl.style.left = '0px';
+    bl.style.opacity = '1';
+    if (first || !animate) { bl.style.width = w + 'px'; bl.style.transform = 'translateX(' + l + 'px)'; first = false; lastL = l; lastW = w; return; }
+    if (l === lastL && w === lastW) return;
+    const dist = Math.abs(l - lastL), dir = l > lastL ? 1 : -1;
+    // капля растягивается в сторону движения, затем «собирается» на новом месте
+    const stretch = Math.min(1.9, 1 + dist / 260);
+    const fromL = lastL, fromW = lastW;
+    const origin = dir > 0 ? 'left center' : 'right center';
+    bl.style.transformOrigin = origin;
+    const x0 = fromL, x1 = l;
+    const midW = Math.max(fromW, w) * stretch + dist * 0.55;
+    const midX = dir > 0 ? x0 : x1 - (midW - w);
+    bl.animate([
+      { transform: 'translateX(' + x0 + 'px)', width: fromW + 'px', borderRadius: '22px' },
+      { transform: 'translateX(' + (dir > 0 ? x0 : midX) + 'px)', width: midW + 'px', borderRadius: '24px', offset: 0.45 },
+      { transform: 'translateX(' + x1 + 'px)', width: w + 'px', borderRadius: '22px' }
+    ], { duration: 520, easing: 'cubic-bezier(.3,1.25,.45,1)', fill: 'forwards' }).onfinish = () => {
+      bl.style.width = w + 'px'; bl.style.transform = 'translateX(' + x1 + 'px)';
+      try { bl.getAnimations().forEach(an => an.cancel()); } catch (e) {}
+    };
+    try { if (window.Hap) Hap.tick(); } catch (e) {}
+    lastL = l; lastW = w;
+  }
+  function init() {
+    const b = bar(); if (!b) return setTimeout(init, 300);
+    place(false);
+    const mo = new MutationObserver(() => place(true));
+    mo.observe(b, { attributes: true, subtree: true, attributeFilter: ['class', 'style'] });
+    window.addEventListener('resize', () => { first = true; place(false); });
+    setInterval(() => { const a = b.querySelector('.tab-btn.active'); if (a && (a.offsetLeft !== lastL || a.offsetWidth !== lastW) && !(blob && blob.getAnimations().length)) place(false); }, 800);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+})();
 </script>
 <script id="ux-js">
 (function () {
