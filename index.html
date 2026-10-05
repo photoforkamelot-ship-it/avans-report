@@ -713,7 +713,7 @@
         </div>
 
         <div style="margin-bottom:10px;">
-          <button type="button" class="btn btn-secondary" style="width:100%;" onclick="document.getElementById('doc_file_input').click()">📎 Загрузить чек или документ (PDF, фото)</button>
+          <button type="button" class="btn btn-secondary" style="width:100%;" onclick="openAddSheet('upload')">📎 Загрузить чек или документ (PDF, фото)</button>
           <input type="file" id="doc_file_input" accept="application/pdf,image/*" multiple style="display:none" onchange="uploadDocsFromApp(this)">
         </div>
         <div id="bot_receipts_box" style="display:none; margin-bottom:10px;"></div>
@@ -1293,6 +1293,17 @@
       <button type="button" class="btn btn-primary" onclick="saveBankDetailsModal()">Сохранить реквизиты</button>
       <button type="button" class="btn btn-secondary" onclick="closeBankDetailsModal()">Отмена</button>
     </div>
+  </div>
+</div>
+
+<!-- ВЫБОР СПОСОБА ДОБАВЛЕНИЯ / ПОДТВЕРЖДЕНИЯ -->
+<input type="file" id="doc_in_camera" accept="image/*" capture="environment" style="display:none" onchange="docInputChanged(this)">
+<input type="file" id="doc_in_photo" accept="image/*" multiple style="display:none" onchange="docInputChanged(this)">
+<input type="file" id="doc_in_file" accept="application/pdf,.pdf" multiple style="display:none" onchange="docInputChanged(this)">
+<div id="sheet_modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.45); z-index:10003; align-items:flex-end; justify-content:center;" onclick="closeSheet()">
+  <div style="background:#fff; width:100%; max-width:540px; border-radius:16px 16px 0 0; padding:14px 14px calc(14px + var(--tg-bottom, 0px));" onclick="event.stopPropagation()">
+    <div id="sheet_title" style="font-weight:800; font-size:15px; margin-bottom:10px;"></div>
+    <div id="sheet_btns"></div>
   </div>
 </div>
 
@@ -5366,7 +5377,9 @@
 
   async function api(payload) {
     const r = await fetch(GOOGLE_SHEET_API, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(Object.assign({ telegram_user: getTelegramUser(), for_tg_id: receiptSubjectTgId() }, payload)) });
-    const j = await r.json();
+    const txt = await r.text();
+    let j = null;
+    try { j = JSON.parse(txt); } catch (eJ) { throw new Error('сервер ответил не так, как ждали' + (txt ? ': ' + String(txt).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 140) : ' (пустой ответ)')); }
     if (!j || j.status !== 'ok') throw new Error((j && j.message) || 'Ошибка сервера');
     return j;
   }
@@ -5376,6 +5389,29 @@
   const isPng = (u) => u.length > 8 && u[0] === 0x89 && u[1] === 0x50 && u[2] === 0x4e && u[3] === 0x47;
   const isJpg = (u) => u.length > 3 && u[0] === 0xff && u[1] === 0xd8;
   window.__docsTest = { b64ToBytes, bytesToB64 };
+
+  // ---------- Нижнее окно с вариантами (как при удалении) ----------
+  window.openSheet = function (title, items) {
+    document.getElementById('sheet_title').innerText = title;
+    const box = document.getElementById('sheet_btns'); box.innerHTML = '';
+    items.concat([{ text: 'Отмена', cls: 'btn-secondary' }]).forEach(it => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'btn ' + (it.cls || 'btn-secondary'); b.style.cssText = 'width:100%; margin-bottom:8px;' + (it.danger ? 'background:#fee2e2; color:#b91c1c;' : '');
+      b.innerText = it.text; b.onclick = () => { closeSheet(); if (it.fn) it.fn(); }; box.appendChild(b);
+    });
+    document.getElementById('sheet_modal').style.display = 'flex';
+  };
+  window.closeSheet = function () { document.getElementById('sheet_modal').style.display = 'none'; };
+  window.openAddSheet = function (mode) {
+    window.__addMode = mode;
+    window.openSheet('Добавить документ', [
+      { text: '📷 Сфотографировать', cls: 'btn-primary', fn: () => document.getElementById('doc_in_camera').click() },
+      { text: '🖼 Выбрать фото из галереи', fn: () => document.getElementById('doc_in_photo').click() },
+      { text: '📄 Выбрать файл PDF', fn: () => document.getElementById('doc_in_file').click() }
+    ]);
+  };
+  window.docInputChanged = function (input) {
+    if (window.__addMode === 'attach') window.attachDocsToExpense(input); else window.uploadDocsFromApp(input);
+  };
 
   // ---------- Просмотр ----------
   window.__docsPortrait = true;
@@ -5475,7 +5511,7 @@
   };
   window.closeDocMenu = function () { document.getElementById('doc_menu_modal').style.display = 'none'; };
   window.docMenuView = function () { const e = store.expenses.find(x => x.id === window.__menuExpId); closeDocMenu(); if (e && e.rcId) openDocsViewer(e.rcId); };
-  window.docMenuAdd = function () { closeDocMenu(); document.getElementById('doc_attach_input').click(); };
+  window.docMenuAdd = function () { closeDocMenu(); window.openAddSheet('attach'); };
   async function filePayload(f) {
     const isPdf = f.type === 'application/pdf' || /\.pdf$/i.test(f.name);
     if (!isPdf && !/^image\//.test(f.type)) throw new Error('Формат не поддерживается');
@@ -5493,22 +5529,29 @@
       try {
         const pl = await filePayload(files[i]);
         const res = await api({ action: 'receipt_attach', rc_id: e.rcId || '', mime: pl.mime, b64: pl.b64, name: files[i].name, trip_id: tid });
+        if (typeof res.docs !== 'number') throw new Error('сервер ещё не обновлён: в Apps Script нужно создать «Новую версию» развёртывания');
         e.rcId = res.rcId; e.docs = res.docs; ok++;
       } catch (err) { console.error(err); showToast('Не принят «' + files[i].name + '»: ' + (err.message || err)); await new Promise(r => setTimeout(r, 1400)); }
     }
     if (ok) { storeTouched = true; triggerCloudAutoSave(); renderExpenseList(); showToast('Документов у расхода: ' + e.docs); }
   };
-  window.removeDocFromGroup = async function (rid) {
-    if (!confirm('Удалить этот документ из расхода?')) return;
+  window.removeDocFromGroup = function (rid) {
+    window.openSheet('Удалить этот документ из расхода?', [{ text: '🗑 Удалить', danger: true, fn: () => doRemoveDoc(rid) }]);
+  };
+  async function doRemoveDoc(rid) {
     const oldRoot = window.__docsLastId;
+    const body = document.getElementById('docs_body');
+    body.innerHTML = '<div style="color:#cbd5e1; text-align:center; padding:40px 10px;">⏳ Удаляю документ…</div>';
+    window.__docsViewToken = (window.__docsViewToken || 0) + 1;
     try {
       const res = await api({ action: 'receipt_remove', id: oldRoot, rid: rid });
+      if (typeof res.docs !== 'number') throw new Error('сервер ещё не обновлён: в Apps Script нужно создать «Новую версию» развёртывания');
       store.expenses.forEach(x => { if (x.rcId === oldRoot) { x.rcId = res.newRoot || ''; x.docs = res.docs; } });
       storeTouched = true; triggerCloudAutoSave(); renderExpenseList();
-      if (res.docs > 0 && res.newRoot) openDocsViewer(res.newRoot);
-      else { closeDocsViewer(); showToast('Документов не осталось'); }
-    } catch (e) { showToast('Не удалось удалить: ' + (e.message || e)); }
-  };
+      if (res.docs > 0 && res.newRoot) { showToast('Документ удалён'); openDocsViewer(res.newRoot); }
+      else { closeDocsViewer(); showToast('Документ удалён, документов не осталось'); }
+    } catch (e) { showToast('Не удалось удалить: ' + (e.message || e)); openDocsViewer(oldRoot); }
+  }
 
   // ---------- Загрузка из приложения ----------
   function fileToJpegB64(file) {
