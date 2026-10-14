@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta name="app-build" content="20261015-2">
+  <meta name="app-build" content="20261015-3">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -847,7 +847,7 @@ body.cap-on #docs_modal{padding-top:46px;}
       <div class="card">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
           <h2 style="margin:0;">2. Добавление расходов</h2>
-          <button type="button" class="btn btn-warning" style="height:30px; width:auto; font-size:11px; padding:0 8px;" onclick="loadStep2DemoExpenses()">⚡ ДЕМО-расходы</button>
+          <button type="button" id="demo_exp_btn" class="btn btn-warning" style="height:30px; width:auto; font-size:11px; padding:0 8px;" onclick="loadStep2DemoExpenses()">⚡ ДЕМО-расходы</button>
         </div>
 
         <div style="margin-bottom:10px;">
@@ -1084,6 +1084,7 @@ body.cap-on #docs_modal{padding-top:46px;}
         <button type="button" class="prof-row" onclick="openNotificationSettingsModal()"><span class="pr-i">🔔</span><span class="pr-t"><b>Уведомления Telegram</b><small>Какие сообщения присылает бот</small></span><span class="pr-badge" id="prof_notif_badge"></span><span class="pr-c">›</span></button>
         <button type="button" class="prof-row" onclick="Hap.toggle()"><span class="pr-i">📳</span><span class="pr-t"><b>Вибрация</b><small>Тактильный отклик при действиях: <span id="prof_hap_state">включена</span> · версия <span id="app_build_lbl">…</span></small></span><span class="pr-c">›</span></button>
         <button type="button" class="prof-row" onclick="SwipeCfg.toggle()"><span class="pr-i">👆</span><span class="pr-t"><b>Свайп между шагами</b><small>Листать шаги отчёта движением пальца: <span id="prof_swipe_state">включено</span></small></span><span id="prof_swipe_sw" style="width:46px;height:28px;border-radius:14px;background:#34c759;position:relative;flex:none;transition:background .2s"><i id="prof_swipe_knob" style="position:absolute;right:3px;top:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 2px 5px rgba(0,0,0,.25)"></i></span></button>
+        <button type="button" class="prof-row" onclick="DemoCfg.toggle()"><span class="pr-i">⚡</span><span class="pr-t"><b>Кнопка «ДЕМО-расходы»</b><small>Показывать на шаге «Расходы»: <span id="prof_demo_state">включено</span></small></span><span id="prof_demo_sw" style="width:46px;height:28px;border-radius:14px;background:#34c759;position:relative;flex:none;transition:background .2s"><i id="prof_demo_knob" style="position:absolute;right:3px;top:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 2px 5px rgba(0,0,0,.25)"></i></span></button>
         <button type="button" class="prof-row" id="prof_row_audit" style="display:none;" onclick="openAudit()"><span class="pr-i">🧹</span><span class="pr-t"><b>Ревизия и чистка Диска</b><small>Найти и удалить документы, не относящиеся к существующим командировкам</small></span><span class="pr-c">›</span></button>
         <button type="button" class="prof-row" id="prof_row_emp" style="display:none;" onclick="switchMainTab('employees')"><span class="pr-i">👥</span><span class="pr-t"><b>База сотрудников</b><small>Данные, права и подписи команды</small></span><span class="pr-c">›</span></button>
         <button type="button" class="prof-row" onclick="openHelp()"><span class="pr-i">❓</span><span class="pr-t"><b>Инструкция</b><small>Как работать с приложением</small></span><span class="pr-c">›</span></button>
@@ -2289,7 +2290,7 @@ body.cap-on #docs_modal{padding-top:46px;}
   }
 
   window.addEventListener('DOMContentLoaded', () => {
-    try { const _lu = localStorage.getItem('last_tg_user'); localStorage.clear(); if (_lu) localStorage.setItem('last_tg_user', _lu); } catch(e){}
+    try { const _keep = {}; ['last_tg_user','swipe_off','hap_off','demo_off'].forEach(k => { const v = localStorage.getItem(k); if (v !== null) _keep[k] = v; }); localStorage.clear(); Object.keys(_keep).forEach(k => localStorage.setItem(k, _keep[k])); } catch(e){}
 
     datePickerRange = flatpickr("#p_date_range", {
       mode: "range", locale: "ru", dateFormat: "d.m.Y", showMonths: 1,
@@ -5709,6 +5710,13 @@ body.cap-on #docs_modal{padding-top:46px;}
     toggle() { const v = !this.on(); try { localStorage.setItem('swipe_off', v ? '0' : '1'); } catch (e) {} this.paint(); try { Hap.tap(); } catch (e) {} showToast('Свайп между шагами ' + (v ? 'включён' : 'выключен')); }
   };
   setTimeout(() => SwipeCfg.paint(), 400);
+  // кнопка «ДЕМО-расходы»: включается и выключается в Профиле
+  window.DemoCfg = {
+    on() { try { return localStorage.getItem('demo_off') !== '1'; } catch (e) { return true; } },
+    paint() { const v = this.on(); const b = document.getElementById('demo_exp_btn'); if (b) b.style.display = v ? '' : 'none'; const t = document.getElementById('prof_demo_state'), k = document.getElementById('prof_demo_knob'), sw = document.getElementById('prof_demo_sw'); if (t) t.innerText = v ? 'включено' : 'выключено'; if (sw) sw.style.background = v ? '#34c759' : '#c7c7cc'; if (k) { k.style.right = v ? '3px' : 'auto'; k.style.left = v ? 'auto' : '3px'; } },
+    toggle() { const v = !this.on(); try { localStorage.setItem('demo_off', v ? '0' : '1'); } catch (e) {} this.paint(); try { Hap.tap(); } catch (e) {} showToast('Кнопка «ДЕМО-расходы» ' + (v ? 'показана' : 'скрыта')); }
+  };
+  setTimeout(() => DemoCfg.paint(), 400);
 })();
 </script>
 <script id="proc-js">
