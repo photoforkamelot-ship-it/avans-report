@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Авансовый отчёт">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="app-build" content="20261016-6">
+  <meta name="app-build" content="20261016-7">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -1598,6 +1598,29 @@ body.cap-on #docs_modal{padding-top:46px;}
     </div>
   </div>
 </div>
+<style id="desk-css">
+/* ===== Раскладка для компьютера (Windows / Mac, обычный браузер, широкий экран). Все правила только при body.desk:
+   телефоны, планшеты и Telegram этот блок не затрагивает ===== */
+body.desk { padding: 24px 0 40px; }
+body.desk .wrapper { width: 880px; max-width: none; margin: 0 0 0 calc(50% - 386px); }
+/* нижняя плавающая панель разделов превращается в боковую */
+body.desk .top-tabs { left: calc(50% - 494px); right: auto; top: 24px; bottom: auto; width: 84px; max-width: none; margin: 0; flex-direction: column; padding: 8px 6px; gap: 6px; border-radius: 26px; }
+body.desk .top-tabs .tab-btn { height: 66px; width: 100%; flex: none !important; cursor: pointer; }
+body.desk .top-tabs .tab-btn:hover:not(.active) { background: rgba(255,255,255,0.55); }
+body.desk .top-tabs .tab-btn .te { font-size: 24px; }
+body.desk .top-tabs .tab-btn .dl { font-size: 11px; }
+body.desk .nav-bar { border-radius: 16px; margin-left: 0; margin-right: 0; }
+body.desk .stepper { margin-left: 0; margin-right: 0; border-radius: 14px; }
+/* списки в две колонки */
+body.desk #admin_employees_container { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; align-items: start; }
+body.desk #admin_employees_container .emp-card.open { grid-column: 1 / -1; }
+body.desk #drafts_list_container { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; align-items: start; }
+body.desk .prof-list { display: grid; grid-template-columns: 1fr 1fr; column-gap: 8px; }
+/* окна не растягиваются на весь монитор */
+body.desk #sheet_modal > div, body.desk #doc_menu_modal > div { max-width: 460px; }
+body.desk .btn, body.desk .prof-row, body.desk .emp-card, body.desk .emp-act { cursor: pointer; }
+body.desk .btn:hover { filter: brightness(.97); }
+</style>
 <div id="web_login" style="display:none; position:fixed; inset:0; z-index:10100; background:linear-gradient(160deg,#dbeafe,#f5e9ff); align-items:center; justify-content:center; padding:16px;">
   <div style="background:#fff; border-radius:20px; width:100%; max-width:380px; padding:22px 18px; box-shadow:0 14px 40px rgba(0,0,0,.2);">
     <div style="font-size:42px; text-align:center;">✈️💰</div>
@@ -6702,6 +6725,20 @@ body.cap-on #docs_modal{padding-top:46px;}
       setTimeout(() => tryShow(0), 3500);
     }
   };
+})();
+</script>
+
+<script id="desk-js">
+(function () {
+  const mq = window.matchMedia ? matchMedia('(min-width: 1100px) and (hover: hover) and (pointer: fine)') : null;
+  function apply() {
+    let on = false;
+    try { on = !!(mq && mq.matches) && !inTelegram_(); } catch (e) {}
+    document.body.classList.toggle('desk', on);
+  }
+  apply();
+  if (mq) { try { mq.addEventListener('change', apply); } catch (e) { try { mq.addListener(apply); } catch (e2) {} } }
+  window.addEventListener('resize', apply);
 })();
 </script>
 </body>
