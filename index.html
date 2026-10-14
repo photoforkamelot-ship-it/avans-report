@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta name="app-build" content="20261006-11">
+  <meta name="app-build" content="20261015-1">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -1811,13 +1811,70 @@ body.cap-on #docs_modal{padding-top:46px;}
 
   const MONTH_NAMES = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];
 
-  const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+  let tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
   if (tg) { try { tg.ready(); tg.expand(); } catch(e){} }
+  function refreshTg() {
+    if (!tg && window.Telegram && window.Telegram.WebApp) {
+      tg = window.Telegram.WebApp;
+      try { tg.ready(); tg.expand(); } catch (e) {}
+    }
+    return tg;
+  }
 
+  // ===== Надёжное определение пользователя Telegram =====
+  // Иногда Telegram открывает окно приложения без данных пользователя (или скрипт Telegram не успел загрузиться).
+  // Тогда берём данные из нескольких мест по очереди: объект Telegram → адресная строка (#tgWebAppData) → память сеанса → последний вход.
+  function parseInitString_(str) {
+    try {
+      const p = new URLSearchParams(String(str || ''));
+      const u = p.get('user');
+      if (!u) return null;
+      const user = JSON.parse(u);
+      return (user && user.id) ? { user: user, init: String(str) } : null;
+    } catch (e) { return null; }
+  }
+  function tgFallbackInit_() {
+    try {
+      const h = new URLSearchParams(String(location.hash || '').replace(/^#/, '')).get('tgWebAppData');
+      const r = parseInitString_(h); if (r) return r;
+    } catch (e) {}
+    try {
+      const ss = JSON.parse(sessionStorage.getItem('__telegram__initParams') || 'null');
+      const r = ss && parseInitString_(ss.tgWebAppData); if (r) return r;
+    } catch (e) {}
+    return null;
+  }
+  function getInitData() {
+    refreshTg();
+    if (tg && tg.initData) return tg.initData;
+    const f = tgFallbackInit_();
+    return f ? f.init : '';
+  }
   function getTelegramUser() {
-    if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) return tg.initDataUnsafe.user;
+    refreshTg();
+    if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.id) return tg.initDataUnsafe.user;
+    const f = tgFallbackInit_();
+    if (f) return f.user;
     const urlParams = new URLSearchParams(window.location.search);
-    return { id: urlParams.get('user_id') || "", first_name: store.passport.fio };
+    const qid = urlParams.get('user_id');
+    if (qid) return { id: qid, first_name: store.passport.fio };
+    try {
+      const c = JSON.parse(localStorage.getItem('last_tg_user') || 'null');
+      if (c && c.id) return c;
+    } catch (e) {}
+    return { id: '', first_name: store.passport.fio };
+  }
+  function resolveUserId_() {
+    const u = getTelegramUser();
+    const id = u && u.id ? String(u.id).trim() : '';
+    return (id && id !== 'null' && id !== 'undefined') ? id : '';
+  }
+  function rememberUser_() {
+    try {
+      refreshTg();
+      const u = (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) || (tgFallbackInit_() || {}).user;
+      if (u && u.id) localStorage.setItem('last_tg_user', JSON.stringify({ id: u.id, first_name: u.first_name || '' }));
+    } catch (e) {}
   }
 
   // Ко всем запросам к серверу добавляем подпись Telegram (initData): по ней сервер проверяет, кто обращается
@@ -1828,12 +1885,13 @@ body.cap-on #docs_modal{padding-top:46px;}
       if (u.indexOf(GOOGLE_SHEET_API) === 0 && window.__testMode && opts && opts.method === 'POST' && typeof opts.body === 'string') {
         const o0 = JSON.parse(opts.body); o0.test_mode = true; opts = Object.assign({}, opts, { body: JSON.stringify(o0) });
       }
-      if (u.indexOf(GOOGLE_SHEET_API) === 0 && tg && tg.initData) {
+      const _id = getInitData();
+      if (u.indexOf(GOOGLE_SHEET_API) === 0 && _id) {
         if (opts && opts.method === 'POST' && typeof opts.body === 'string') {
-          const o = JSON.parse(opts.body); o.init_data = tg.initData;
+          const o = JSON.parse(opts.body); o.init_data = _id;
           opts = Object.assign({}, opts, { body: JSON.stringify(o) });
         } else if (!opts || !opts.method || opts.method === 'GET') {
-          url = u + (u.indexOf('?') >= 0 ? '&' : '?') + 'init_data=' + encodeURIComponent(tg.initData);
+          url = u + (u.indexOf('?') >= 0 ? '&' : '?') + 'init_data=' + encodeURIComponent(_id);
         }
       }
     } catch (e) {}
@@ -1845,6 +1903,7 @@ body.cap-on #docs_modal{padding-top:46px;}
   // Журнал действий: короткие события от приложения (открытие ссылок, кнопки писем, начало редактирования, ошибки)
   function logEvent(kind, details) {
     try {
+      if (!resolveUserId_()) return;
       fetch(GOOGLE_SHEET_API, {
         method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'log_event', event: kind, details: details || '', telegram_user: getTelegramUser() })
@@ -2230,7 +2289,7 @@ body.cap-on #docs_modal{padding-top:46px;}
   }
 
   window.addEventListener('DOMContentLoaded', () => {
-    try { localStorage.clear(); } catch(e){}
+    try { const _lu = localStorage.getItem('last_tg_user'); localStorage.clear(); if (_lu) localStorage.setItem('last_tg_user', _lu); } catch(e){}
 
     datePickerRange = flatpickr("#p_date_range", {
       mode: "range", locale: "ru", dateFormat: "d.m.Y", showMonths: 1,
@@ -2912,23 +2971,38 @@ body.cap-on #docs_modal{padding-top:46px;}
 
   function closeMissingData() { document.getElementById('missing_data_modal').style.display = 'none'; }
 
-  function loadAppData() {
+  function loadAppData(attempt) {
+    attempt = (typeof attempt === 'number') ? attempt : 0;
     const urlParams = new URLSearchParams(window.location.search);
-    let userId = urlParams.get('user_id');
-    if (!userId && tg && tg.initDataUnsafe && tg.initDataUnsafe.user) userId = tg.initDataUnsafe.user.id;
+    let userId = urlParams.get('user_id') || resolveUserId_();
     if (!window.__splashDone) {
       window.__splashDone = true;
-      const tu = tg && tg.initDataUnsafe && tg.initDataUnsafe.user;
+      const tu = getTelegramUser();
       showSplash(tu ? (tu.first_name || '') : '');
     }
     if (!userId) {
-      // Без Telegram пользователя нет: данные не загружаем (для проверки в браузере добавьте в адрес ?user_id=...)
-      showToast("Откройте приложение через Telegram");
+      // Пользователь ещё не определён (Telegram не успел передать данные): ждём и пробуем снова, до ~8 секунд
+      if (attempt < 32) {
+        if (attempt === 6 && !window.Telegram) {
+          try { const sc = document.createElement('script'); sc.src = 'https://telegram.org/js/telegram-web-app.js?r=' + Date.now(); document.head.appendChild(sc); } catch (e) {}
+        }
+        setTimeout(function () { loadAppData(attempt + 1); }, 250);
+        return;
+      }
+      hideSplash(true);
+      document.getElementById('trips_tree_container').innerHTML = '<div style="color:var(--danger); font-size:13px; line-height:1.5;">Не удалось определить пользователя Telegram. <a href="#" onclick="loadAppData(); return false;" style="color:var(--primary); font-weight:700;">Повторить</a><br><span style="color:#8e8e93; font-size:12px;">Если не помогает: закройте окно приложения и откройте его заново кнопкой из чата с ботом.</span></div>';
+      return;
     }
+    rememberUser_();
 
-    fetch(`${GOOGLE_SHEET_API}?user_id=${userId}`)
+    fetch(`${GOOGLE_SHEET_API}?user_id=${encodeURIComponent(userId)}`)
       .then(r => r.json())
       .then(res => {
+        // Сервер ответил, но пользователя не нашёл (бывает при «холодном» старте скрипта): пробуем ещё до 3 раз
+        if ((!res || (!res.currentUser && !res.isAdmin)) && attempt < 3 && !urlParams.get('user_id')) {
+          setTimeout(function () { loadAppData(attempt + 1); }, 1200 * (attempt + 1));
+          return;
+        }
         globalAppData = res;
         if (res.currentUser && res.currentUser.fio) setSplashName(String(res.currentUser.fio).trim().split(/\s+/).slice(1, 2).join(' ') || res.currentUser.fio);
         applyRoleUiRestrictions();
@@ -2973,6 +3047,7 @@ body.cap-on #docs_modal{padding-top:46px;}
         hideSplash(true);
       })
       .catch(() => {
+        if (attempt < 2) { setTimeout(function () { loadAppData(attempt + 1); }, 1500); return; }
         hideSplash(true);
         document.getElementById('trips_tree_container').innerHTML = '<div style="color:var(--danger); font-size:12px;">Не удалось загрузить данные. <a href="#" onclick="loadAppData(); return false;" style="color:var(--primary); font-weight:700;">Повторить</a></div>';
       });
