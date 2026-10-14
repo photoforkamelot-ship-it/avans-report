@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Авансовый отчёт">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="app-build" content="20261016-7">
+  <meta name="app-build" content="20261016-8">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -1601,14 +1601,14 @@ body.cap-on #docs_modal{padding-top:46px;}
 <style id="desk-css">
 /* ===== Раскладка для компьютера (Windows / Mac, обычный браузер, широкий экран). Все правила только при body.desk:
    телефоны, планшеты и Telegram этот блок не затрагивает ===== */
-body.desk { padding: 24px 0 40px; }
-body.desk .wrapper { width: 880px; max-width: none; margin: 0 0 0 calc(50% - 386px); }
+body.desk { padding: 24px 0 40px; zoom: 1.15; }
+body.desk .wrapper { width: 880px; max-width: none; margin: 0 0 0 calc(50% - 374px); }
 /* нижняя плавающая панель разделов превращается в боковую */
-body.desk .top-tabs { left: calc(50% - 494px); right: auto; top: 24px; bottom: auto; width: 84px; max-width: none; margin: 0; flex-direction: column; padding: 8px 6px; gap: 6px; border-radius: 26px; }
+body.desk .top-tabs { left: calc(50% - 494px); right: auto; top: 24px; bottom: auto; width: 96px; max-width: none; margin: 0; flex-direction: column; padding: 8px 6px; gap: 6px; border-radius: 26px; }
 body.desk .top-tabs .tab-btn { height: 66px; width: 100%; flex: none !important; cursor: pointer; }
 body.desk .top-tabs .tab-btn:hover:not(.active) { background: rgba(255,255,255,0.55); }
 body.desk .top-tabs .tab-btn .te { font-size: 24px; }
-body.desk .top-tabs .tab-btn .dl { font-size: 11px; }
+body.desk .top-tabs .tab-btn .dl { font-size: 10.5px; }
 body.desk .nav-bar { border-radius: 16px; margin-left: 0; margin-right: 0; }
 body.desk .stepper { margin-left: 0; margin-right: 0; border-radius: 14px; }
 /* списки в две колонки */
@@ -1620,6 +1620,9 @@ body.desk .prof-list { display: grid; grid-template-columns: 1fr 1fr; column-gap
 body.desk #sheet_modal > div, body.desk #doc_menu_modal > div { max-width: 460px; }
 body.desk .btn, body.desk .prof-row, body.desk .emp-card, body.desk .emp-act { cursor: pointer; }
 body.desk .btn:hover { filter: brightness(.97); }
+/* ссылки на файлы: отдельные кнопки с обводкой (открываются в новой вкладке) */
+body.desk a[target="_blank"] { display: inline-flex; align-items: center; gap: 6px; padding: 7px 13px; margin: 5px 8px 3px 0; border: 1.5px solid currentColor; border-radius: 10px; background: rgba(255,255,255,0.8); font-size: 13px !important; font-weight: 700 !important; line-height: 1.25; text-decoration: none !important; cursor: pointer; transition: background .15s, box-shadow .15s; }
+body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.14); }
 </style>
 <div id="web_login" style="display:none; position:fixed; inset:0; z-index:10100; background:linear-gradient(160deg,#dbeafe,#f5e9ff); align-items:center; justify-content:center; padding:16px;">
   <div style="background:#fff; border-radius:20px; width:100%; max-width:380px; padding:22px 18px; box-shadow:0 14px 40px rgba(0,0,0,.2);">
@@ -2394,7 +2397,7 @@ body.desk .btn:hover { filter: brightness(.97); }
         window.open(url, '_blank');
       }
     } catch(e) {
-      window.location.href = url;
+      window.open(url, '_blank');
     }
   }
 
@@ -3527,8 +3530,8 @@ body.desk .btn:hover { filter: brightness(.97); }
               <b>📊 Авансовый отчет АО-1</b> (Сумма: ${Number(relatedAo.sum).toLocaleString('ru-RU')} ₽)<br>
               ${(() => { const per = aoPeriod(relatedAo); if (!per) return ''; const q = per.split('—').map(x => x.trim()); const t1 = parseDateToTimestamp(q[0]), t2 = parseDateToTimestamp(q[1]); const n = (t2 >= t1 && t1 > 0) ? Math.ceil((t2 - t1) / 86400000) + 1 : 0; return `<small>Фактический срок: <b>${per}</b>${n ? ' (' + n + ' дн.)' : ''}</small><br>`; })()}
               <small>Статус: ${draftAo ? '<b style="color:#b45309;">Изменён, правки не сданы</b> (ниже последняя сданная версия)' : (relatedAo.pdfUrl ? '<b>Сдан</b>' : '<b style="color:#c2410c;">Почти готов: нет PDF</b>')} | Нажмите для открытия отчёта</small>
-              ${relatedAo.url ? `<br><a href="${relatedAo.url}" target="_blank" style="color:var(--primary); font-size:11px;" onclick="event.stopPropagation();">Открыть файл Excel на Диске ➔</a>` : ''}
-              ${relatedAo.pdfUrl ? `<br><a href="${relatedAo.pdfUrl}" target="_blank" style="color:var(--success); font-size:11px; font-weight:700;" onclick="event.stopPropagation();">🖨️ Открыть PDF для печати ➔</a>` : ''}
+              ${relatedAo.url ? `<br><a href="${relatedAo.url}" target="_blank" rel="noopener" style="color:var(--primary); font-size:11px;" onclick="event.stopPropagation();">Открыть файл Excel на Диске ➔</a>` : ''}
+              ${relatedAo.pdfUrl ? `<br><a href="${relatedAo.pdfUrl}" target="_blank" rel="noopener" style="color:var(--success); font-size:11px; font-weight:700;" onclick="event.stopPropagation();">🖨️ Открыть PDF для печати ➔</a>` : ''}
             </div>
           `;
         } else if (draftAo) {
@@ -3709,10 +3712,10 @@ body.desk .btn:hover { filter: brightness(.97); }
     const linkBox = document.getElementById('rvm_file_link_box');
     let linksHtml = '';
     if (fileUrl) {
-      linksHtml += `<a href="${fileUrl}" target="_blank" style="color:var(--primary); font-size:12px; font-weight:600; text-decoration:none;">📄 Открыть таблицу заявки на Диске ➔</a><br>`;
+      linksHtml += `<a href="${fileUrl}" target="_blank" rel="noopener" style="color:var(--primary); font-size:12px; font-weight:600; text-decoration:none;">📄 Открыть таблицу заявки на Диске ➔</a><br>`;
     }
     if (rq && rq.pdfFileUrl) {
-      linksHtml += `<a href="${rq.pdfFileUrl}" target="_blank" style="color:var(--success); font-size:12px; font-weight:700; text-decoration:none; margin-top:4px; display:inline-block;">🖨️ Открыть заявку в PDF ➔</a>`;
+      linksHtml += `<a href="${rq.pdfFileUrl}" target="_blank" rel="noopener" style="color:var(--success); font-size:12px; font-weight:700; text-decoration:none; margin-top:4px; display:inline-block;">🖨️ Открыть заявку в PDF ➔</a>`;
     }
     linkBox.innerHTML = linksHtml || `<small style="color:#94a3b8;">Ссылка на файл формируется</small>`;
 
@@ -4449,7 +4452,7 @@ body.desk .btn:hover { filter: brightness(.97); }
       const filesBox = document.getElementById('rs_files');
       filesBox.innerHTML = (res.files && res.files.length > 0) ? res.files.map(f => `
         <div class="rs-file"><span><b>${String(f.fio).split(' ').slice(0, 2).join(' ')}</b><br><small style="color:#64748b;">${fm(f.sum)}</small></span>
-          <span>${f.pdfUrl ? `<a href="${f.pdfUrl}" target="_blank" style="color:var(--success);">🖨️ PDF</a> &nbsp;` : ''}<a href="${f.url}" target="_blank" style="color:var(--primary);">Таблица ➔</a></span></div>`).join('')
+          <span>${f.pdfUrl ? `<a href="${f.pdfUrl}" target="_blank" rel="noopener" style="color:var(--success);">🖨️ PDF</a> &nbsp;` : ''}<a href="${f.url}" target="_blank" rel="noopener" style="color:var(--primary);">Таблица ➔</a></span></div>`).join('')
         : '<div class="rs-file" style="color:#64748b;">Файлы появятся в цепочке командировки</div>';
       if (res.emailText) {
         document.getElementById('email_preview_box').innerText = res.emailText;
@@ -6730,7 +6733,7 @@ body.desk .btn:hover { filter: brightness(.97); }
 
 <script id="desk-js">
 (function () {
-  const mq = window.matchMedia ? matchMedia('(min-width: 1100px) and (hover: hover) and (pointer: fine)') : null;
+  const mq = window.matchMedia ? matchMedia('(min-width: 1200px) and (hover: hover) and (pointer: fine)') : null;
   function apply() {
     let on = false;
     try { on = !!(mq && mq.matches) && !inTelegram_(); } catch (e) {}
@@ -6740,6 +6743,21 @@ body.desk .btn:hover { filter: brightness(.97); }
   if (mq) { try { mq.addEventListener('change', apply); } catch (e) { try { mq.addListener(apply); } catch (e2) {} } }
   window.addEventListener('resize', apply);
 })();
+</script>
+
+<script id="links-js">
+// Ссылки на файлы и документы всегда открываются в новой вкладке, чтобы приложение не закрывалось
+document.addEventListener('click', function (ev) {
+  try {
+    var a = ev.target && ev.target.closest ? ev.target.closest('a[href]') : null;
+    if (!a) return;
+    var h = a.getAttribute('href') || '';
+    if (/^https?:/i.test(h) && a.getAttribute('target') !== '_blank' && !a.hasAttribute('download')) {
+      a.setAttribute('target', '_blank');
+      a.setAttribute('rel', 'noopener');
+    }
+  } catch (e) {}
+}, true);
 </script>
 </body>
 </html>
