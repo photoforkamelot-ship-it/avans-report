@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta name="app-build" content="20261016-2">
+  <meta name="app-build" content="20261016-3">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -1089,6 +1089,7 @@ body.cap-on #docs_modal{padding-top:46px;}
         <button type="button" class="prof-row" onclick="DemoCfg.toggle()"><span class="pr-i">⚡</span><span class="pr-t"><b>Кнопка «ДЕМО-расходы»</b><small>Показывать на шаге «Расходы»: <span id="prof_demo_state">включено</span></small></span><span id="prof_demo_sw" style="width:46px;height:28px;border-radius:14px;background:#34c759;position:relative;flex:none;transition:background .2s"><i id="prof_demo_knob" style="position:absolute;right:3px;top:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 2px 5px rgba(0,0,0,.25)"></i></span></button>
         <button type="button" class="prof-row" id="prof_row_audit" style="display:none;" onclick="openAudit()"><span class="pr-i">🧹</span><span class="pr-t"><b>Ревизия и чистка Диска</b><small>Найти и удалить документы, не относящиеся к существующим командировкам</small></span><span class="pr-c">›</span></button>
         <button type="button" class="prof-row" id="prof_row_emp" style="display:none;" onclick="switchMainTab('employees')"><span class="pr-i">👥</span><span class="pr-t"><b>База сотрудников</b><small>Данные, права и подписи команды</small></span><span class="pr-c">›</span></button>
+        <button type="button" class="prof-row" onclick="WhatsNew.open(true)"><span class="pr-i">🆕</span><span class="pr-t"><b>Что нового</b><small>Список последних изменений в приложении</small></span><span class="pr-c">›</span></button>
         <button type="button" class="prof-row" onclick="openHelp()"><span class="pr-i">❓</span><span class="pr-t"><b>Инструкция</b><small>Как работать с приложением</small></span><span class="pr-c">›</span></button>
       </div>
     </div>
@@ -1564,6 +1565,19 @@ body.cap-on #docs_modal{padding-top:46px;}
   <div class="sp-line" id="sp_line">Загружаю…</div>
 </div>
 
+<div id="whatsnew" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,.6); z-index:10090; align-items:center; justify-content:center; padding:14px;">
+  <div style="background:#fff; border-radius:22px; width:100%; max-width:420px; max-height:92vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 16px 48px rgba(0,0,0,.4);">
+    <div style="padding:18px 18px 8px;">
+      <div style="font-size:22px; font-weight:800; color:#0b2a8a;">🆕 Что нового</div>
+      <div id="wn_sub" style="font-size:13px; color:#64748b; margin-top:2px;">Изменения с вашего последнего захода</div>
+    </div>
+    <div id="wn_list" style="overflow-y:auto; padding:4px 14px 6px; flex:1;"></div>
+    <div style="padding:8px 14px calc(14px + env(safe-area-inset-bottom,0px)); display:flex; gap:8px;">
+      <button type="button" class="btn btn-secondary" style="flex:1; height:48px; font-size:14px;" onclick="WhatsNew.close(); openHelp();">📖 Инструкция</button>
+      <button type="button" class="btn btn-primary" style="flex:1; height:48px; font-size:15px; font-weight:700;" onclick="WhatsNew.close()">Понятно</button>
+    </div>
+  </div>
+</div>
 <div id="web_login" style="display:none; position:fixed; inset:0; z-index:10100; background:linear-gradient(160deg,#dbeafe,#f5e9ff); align-items:center; justify-content:center; padding:16px;">
   <div style="background:#fff; border-radius:20px; width:100%; max-width:380px; padding:22px 18px; box-shadow:0 14px 40px rgba(0,0,0,.2);">
     <div style="font-size:42px; text-align:center;">✈️💰</div>
@@ -2340,7 +2354,7 @@ body.cap-on #docs_modal{padding-top:46px;}
   }
 
   window.addEventListener('DOMContentLoaded', () => {
-    try { const _keep = {}; ['last_tg_user','swipe_off','hap_off','demo_off','web_token','web_uid','web_fio'].forEach(k => { const v = localStorage.getItem(k); if (v !== null) _keep[k] = v; }); localStorage.clear(); Object.keys(_keep).forEach(k => localStorage.setItem(k, _keep[k])); } catch(e){}
+    try { const _keep = {}; ['last_tg_user','swipe_off','hap_off','demo_off','whatsnew_seen','web_token','web_uid','web_fio'].forEach(k => { const v = localStorage.getItem(k); if (v !== null) _keep[k] = v; }); localStorage.clear(); Object.keys(_keep).forEach(k => localStorage.setItem(k, _keep[k])); } catch(e){}
 
     datePickerRange = flatpickr("#p_date_range", {
       mode: "range", locale: "ru", dateFormat: "d.m.Y", showMonths: 1,
@@ -3110,6 +3124,7 @@ body.cap-on #docs_modal{padding-top:46px;}
         TOUR_SEEN = (res.tourSeen !== false);
         if (res.isAdmin) setTimeout(loadTripArchive, 2500);
         checkCloudDraftPopup(res.reports, userId, res.isAdmin);
+        try { if (window.WhatsNew) WhatsNew.maybe(res); } catch (e) {}
         hideSplash(true);
       })
       .catch(() => {
@@ -6548,6 +6563,55 @@ body.cap-on #docs_modal{padding-top:46px;}
           '<div style="font-size:30px; font-weight:800; letter-spacing:4px; text-align:center; margin:14px 0; padding:12px; background:#f1f5f9; border-radius:12px; user-select:all;">' + esc(r.code) + '</div><div style="font-size:12px; color:#64748b;">Копия кода также отправлена главному руководителю в Telegram.</div>',
           [{ t: '📋 Скопировать', cls: 'btn-primary', f: () => { try { navigator.clipboard.writeText(r.code); showToast('Скопировано'); } catch (er) { showToast('Нажмите на код и скопируйте'); } } }, { t: 'Закрыть', f: close }]);
       }).catch(() => showToast('Нет связи с сервером'));
+    }
+  };
+})();
+</script>
+
+<script id="wn-js">
+(function () {
+  const VER = '20261016';
+  // d — дата изменения; a — только для руководителей
+  const ITEMS = [
+    { d: '20261016', i: '🌐', t: 'Вход из браузера по логину и паролю', p: 'Руководитель может выдать логин и пароль, и работать можно без Telegram. Если вы уже работаете в браузере, а в Telegram система предложит привязать учётку по коду: Профиль → «Привязать веб-учётку». Подробнее: Инструкция → «Вход из браузера и привязка Telegram».' },
+    { d: '20261016', i: '🔑', a: 1, t: 'Веб-доступ, коды привязки и значки', p: 'В «Базе сотрудников» у карточки появились значки Telegram и 🌐 (яркий значит «есть», блёклый «нет»), кнопки «Логин и пароль для веба» и «Код привязки Telegram». В журнале действия помечаются «[веб]» и «[Telegram]». Подробнее: Памятка администратора, раздел 10.' },
+    { d: '20261015', i: '🪪', t: 'Надёжнее определение пользователя', p: 'Приложение само повторяет определение вашей учётки при входе. Пустых «ID null» в журнале больше нет. Если имя не появилось, нажмите «Повторить» или откройте приложение заново из чата с ботом.' },
+    { d: '20261015', i: '⚡', t: 'Кнопка «ДЕМО-расходы» отключается', p: 'Профиль → «Кнопка «ДЕМО-расходы»»: скройте её на шаге «Расходы», если она не нужна. Настройки «Свайп» и «Вибрация» теперь тоже сохраняются.' },
+    { d: '20261015', i: '📄', t: 'Подпись руководителя на адресной странице', p: 'На последней странице пакета документов внизу теперь ФИО и телефон непосредственного руководителя сотрудника, а не всегда главного.' },
+    { d: '20261007', i: '🔔', t: 'Новые карточки уведомлений в боте', p: 'Бот присылает «добавлена новая запись расхода» и «добавлено вложение» с автором правки и итогами. Несколько событий подряд дополняют одно сообщение. Включить или выключить: Профиль → «Уведомления Telegram». Подробнее: Инструкция, раздел «Уведомления».' },
+    { d: '20261007', i: '👀', t: 'Сотрудники видят свои расходы', p: 'Отчёты, которые создал руководитель, теперь видны и самому сотруднику: расходы, документы и предварительная сумма. Если не видите, закройте и откройте приложение.' },
+    { d: '20261006', i: '✨', t: 'Обновлённый интерфейс', p: 'Панели не мешают клавиатуре, статус процесса показывается капсулой сверху, шаги можно листать свайпом (Профиль → «Свайп между шагами»). Новые «Памятка сотрудника» и «Памятка администратора» с оглавлением: ❓ → Инструкция.' }
+  ];
+  const $ = id => document.getElementById(id);
+  function seen() { try { return localStorage.getItem('whatsnew_seen') || ''; } catch (e) { return ''; } }
+  function mark() { try { localStorage.setItem('whatsnew_seen', VER); } catch (e) {} }
+  function list(all) {
+    const adm = (typeof globalAppData !== 'undefined') && !!(globalAppData && globalAppData.isAdmin);
+    const last = seen();
+    let arr = ITEMS.filter(x => (!x.a || adm));
+    if (!all && last) arr = arr.filter(x => x.d > last);
+    return arr;
+  }
+  function render(arr, all) {
+    $('wn_sub').textContent = all ? 'Последние изменения в приложении' : 'Изменения с вашего последнего захода';
+    $('wn_list').innerHTML = arr.map(x => `<div style="display:flex; gap:10px; padding:10px; border:1px solid #e2e8f0; border-radius:14px; margin-bottom:8px;"><div style="font-size:24px; line-height:1.2;">${x.i}</div><div><div style="font-weight:700; font-size:14px;">${x.t}${x.a ? ' <span style="font-size:10px; font-weight:700; color:#92400e; background:#fef3c7; border-radius:6px; padding:1px 5px;">руководителям</span>' : ''}</div><div style="font-size:12.5px; color:#475569; margin-top:3px; line-height:1.45;">${x.p}</div></div></div>`).join('');
+    $('whatsnew').style.display = 'flex';
+  }
+  window.WhatsNew = {
+    open(all) { const arr = list(true); render(arr, true); mark(); },
+    close() { $('whatsnew').style.display = 'none'; mark(); },
+    // Показывается один раз, всем кто уже работает в системе; новичкам (у кого идёт знакомство) только отмечается
+    maybe(res) {
+      if (seen() >= VER) return;
+      if (res && res.tourSeen === false) { mark(); return; }
+      if (!res || !res.currentUser) return;
+      const arr = list(false);
+      if (!arr.length) { mark(); return; }
+      setTimeout(() => {
+        const busy = ['tour', 'missing_data_modal', 'web_login', 'web_modal'].some(id => { const e = $(id); return e && e.style.display && e.style.display !== 'none'; });
+        if (busy) { setTimeout(() => WhatsNew.maybe(res), 4000); return; }
+        render(arr, false);
+      }, 1800);
     }
   };
 })();
