@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta name="app-build" content="20261015-3">
+  <meta name="app-build" content="20261016-1">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -1083,6 +1083,8 @@ body.cap-on #docs_modal{padding-top:46px;}
         <button type="button" class="prof-row" onclick="openSignatureModal()"><span class="pr-i">✍️</span><span class="pr-t"><b>Подпись</b><small id="prof_sig_hint">Подпись для печатных форм</small></span><span class="pr-c">›</span></button>
         <button type="button" class="prof-row" onclick="openNotificationSettingsModal()"><span class="pr-i">🔔</span><span class="pr-t"><b>Уведомления Telegram</b><small>Какие сообщения присылает бот</small></span><span class="pr-badge" id="prof_notif_badge"></span><span class="pr-c">›</span></button>
         <button type="button" class="prof-row" onclick="Hap.toggle()"><span class="pr-i">📳</span><span class="pr-t"><b>Вибрация</b><small>Тактильный отклик при действиях: <span id="prof_hap_state">включена</span> · версия <span id="app_build_lbl">…</span></small></span><span class="pr-c">›</span></button>
+        <button type="button" class="prof-row" id="prof_row_link" style="display:none;" onclick="Web.openLink()"><span class="pr-i">🔗</span><span class="pr-t"><b>Привязать веб-учётку</b><small>Если вы уже работаете через браузер: введите код привязки от руководителя</small></span><span class="pr-c">›</span></button>
+        <button type="button" class="prof-row" id="prof_row_logout" style="display:none;" onclick="Web.logout()"><span class="pr-i">🚪</span><span class="pr-t"><b>Выйти из веб-версии</b><small id="prof_web_who">Вы вошли через браузер</small></span><span class="pr-c">›</span></button>
         <button type="button" class="prof-row" onclick="SwipeCfg.toggle()"><span class="pr-i">👆</span><span class="pr-t"><b>Свайп между шагами</b><small>Листать шаги отчёта движением пальца: <span id="prof_swipe_state">включено</span></small></span><span id="prof_swipe_sw" style="width:46px;height:28px;border-radius:14px;background:#34c759;position:relative;flex:none;transition:background .2s"><i id="prof_swipe_knob" style="position:absolute;right:3px;top:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 2px 5px rgba(0,0,0,.25)"></i></span></button>
         <button type="button" class="prof-row" onclick="DemoCfg.toggle()"><span class="pr-i">⚡</span><span class="pr-t"><b>Кнопка «ДЕМО-расходы»</b><small>Показывать на шаге «Расходы»: <span id="prof_demo_state">включено</span></small></span><span id="prof_demo_sw" style="width:46px;height:28px;border-radius:14px;background:#34c759;position:relative;flex:none;transition:background .2s"><i id="prof_demo_knob" style="position:absolute;right:3px;top:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 2px 5px rgba(0,0,0,.25)"></i></span></button>
         <button type="button" class="prof-row" id="prof_row_audit" style="display:none;" onclick="openAudit()"><span class="pr-i">🧹</span><span class="pr-t"><b>Ревизия и чистка Диска</b><small>Найти и удалить документы, не относящиеся к существующим командировкам</small></span><span class="pr-c">›</span></button>
@@ -1562,6 +1564,26 @@ body.cap-on #docs_modal{padding-top:46px;}
   <div class="sp-line" id="sp_line">Загружаю…</div>
 </div>
 
+<div id="web_login" style="display:none; position:fixed; inset:0; z-index:10100; background:linear-gradient(160deg,#dbeafe,#f5e9ff); align-items:center; justify-content:center; padding:16px;">
+  <div style="background:#fff; border-radius:20px; width:100%; max-width:380px; padding:22px 18px; box-shadow:0 14px 40px rgba(0,0,0,.2);">
+    <div style="font-size:42px; text-align:center;">✈️💰</div>
+    <h2 style="margin:6px 0 2px; text-align:center; font-size:20px;">Вход в приложение</h2>
+    <div style="text-align:center; font-size:13px; color:#64748b; margin-bottom:14px;">Командировки и авансовые отчёты</div>
+    <input id="web_login_name" type="text" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="Логин" style="width:100%; height:48px; font-size:16px; margin-bottom:8px; padding:0 12px; border:1px solid #cbd5e1; border-radius:12px; box-sizing:border-box;">
+    <input id="web_login_pass" type="password" autocomplete="current-password" placeholder="Пароль" style="width:100%; height:48px; font-size:16px; margin-bottom:8px; padding:0 12px; border:1px solid #cbd5e1; border-radius:12px; box-sizing:border-box;" onkeydown="if(event.key==='Enter')Web.login()">
+    <div id="web_login_err" style="color:#dc2626; font-size:13px; min-height:18px; margin-bottom:6px;"></div>
+    <button type="button" id="web_login_btn" class="btn btn-primary" style="height:50px; font-size:16px; width:100%;" onclick="Web.login()">Войти</button>
+    <div style="font-size:12px; color:#94a3b8; text-align:center; margin-top:12px; line-height:1.4;">Логин и пароль выдаёт ваш руководитель.<br>В Telegram вход происходит автоматически.</div>
+  </div>
+</div>
+<style>#web_modal input{padding:0 12px;border:1px solid #cbd5e1;border-radius:12px;box-sizing:border-box;background:#fff}</style>
+<div id="web_modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:10050; align-items:center; justify-content:center; padding:14px;">
+  <div style="background:#fff; border-radius:18px; padding:16px; width:100%; max-width:400px; max-height:90vh; overflow-y:auto; box-shadow:0 14px 40px rgba(0,0,0,.35);">
+    <h3 id="web_modal_title" style="margin:0 0 8px; font-size:17px;"></h3>
+    <div id="web_modal_body" style="font-size:14px; line-height:1.5;"></div>
+    <div id="web_modal_btns" style="margin-top:12px;"></div>
+  </div>
+</div>
 <div id="missing_data_modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:10030; align-items:center; justify-content:center; padding:12px;">
   <div style="background:#fff; border-radius:16px; width:100%; max-width:440px; max-height:92vh; overflow-y:auto; padding:16px;">
     <h3 id="md_title" style="margin:0 0 4px 0; font-size:17px;">👋 Здравствуйте!</h3>
@@ -1851,12 +1873,24 @@ body.cap-on #docs_modal{padding-top:46px;}
     const f = tgFallbackInit_();
     return f ? f.init : '';
   }
+  // Открыто внутри Telegram или в обычном браузере (веб-вход по логину и паролю)
+  function inTelegram_() {
+    refreshTg();
+    if (tg && (tg.initData || (tg.platform && tg.platform !== 'unknown'))) return true;
+    if (/tgWebAppData/.test(String(location.hash || ''))) return true;
+    try { if (sessionStorage.getItem('__telegram__initParams')) return true; } catch (e) {}
+    return false;
+  }
+  function webToken_() { try { return localStorage.getItem('web_token') || ''; } catch (e) { return ''; } }
+  function isWebMode_() { return !inTelegram_() && !!webToken_(); }
+
   function getTelegramUser() {
     refreshTg();
     if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.id) return tg.initDataUnsafe.user;
     const f = tgFallbackInit_();
     if (f) return f.user;
     const urlParams = new URLSearchParams(window.location.search);
+    if (isWebMode_()) { try { return { id: localStorage.getItem('web_uid') || '', first_name: localStorage.getItem('web_fio') || '' }; } catch (e) {} }
     const qid = urlParams.get('user_id');
     if (qid) return { id: qid, first_name: store.passport.fio };
     try {
@@ -1894,6 +1928,22 @@ body.cap-on #docs_modal{padding-top:46px;}
         } else if (!opts || !opts.method || opts.method === 'GET') {
           url = u + (u.indexOf('?') >= 0 ? '&' : '?') + 'init_data=' + encodeURIComponent(_id);
         }
+      }
+    } catch (e) {}
+    try {
+      const u2 = String(url);
+      if (u2.indexOf(GOOGLE_SHEET_API) === 0 && isWebMode_()) {
+        const wt = webToken_();
+        if (opts && opts.method === 'POST' && typeof opts.body === 'string') {
+          const o2 = JSON.parse(opts.body); o2.web_token = wt;
+          opts = Object.assign({}, opts, { body: JSON.stringify(o2) });
+        } else if (!opts || !opts.method || opts.method === 'GET') {
+          url = u2 + (u2.indexOf('?') >= 0 ? '&' : '?') + 'web_token=' + encodeURIComponent(wt);
+        }
+        return _origFetch(url, opts).then(function (r) {
+          try { r.clone().text().then(function (t) { if (t && t.length < 3000 && t.indexOf('auth_expired') >= 0) { if (window.Web) Web.expired(); } }); } catch (e) {}
+          return r;
+        });
       }
     } catch (e) {}
     return _origFetch(url, opts);
@@ -2290,7 +2340,7 @@ body.cap-on #docs_modal{padding-top:46px;}
   }
 
   window.addEventListener('DOMContentLoaded', () => {
-    try { const _keep = {}; ['last_tg_user','swipe_off','hap_off','demo_off'].forEach(k => { const v = localStorage.getItem(k); if (v !== null) _keep[k] = v; }); localStorage.clear(); Object.keys(_keep).forEach(k => localStorage.setItem(k, _keep[k])); } catch(e){}
+    try { const _keep = {}; ['last_tg_user','swipe_off','hap_off','demo_off','web_token','web_uid','web_fio'].forEach(k => { const v = localStorage.getItem(k); if (v !== null) _keep[k] = v; }); localStorage.clear(); Object.keys(_keep).forEach(k => localStorage.setItem(k, _keep[k])); } catch(e){}
 
     datePickerRange = flatpickr("#p_date_range", {
       mode: "range", locale: "ru", dateFormat: "d.m.Y", showMonths: 1,
@@ -2984,6 +3034,12 @@ body.cap-on #docs_modal{padding-top:46px;}
       const tu = getTelegramUser();
       showSplash(tu ? (tu.first_name || '') : '');
     }
+    if (!userId && !inTelegram_()) {
+      // Обычный браузер без входа: показываем форму логина и пароля
+      hideSplash(true);
+      if (window.Web) Web.showLogin();
+      return;
+    }
     if (!userId) {
       // Пользователь ещё не определён (Telegram не успел передать данные): ждём и пробуем снова, до ~8 секунд
       if (attempt < 32) {
@@ -2999,7 +3055,7 @@ body.cap-on #docs_modal{padding-top:46px;}
     }
     rememberUser_();
 
-    fetch(`${GOOGLE_SHEET_API}?user_id=${encodeURIComponent(userId)}`)
+    fetch(`${GOOGLE_SHEET_API}?user_id=${encodeURIComponent(userId)}` + (inTelegram_() ? '&tg_name=' + encodeURIComponent(((getTelegramUser().first_name || '') + ' ' + (getTelegramUser().last_name || '')).trim()) : ''))
       .then(r => r.json())
       .then(res => {
         // Сервер ответил, но пользователя не нашёл (бывает при «холодном» старте скрипта): пробуем ещё до 3 раз
@@ -3007,7 +3063,9 @@ body.cap-on #docs_modal{padding-top:46px;}
           setTimeout(function () { loadAppData(attempt + 1); }, 1200 * (attempt + 1));
           return;
         }
+        if (res && res.error === 'auth_expired') { if (window.Web) Web.expired(); return; }
         globalAppData = res;
+        if (window.Web) Web.afterLoad(res);
         if (res.currentUser && res.currentUser.fio) setSplashName(String(res.currentUser.fio).trim().split(/\s+/).slice(1, 2).join(' ') || res.currentUser.fio);
         applyRoleUiRestrictions();
 
@@ -4658,7 +4716,8 @@ body.cap-on #docs_modal{padding-top:46px;}
       const open = (idx === empExpanded);
       const adm = adminCfgOf(emp);
       const crown = adm ? ' <span title="Руководитель" style="font-size:13px;">👑</span>' : '';
-      const sig = emp.hasSignature ? '<span title="Подпись есть" style="font-size:12px;">✍️✅</span>' : '<span title="Подписи нет" style="font-size:12px; opacity:.45;">✍️</span>';
+      const accI = '<span title="' + (emp.hasTg ? 'Telegram привязан' : 'Telegram не привязан') + '" style="display:inline-flex;' + (emp.hasTg ? '' : 'opacity:.3;filter:grayscale(1);') + '">' + TG_ICON.replace('width="22" height="22"', 'width="16" height="16"') + '</span><span title="' + (emp.hasWeb ? 'Есть веб-вход' : 'Веб-входа нет') + '" style="font-size:14px;line-height:1;' + (emp.hasWeb ? '' : 'opacity:.3;filter:grayscale(1);') + '">🌐</span> ';
+      const sig = accI + (emp.hasSignature ? '<span title="Подпись есть" style="font-size:12px;">✍️✅</span>' : '<span title="Подписи нет" style="font-size:12px; opacity:.45;">✍️</span>');
       let body = '';
       if (open) {
         const rights = adm ? (adm.allowedTabs && adm.allowedTabs.indexOf('ALL') >= 0 ? 'все сотрудники' : ((adm.allowedTabs || []).length + ' сотр.')) : '';
@@ -4666,8 +4725,11 @@ body.cap-on #docs_modal{padding-top:46px;}
           <div class="emp-details">
             ${escH(emp.role)} · Таб: ${escH(emp.tab || '—')} · TG: ${escH(emp.tgId || '—')}
             ${adm ? `<br>👑 Руководитель, доступ: <b>${rights}</b>` : ''}
+            <div style="margin-top:6px; line-height:1.7;">✈️ Telegram: ${emp.hasTg ? '<b>привязан</b>' : '<b style="color:#8e8e93">не привязан</b>'}<br>🌐 Веб-вход: ${emp.hasWeb ? '<b>логин ' + escH(emp.webLogin) + '</b>' : '<b style="color:#8e8e93">не задан</b>'}</div>
           </div>
           <div class="emp-actions" onclick="event.stopPropagation();">
+            <button type="button" class="emp-act" onclick="Web.openCred(${idx})"><span class="ea-i">🌐</span><span class="ea-t">Логин и пароль для веба</span></button>
+            ${(emp.hasWeb && !emp.hasTg) ? `<button type="button" class="emp-act" onclick="Web.makeCode(${idx})"><span class="ea-i">🔗</span><span class="ea-t">Код привязки Telegram</span></button>` : ''}
             <button type="button" class="emp-act" onclick="openSignatureModal('${escH(emp.tab)}', ${idx})"><span class="ea-i">✍️</span><span class="ea-t">Подпись ${emp.hasSignature ? '✅' : '➕'}</span></button>
             <button type="button" class="emp-act" onclick="openNotificationSettingsModal('${escH(emp.tab)}', ${idx})"><span class="ea-i">${TG_ICON}</span><span class="ea-t">Уведомления</span></button>
             <button type="button" class="emp-act" onclick="openEditEmployeeModal(${idx})"><span class="ea-i">✏️</span><span class="ea-t">Изменить</span></button>
@@ -6416,6 +6478,74 @@ body.cap-on #docs_modal{padding-top:46px;}
     new MutationObserver(upd).observe(n, { childList: true, characterData: true, subtree: true }); upd();
   })();
   syncBack();
+})();
+</script>
+
+<script id="web-js">
+(function () {
+  const $ = id => document.getElementById(id);
+  const post = (payload) => fetch(GOOGLE_SHEET_API, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(Object.assign({ telegram_user: getTelegramUser() }, payload)) }).then(r => r.json());
+  function modal(title, body, btns) {
+    $('web_modal_title').innerHTML = title; $('web_modal_body').innerHTML = body;
+    $('web_modal_btns').innerHTML = btns.map((b, i) => `<button type="button" class="btn ${b.cls || 'btn-secondary'}" style="width:100%; height:48px; font-size:15px; margin-bottom:8px;" data-i="${i}">${b.t}</button>`).join('');
+    $('web_modal_btns').querySelectorAll('button').forEach(el => el.onclick = () => btns[Number(el.dataset.i)].f());
+    $('web_modal').style.display = 'flex';
+  }
+  function close() { $('web_modal').style.display = 'none'; }
+  const esc = x => String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+  const empAt = idx => (globalAppData.employees || [])[idx];
+  window.Web = {
+    showLogin() { try { const sp = document.getElementById('splash'); if (sp) sp.style.display = 'none'; } catch (e) {} $('web_login').style.display = 'flex'; setTimeout(() => { try { $('web_login_name').focus(); } catch (e) {} }, 200); },
+    expired() { try { localStorage.removeItem('web_token'); } catch (e) {} try { document.getElementById('splash').style.display = 'none'; } catch (e) {} $('web_login_err').textContent = 'Сессия истекла, войдите заново'; this.showLogin(); },
+    login() {
+      const l = $('web_login_name').value.trim(), p = $('web_login_pass').value;
+      if (!l || !p) { $('web_login_err').textContent = 'Введите логин и пароль'; return; }
+      const b = $('web_login_btn'); b.disabled = true; b.textContent = 'Проверяю…'; $('web_login_err').textContent = '';
+      fetch(GOOGLE_SHEET_API, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'web_login', login: l, password: p }) })
+        .then(r => r.json()).then(res => {
+          b.disabled = false; b.textContent = 'Войти';
+          if (res && res.status === 'ok') {
+            try { localStorage.setItem('web_token', res.token); localStorage.setItem('web_uid', res.uid); localStorage.setItem('web_fio', res.fio || ''); } catch (e) {}
+            $('web_login_pass').value = ''; $('web_login').style.display = 'none'; loadAppData();
+          } else $('web_login_err').textContent = (res && res.message) || 'Не удалось войти';
+        }).catch(() => { b.disabled = false; b.textContent = 'Войти'; $('web_login_err').textContent = 'Нет связи с сервером'; });
+    },
+    logout() { try { ['web_token', 'web_uid', 'web_fio'].forEach(k => localStorage.removeItem(k)); } catch (e) {} location.reload(); },
+    afterLoad(res) {
+      const web = !!res.viaWeb;
+      $('prof_row_logout').style.display = web ? 'flex' : 'none';
+      if (web && res.currentUser) $('prof_web_who').textContent = 'Вы вошли как ' + res.currentUser.fio;
+      const inTg = inTelegram_();
+      $('prof_row_link').style.display = (inTg && (!res.currentUser || res.linkSuggest)) ? 'flex' : 'none';
+      if (inTg && res.linkSuggest && !window.__linkAsked) { window.__linkAsked = true; setTimeout(() => this.openLink(res.linkSuggest), 1500); }
+    },
+    openLink(fio) {
+      modal('🔗 Привязка веб-учётки', (fio ? 'Похоже, вы уже работаете через браузер как <b>' + esc(fio) + '</b>. ' : '') + 'Чтобы объединить веб-учётку с этим Telegram, введите код привязки (8 символов), который вам передал руководитель. Все ваши записи, права и сотрудники перейдут сюда автоматически, веб-вход продолжит работать.' + '<input id="web_code_in" type="text" autocapitalize="characters" autocomplete="off" placeholder="Код привязки" style="width:100%; height:48px; font-size:18px; letter-spacing:2px; text-transform:uppercase; margin-top:10px;">',
+        [{ t: '🔗 Привязать', cls: 'btn-primary', f: () => {
+          const code = ($('web_code_in').value || '').trim(); if (!code) { showToast('Введите код'); return; }
+          post({ action: 'web_link_telegram', code: code }).then(r => { if (r.status === 'ok') { close(); showToast('Готово: Telegram привязан'); loadAppData(); } else showToast(r.message || 'Не удалось привязать'); }).catch(() => showToast('Нет связи с сервером'));
+        } }, { t: 'Позже', f: close }]);
+    },
+    openCred(idx) {
+      const e = empAt(idx); if (!e) return;
+      modal('🌐 Веб-вход: ' + esc(e.fio), 'Логин и пароль для входа из браузера (без Telegram). ' + (e.hasWeb ? 'Сейчас задан логин <b>' + esc(e.webLogin) + '</b>; новый пароль заменит прежний, а все открытые входы завершатся.' : 'Передайте их сотруднику сами.') +
+        '<input id="web_cred_l" type="text" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="Логин (латиницей)" value="' + esc(e.webLogin || '') + '" style="width:100%; height:46px; font-size:16px; margin-top:10px;">' +
+        '<input id="web_cred_p" type="text" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="Пароль (от 6 символов)" style="width:100%; height:46px; font-size:16px; margin-top:8px;">',
+        [{ t: '💾 Сохранить', cls: 'btn-primary', f: () => {
+          const l = $('web_cred_l').value.trim(), p = $('web_cred_p').value;
+          post({ action: 'web_set_credentials', target_tab: e.tab, target_fio: e.fio, login: l, password: p }).then(r => { if (r.status === 'ok') { close(); showToast('Веб-доступ сохранён'); loadAppData(); } else showToast(r.message || 'Не удалось сохранить'); }).catch(() => showToast('Нет связи с сервером'));
+        } }].concat(e.hasWeb ? [{ t: '🗑 Отключить веб-доступ', f: () => { post({ action: 'web_remove_credentials', target_tab: e.tab, target_fio: e.fio }).then(r => { close(); showToast(r.status === 'ok' ? 'Веб-доступ отключён' : (r.message || 'Ошибка')); loadAppData(); }); } }] : []).concat([{ t: 'Закрыть', f: close }]));
+    },
+    makeCode(idx) {
+      const e = empAt(idx); if (!e) return;
+      post({ action: 'web_link_code', target_tab: e.tab, target_fio: e.fio }).then(r => {
+        if (r.status !== 'ok') { showToast(r.message || 'Не удалось создать код'); return; }
+        modal('🔗 Код привязки Telegram', 'Для <b>' + esc(r.fio) + '</b>. Код действует 24 часа и работает один раз. Передайте его сотруднику: пусть откроет приложение в Telegram и введёт код (Профиль → «Привязать веб-учётку»; приложение предложит это само).' +
+          '<div style="font-size:30px; font-weight:800; letter-spacing:4px; text-align:center; margin:14px 0; padding:12px; background:#f1f5f9; border-radius:12px; user-select:all;">' + esc(r.code) + '</div><div style="font-size:12px; color:#64748b;">Копия кода также отправлена главному руководителю в Telegram.</div>',
+          [{ t: '📋 Скопировать', cls: 'btn-primary', f: () => { try { navigator.clipboard.writeText(r.code); showToast('Скопировано'); } catch (er) { showToast('Нажмите на код и скопируйте'); } } }, { t: 'Закрыть', f: close }]);
+      }).catch(() => showToast('Нет связи с сервером'));
+    }
+  };
 })();
 </script>
 </body>
