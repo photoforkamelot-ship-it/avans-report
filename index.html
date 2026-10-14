@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Авансовый отчёт">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="app-build" content="20261016-8">
+  <meta name="app-build" content="20261016-9">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -1585,9 +1585,9 @@ body.cap-on #docs_modal{padding-top:46px;}
     <div id="a2hs_btns" style="margin-top:12px;"></div>
   </div>
 </div>
-<div id="whatsnew" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,.6); z-index:10090; align-items:center; justify-content:center; padding:14px;">
-  <div style="background:#fff; border-radius:22px; width:100%; max-width:420px; max-height:92vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 16px 48px rgba(0,0,0,.4);">
-    <div style="padding:18px 18px 8px;">
+<div id="whatsnew" style="display:none; position:fixed; inset:0; box-sizing:border-box; background:rgba(15,23,42,.6); z-index:10090; align-items:center; justify-content:center; padding:calc(max(var(--tg-top, 0px), env(safe-area-inset-top, 0px)) + 12px) 14px 14px;">
+  <div style="background:#fff; border-radius:22px; width:100%; max-width:420px; max-height:100%; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 16px 48px rgba(0,0,0,.4);">
+    <div style="padding:18px 18px 8px; text-align:center;">
       <div style="font-size:22px; font-weight:800; color:#0b2a8a;">🆕 Что нового</div>
       <div id="wn_sub" style="font-size:13px; color:#64748b; margin-top:2px;">Изменения с вашего последнего захода</div>
     </div>
