@@ -3,7 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta name="app-build" content="20261016-3">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="icon" type="image/png" href="icon-192.png">
+  <meta name="theme-color" content="#0a63d6">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="АО-1">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="app-build" content="20261016-5">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -1084,6 +1092,7 @@ body.cap-on #docs_modal{padding-top:46px;}
         <button type="button" class="prof-row" onclick="openNotificationSettingsModal()"><span class="pr-i">🔔</span><span class="pr-t"><b>Уведомления Telegram</b><small>Какие сообщения присылает бот</small></span><span class="pr-badge" id="prof_notif_badge"></span><span class="pr-c">›</span></button>
         <button type="button" class="prof-row" onclick="Hap.toggle()"><span class="pr-i">📳</span><span class="pr-t"><b>Вибрация</b><small>Тактильный отклик при действиях: <span id="prof_hap_state">включена</span> · версия <span id="app_build_lbl">…</span></small></span><span class="pr-c">›</span></button>
         <button type="button" class="prof-row" id="prof_row_link" style="display:none;" onclick="Web.openLink()"><span class="pr-i">🔗</span><span class="pr-t"><b>Привязать веб-учётку</b><small>Если вы уже работаете через браузер: введите код привязки от руководителя</small></span><span class="pr-c">›</span></button>
+        <button type="button" class="prof-row" id="prof_row_a2hs" style="display:none;" onclick="A2HS.open(true)"><span class="pr-i">📲</span><span class="pr-t"><b>Добавить на главный экран</b><small>Иконка быстрого доступа, как у обычного приложения</small></span><span class="pr-c">›</span></button>
         <button type="button" class="prof-row" id="prof_row_logout" style="display:none;" onclick="Web.logout()"><span class="pr-i">🚪</span><span class="pr-t"><b>Выйти из веб-версии</b><small id="prof_web_who">Вы вошли через браузер</small></span><span class="pr-c">›</span></button>
         <button type="button" class="prof-row" onclick="SwipeCfg.toggle()"><span class="pr-i">👆</span><span class="pr-t"><b>Свайп между шагами</b><small>Листать шаги отчёта движением пальца: <span id="prof_swipe_state">включено</span></small></span><span id="prof_swipe_sw" style="width:46px;height:28px;border-radius:14px;background:#34c759;position:relative;flex:none;transition:background .2s"><i id="prof_swipe_knob" style="position:absolute;right:3px;top:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 2px 5px rgba(0,0,0,.25)"></i></span></button>
         <button type="button" class="prof-row" onclick="DemoCfg.toggle()"><span class="pr-i">⚡</span><span class="pr-t"><b>Кнопка «ДЕМО-расходы»</b><small>Показывать на шаге «Расходы»: <span id="prof_demo_state">включено</span></small></span><span id="prof_demo_sw" style="width:46px;height:28px;border-radius:14px;background:#34c759;position:relative;flex:none;transition:background .2s"><i id="prof_demo_knob" style="position:absolute;right:3px;top:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 2px 5px rgba(0,0,0,.25)"></i></span></button>
@@ -1565,6 +1574,17 @@ body.cap-on #docs_modal{padding-top:46px;}
   <div class="sp-line" id="sp_line">Загружаю…</div>
 </div>
 
+<div id="a2hs" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,.6); z-index:10085; align-items:flex-end; justify-content:center; padding:12px;">
+  <div style="background:#fff; border-radius:22px; width:100%; max-width:440px; max-height:92vh; overflow-y:auto; padding:18px 16px calc(16px + env(safe-area-inset-bottom,0px)); box-shadow:0 16px 48px rgba(0,0,0,.4);">
+    <div style="display:flex; gap:12px; align-items:center;">
+      <img src="icon-192.png" alt="" style="width:56px; height:56px; border-radius:13px; box-shadow:0 3px 10px rgba(0,0,0,.25);">
+      <div><div style="font-size:18px; font-weight:800; color:#0b2a8a;">Добавьте на главный экран</div><div style="font-size:12.5px; color:#64748b; margin-top:2px;">Иконка «АО-1» откроет приложение в один тап, без адреса и браузерных панелей</div></div>
+    </div>
+    <div id="a2hs_tabs" style="display:flex; gap:6px; margin:14px 0 10px;"></div>
+    <div id="a2hs_body" style="font-size:14px; line-height:1.5;"></div>
+    <div id="a2hs_btns" style="margin-top:12px;"></div>
+  </div>
+</div>
 <div id="whatsnew" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,.6); z-index:10090; align-items:center; justify-content:center; padding:14px;">
   <div style="background:#fff; border-radius:22px; width:100%; max-width:420px; max-height:92vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 16px 48px rgba(0,0,0,.4);">
     <div style="padding:18px 18px 8px;">
@@ -1583,10 +1603,12 @@ body.cap-on #docs_modal{padding-top:46px;}
     <div style="font-size:42px; text-align:center;">✈️💰</div>
     <h2 style="margin:6px 0 2px; text-align:center; font-size:20px;">Вход в приложение</h2>
     <div style="text-align:center; font-size:13px; color:#64748b; margin-bottom:14px;">Командировки и авансовые отчёты</div>
-    <input id="web_login_name" type="text" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="Логин" style="width:100%; height:48px; font-size:16px; margin-bottom:8px; padding:0 12px; border:1px solid #cbd5e1; border-radius:12px; box-sizing:border-box;">
-    <input id="web_login_pass" type="password" autocomplete="current-password" placeholder="Пароль" style="width:100%; height:48px; font-size:16px; margin-bottom:8px; padding:0 12px; border:1px solid #cbd5e1; border-radius:12px; box-sizing:border-box;" onkeydown="if(event.key==='Enter')Web.login()">
+    <form id="web_login_form" action="#" method="post" autocomplete="on" onsubmit="Web.login(); return false;">
+    <input id="web_login_name" name="username" type="text" autocomplete="username" inputmode="email" enterkeyhint="next" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="Логин" style="width:100%; height:48px; font-size:16px; margin-bottom:8px; padding:0 12px; border:1px solid #cbd5e1; border-radius:12px; box-sizing:border-box;">
+    <input id="web_login_pass" name="password" type="password" autocomplete="current-password" enterkeyhint="go" placeholder="Пароль" style="width:100%; height:48px; font-size:16px; margin-bottom:8px; padding:0 12px; border:1px solid #cbd5e1; border-radius:12px; box-sizing:border-box;">
     <div id="web_login_err" style="color:#dc2626; font-size:13px; min-height:18px; margin-bottom:6px;"></div>
-    <button type="button" id="web_login_btn" class="btn btn-primary" style="height:50px; font-size:16px; width:100%;" onclick="Web.login()">Войти</button>
+    <button type="submit" id="web_login_btn" class="btn btn-primary" style="height:50px; font-size:16px; width:100%;">Войти</button>
+    </form>
     <div style="font-size:12px; color:#94a3b8; text-align:center; margin-top:12px; line-height:1.4;">Логин и пароль выдаёт ваш руководитель.<br>В Telegram вход происходит автоматически.</div>
   </div>
 </div>
@@ -2354,7 +2376,7 @@ body.cap-on #docs_modal{padding-top:46px;}
   }
 
   window.addEventListener('DOMContentLoaded', () => {
-    try { const _keep = {}; ['last_tg_user','swipe_off','hap_off','demo_off','whatsnew_seen','web_token','web_uid','web_fio'].forEach(k => { const v = localStorage.getItem(k); if (v !== null) _keep[k] = v; }); localStorage.clear(); Object.keys(_keep).forEach(k => localStorage.setItem(k, _keep[k])); } catch(e){}
+    try { const _keep = {}; ['last_tg_user','swipe_off','hap_off','demo_off','whatsnew_seen','a2hs_seen','a2hs_later','web_token','web_uid','web_fio'].forEach(k => { const v = localStorage.getItem(k); if (v !== null) _keep[k] = v; }); localStorage.clear(); Object.keys(_keep).forEach(k => localStorage.setItem(k, _keep[k])); } catch(e){}
 
     datePickerRange = flatpickr("#p_date_range", {
       mode: "range", locale: "ru", dateFormat: "d.m.Y", showMonths: 1,
@@ -3125,6 +3147,7 @@ body.cap-on #docs_modal{padding-top:46px;}
         if (res.isAdmin) setTimeout(loadTripArchive, 2500);
         checkCloudDraftPopup(res.reports, userId, res.isAdmin);
         try { if (window.WhatsNew) WhatsNew.maybe(res); } catch (e) {}
+        try { if (window.A2HS) A2HS.maybe(res); } catch (e) {}
         hideSplash(true);
       })
       .catch(() => {
@@ -6525,6 +6548,7 @@ body.cap-on #docs_modal{padding-top:46px;}
           b.disabled = false; b.textContent = 'Войти';
           if (res && res.status === 'ok') {
             try { localStorage.setItem('web_token', res.token); localStorage.setItem('web_uid', res.uid); localStorage.setItem('web_fio', res.fio || ''); } catch (e) {}
+            try { if (window.PasswordCredential && navigator.credentials && navigator.credentials.store) navigator.credentials.store(new PasswordCredential({ id: l, password: p, name: res.fio || l })); } catch (e) {}
             $('web_login_pass').value = ''; $('web_login').style.display = 'none'; loadAppData();
           } else $('web_login_err').textContent = (res && res.message) || 'Не удалось войти';
         }).catch(() => { b.disabled = false; b.textContent = 'Войти'; $('web_login_err').textContent = 'Нет связи с сервером'; });
@@ -6533,6 +6557,7 @@ body.cap-on #docs_modal{padding-top:46px;}
     afterLoad(res) {
       const web = !!res.viaWeb;
       $('prof_row_logout').style.display = web ? 'flex' : 'none';
+      try { $('prof_row_a2hs').style.display = (!inTelegram_() && !(window.A2HS && A2HS.standalone())) ? 'flex' : 'none'; } catch (e) {}
       if (web && res.currentUser) $('prof_web_who').textContent = 'Вы вошли как ' + res.currentUser.fio;
       const inTg = inTelegram_();
       $('prof_row_link').style.display = (inTg && (!res.currentUser || res.linkSuggest)) ? 'flex' : 'none';
@@ -6573,7 +6598,7 @@ body.cap-on #docs_modal{padding-top:46px;}
   const VER = '20261016';
   // d — дата изменения; a — только для руководителей
   const ITEMS = [
-    { d: '20261016', i: '🌐', t: 'Вход из браузера по логину и паролю', p: 'Руководитель может выдать логин и пароль, и работать можно без Telegram. Если вы уже работаете в браузере, а в Telegram система предложит привязать учётку по коду: Профиль → «Привязать веб-учётку». Подробнее: Инструкция → «Вход из браузера и привязка Telegram».' },
+    { d: '20261016', i: '🌐', t: 'Вход из браузера по логину и паролю', p: 'Руководитель может выдать логин и пароль, и работать можно без Telegram. Если вы уже работаете в браузере, а в Telegram система предложит привязать учётку по коду: Профиль → «Привязать веб-учётку». Подробнее: Инструкция → «Вход из браузера и привязка Telegram». В браузере приложение предложит добавить иконку на главный экран (повторно: Профиль → «Добавить на главный экран»).' },
     { d: '20261016', i: '🔑', a: 1, t: 'Веб-доступ, коды привязки и значки', p: 'В «Базе сотрудников» у карточки появились значки Telegram и 🌐 (яркий значит «есть», блёклый «нет»), кнопки «Логин и пароль для веба» и «Код привязки Telegram». В журнале действия помечаются «[веб]» и «[Telegram]». Подробнее: Памятка администратора, раздел 10.' },
     { d: '20261015', i: '🪪', t: 'Надёжнее определение пользователя', p: 'Приложение само повторяет определение вашей учётки при входе. Пустых «ID null» в журнале больше нет. Если имя не появилось, нажмите «Повторить» или откройте приложение заново из чата с ботом.' },
     { d: '20261015', i: '⚡', t: 'Кнопка «ДЕМО-расходы» отключается', p: 'Профиль → «Кнопка «ДЕМО-расходы»»: скройте её на шаге «Расходы», если она не нужна. Настройки «Свайп» и «Вибрация» теперь тоже сохраняются.' },
@@ -6612,6 +6637,69 @@ body.cap-on #docs_modal{padding-top:46px;}
         if (busy) { setTimeout(() => WhatsNew.maybe(res), 4000); return; }
         render(arr, false);
       }, 1800);
+    }
+  };
+})();
+</script>
+
+<script id="a2hs-js">
+(function () {
+  const $ = id => document.getElementById(id);
+  const ua = navigator.userAgent || '';
+  const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const isAndroid = /Android/i.test(ua);
+  const isSafari = isIOS && /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS|YaBrowser/.test(ua);
+  let deferred = null, tab = isIOS ? 'ios' : 'android';
+  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferred = e; });
+  window.addEventListener('appinstalled', () => { try { localStorage.setItem('a2hs_seen', '1'); } catch (e) {} close(); });
+  function standalone() { try { return (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true; } catch (e) { return false; } }
+  const step = (n, t) => `<div style="display:flex; gap:10px; margin-bottom:9px;"><div style="flex:none; width:24px; height:24px; border-radius:50%; background:#007aff; color:#fff; font-weight:700; font-size:13px; display:flex; align-items:center; justify-content:center;">${n}</div><div>${t}</div></div>`;
+  function body() {
+    if (tab === 'ios') {
+      return (isIOS && !isSafari ? '<div style="background:#fff7ed; border:1px solid #fdba74; border-radius:10px; padding:8px 10px; font-size:12.5px; margin-bottom:10px;">Сейчас страница открыта не в Safari. На iPhone и iPad надёжнее всего добавлять из <b>Safari</b>: скопируйте адрес и откройте его там.</div>' : '') +
+        step(1, 'Нажмите <b>«Поделиться»</b>: квадрат со стрелкой вверх внизу экрана (на iPad вверху справа).') +
+        step(2, 'Прокрутите меню вниз и выберите <b>«На экран «Домой»»</b> (на английском Add to Home Screen).') +
+        step(3, 'Нажмите <b>«Добавить»</b> справа вверху. Иконка «АО-1» появится среди приложений.') +
+        '<div style="font-size:12px; color:#64748b;">Откроется как отдельное приложение, без строки адреса.</div>';
+    }
+    return (deferred ? '<div style="margin-bottom:10px;">Ваш браузер умеет установить приложение прямо отсюда: нажмите кнопку ниже.</div>' : '') +
+      step(1, 'Откройте меню браузера: <b>три точки ⋮</b> вверху справа (в Samsung Internet: три полоски ≡ внизу).') +
+      step(2, 'Выберите <b>«Установить приложение»</b> или <b>«Добавить на главный экран»</b> (в Samsung Internet: «Добавить на главный экран»; в Firefox: «Установить»).') +
+      step(3, 'Подтвердите <b>«Установить»</b> / <b>«Добавить»</b>. Иконка «АО-1» появится на рабочем столе.') +
+      '<div style="font-size:12px; color:#64748b;">Откроется как отдельное приложение, без строки адреса.</div>';
+  }
+  function paint() {
+    $('a2hs_tabs').innerHTML = [['ios', '🍎 iPhone / iPad'], ['android', '🤖 Android']].map(([k, t]) => `<button type="button" data-k="${k}" style="flex:1; height:38px; border-radius:10px; font-size:13px; font-weight:700; border:1px solid ${tab === k ? '#007aff' : '#cbd5e1'}; background:${tab === k ? '#e8f1ff' : '#fff'}; color:${tab === k ? '#0a63d6' : '#475569'};">${t}</button>`).join('');
+    $('a2hs_tabs').querySelectorAll('button').forEach(b => b.onclick = () => { tab = b.dataset.k; paint(); });
+    $('a2hs_body').innerHTML = body();
+    const btns = [];
+    if (tab === 'android' && deferred) btns.push('<button type="button" class="btn btn-primary" style="width:100%; height:48px; font-size:15px; font-weight:700; margin-bottom:8px;" id="a2hs_inst">📲 Установить</button>');
+    btns.push('<button type="button" class="btn ' + ((tab === 'android' && deferred) ? 'btn-secondary' : 'btn-primary') + '" style="width:100%; height:46px; font-size:15px; margin-bottom:6px;" id="a2hs_later">Понятно, добавлю позже</button>');
+    btns.push('<button type="button" style="width:100%; height:36px; font-size:12.5px; color:#94a3b8; background:none; border:none;" id="a2hs_never">Больше не показывать</button>');
+    $('a2hs_btns').innerHTML = btns.join('');
+    const i = $('a2hs_inst'); if (i) i.onclick = () => { deferred.prompt(); deferred.userChoice.then(() => { deferred = null; close(); }); };
+    $('a2hs_later').onclick = () => { try { localStorage.setItem('a2hs_later', String(Date.now())); } catch (e) {} close(); };
+    $('a2hs_never').onclick = () => { try { localStorage.setItem('a2hs_seen', '1'); } catch (e) {} close(); };
+  }
+  function close() { $('a2hs').style.display = 'none'; }
+  window.A2HS = {
+    standalone: standalone,
+    open(force) { tab = isIOS ? 'ios' : (isAndroid ? 'android' : tab); paint(); $('a2hs').style.display = 'flex'; },
+    // Автопредложение: только в обычном браузере (не в Telegram и не в установленном приложении), после знакомства и «Что нового»
+    maybe(res) {
+      try {
+        if (inTelegram_() || standalone()) return;
+        if (localStorage.getItem('a2hs_seen') === '1') return;
+        const later = Number(localStorage.getItem('a2hs_later') || 0);
+        if (later && Date.now() - later < 7 * 24 * 3600 * 1000) return;
+      } catch (e) {}
+      if (!res || !res.currentUser) return;
+      const tryShow = (n) => {
+        const busy = ['tour', 'whatsnew', 'missing_data_modal', 'web_login', 'web_modal'].some(id => { const e = $(id); return e && e.style.display && e.style.display !== 'none'; });
+        if (busy) { if (n < 40) setTimeout(() => tryShow(n + 1), 2500); return; }
+        A2HS.open();
+      };
+      setTimeout(() => tryShow(0), 3500);
     }
   };
 })();
