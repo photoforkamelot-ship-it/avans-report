@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Авансовый отчёт">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="app-build" content="20261016-9">
+  <meta name="app-build" content="20261016-10">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -1940,7 +1940,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     refreshTg();
     if (tg && (tg.initData || (tg.platform && tg.platform !== 'unknown'))) return true;
     if (/tgWebAppData/.test(String(location.hash || ''))) return true;
-    try { if (sessionStorage.getItem('__telegram__initParams')) return true; } catch (e) {}
+    try { const ip = JSON.parse(sessionStorage.getItem('__telegram__initParams') || 'null'); if (ip && ip.tgWebAppData) return true; } catch (e) {}
     return false;
   }
   function webToken_() { try { return localStorage.getItem('web_token') || ''; } catch (e) { return ''; } }
