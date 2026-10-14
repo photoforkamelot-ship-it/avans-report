@@ -9,9 +9,9 @@
   <meta name="theme-color" content="#0a63d6">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="АО-1">
+  <meta name="apple-mobile-web-app-title" content="Авансовый отчёт">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="app-build" content="20261016-5">
+  <meta name="app-build" content="20261016-6">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -29,7 +29,7 @@
     } catch (e) {}
   })();
   </script>
-  <title>Управление командировками и авансовыми отчетами</title>
+  <title>Авансовый отчёт</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   
@@ -1578,7 +1578,7 @@ body.cap-on #docs_modal{padding-top:46px;}
   <div style="background:#fff; border-radius:22px; width:100%; max-width:440px; max-height:92vh; overflow-y:auto; padding:18px 16px calc(16px + env(safe-area-inset-bottom,0px)); box-shadow:0 16px 48px rgba(0,0,0,.4);">
     <div style="display:flex; gap:12px; align-items:center;">
       <img src="icon-192.png" alt="" style="width:56px; height:56px; border-radius:13px; box-shadow:0 3px 10px rgba(0,0,0,.25);">
-      <div><div style="font-size:18px; font-weight:800; color:#0b2a8a;">Добавьте на главный экран</div><div style="font-size:12.5px; color:#64748b; margin-top:2px;">Иконка «АО-1» откроет приложение в один тап, без адреса и браузерных панелей</div></div>
+      <div><div style="font-size:18px; font-weight:800; color:#0b2a8a;">Добавьте на главный экран</div><div style="font-size:12.5px; color:#64748b; margin-top:2px;">Иконка «Авансовый отчёт» откроет приложение в один тап, без адреса и браузерных панелей</div></div>
     </div>
     <div id="a2hs_tabs" style="display:flex; gap:6px; margin:14px 0 10px;"></div>
     <div id="a2hs_body" style="font-size:14px; line-height:1.5;"></div>
@@ -6659,13 +6659,13 @@ body.cap-on #docs_modal{padding-top:46px;}
       return (isIOS && !isSafari ? '<div style="background:#fff7ed; border:1px solid #fdba74; border-radius:10px; padding:8px 10px; font-size:12.5px; margin-bottom:10px;">Сейчас страница открыта не в Safari. На iPhone и iPad надёжнее всего добавлять из <b>Safari</b>: скопируйте адрес и откройте его там.</div>' : '') +
         step(1, 'Нажмите <b>«Поделиться»</b>: квадрат со стрелкой вверх внизу экрана (на iPad вверху справа).') +
         step(2, 'Прокрутите меню вниз и выберите <b>«На экран «Домой»»</b> (на английском Add to Home Screen).') +
-        step(3, 'Нажмите <b>«Добавить»</b> справа вверху. Иконка «АО-1» появится среди приложений.') +
+        step(3, 'Нажмите <b>«Добавить»</b> справа вверху. Иконка «Авансовый отчёт» появится среди приложений.') +
         '<div style="font-size:12px; color:#64748b;">Откроется как отдельное приложение, без строки адреса.</div>';
     }
     return (deferred ? '<div style="margin-bottom:10px;">Ваш браузер умеет установить приложение прямо отсюда: нажмите кнопку ниже.</div>' : '') +
       step(1, 'Откройте меню браузера: <b>три точки ⋮</b> вверху справа (в Samsung Internet: три полоски ≡ внизу).') +
       step(2, 'Выберите <b>«Установить приложение»</b> или <b>«Добавить на главный экран»</b> (в Samsung Internet: «Добавить на главный экран»; в Firefox: «Установить»).') +
-      step(3, 'Подтвердите <b>«Установить»</b> / <b>«Добавить»</b>. Иконка «АО-1» появится на рабочем столе.') +
+      step(3, 'Подтвердите <b>«Установить»</b> / <b>«Добавить»</b>. Иконка «Авансовый отчёт» появится на рабочем столе.') +
       '<div style="font-size:12px; color:#64748b;">Откроется как отдельное приложение, без строки адреса.</div>';
   }
   function paint() {
