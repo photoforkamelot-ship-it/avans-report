@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Авансовый отчёт">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="app-build" content="20261019-23">
+  <meta name="app-build" content="20261019-24">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -2456,9 +2456,30 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     datePickerRange = flatpickr("#p_date_range", {
       mode: "range", locale: "ru", dateFormat: "d.m.Y", showMonths: 1,
       onClose: function(sel, _s, inst) { if (sel.length === 2) setTimeout(function () { advanceFrom(inst.input); }, 120); },
-      onChange: function(selectedDates) {
+      onChange: function(selectedDates, _ds, inst) {
         if (selectedDates.length === 2) {
           const start = selectedDates[0], end = selectedDates[1];
+          // Защита от опечатки: если человек сам выбрал срок, сильно отличающийся от прежнего (> 60 дней), просим подтвердить
+          try {
+            const oS = parseDateToTimestamp(document.getElementById('p_date_start').value), oE = parseDateToTimestamp(document.getElementById('p_date_end').value);
+            const DAY = 86400000;
+            if (inst && inst.isOpen && oS && oE && (Math.abs(start.getTime() - oS) > 60 * DAY || Math.abs(end.getTime() - oE) > 60 * DAY)) {
+              const was = document.getElementById('p_date_start').value + ' — ' + document.getElementById('p_date_end').value;
+              const now = formatFlatpickrToRu(start) + ' — ' + formatFlatpickrToRu(end);
+              const prev = [new Date(oS), new Date(oE)];
+              uiConfirm2('dr_confirm', '📅 Срок сильно изменился', 'Было: <b>' + was + '</b><br>Стало: <b>' + now + '</b><br><br>Разница больше 60 дней. Проверьте год и месяц: срок попадёт в список, календарь и уведомления коллегам.', 'Да, срок верный', function () { applyPeriod(start, end); });
+              // пока человек не подтвердил, возвращаем прежние даты в календаре
+              inst.setDate(prev, false);
+              return;
+            }
+          } catch (eDr) {}
+          applyPeriod(start, end);
+        }
+      }
+    });
+    function applyPeriod(start, end) {
+        try { datePickerRange.setDate([start, end], false); } catch (eSd) {}
+        {
           document.getElementById('p_date_start').value = formatFlatpickrToRu(start);
           document.getElementById('p_date_end').value = formatFlatpickrToRu(end);
           const diffDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
@@ -2466,8 +2487,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
           calcDaily();
           triggerCloudAutoSave(true); // даты выбираются разом, не печатаются: отправляем сразу, чтобы не потерять при быстром выходе
         }
-      }
-    });
+    }
 
     datePickerReqRange = flatpickr("#req_date_range", {
       mode: "range", locale: "ru", dateFormat: "d.m.Y", showMonths: 1, disableMobile: true,
