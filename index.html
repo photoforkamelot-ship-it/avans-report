@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Авансовый отчёт">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="app-build" content="20261019-17">
+  <meta name="app-build" content="20261019-18">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -137,6 +137,7 @@
     .pick-title { font-weight:700; font-size:13px; margin-bottom:8px; }
     .pick-search { width:100%; height:42px; font-size:15px; border:1.5px solid #cbd5e1; border-radius:10px; padding:0 12px; box-sizing:border-box; }
     .pick-all { display:flex; align-items:center; gap:8px; font-size:13px; margin:8px 2px; }
+    .team-tag { display:inline-block; border-radius:10px; padding:1px 8px; font-size:11px; font-weight:800; margin-left:6px; border:1px solid; white-space:nowrap; vertical-align:middle; }
     .pick-list { max-height:220px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:10px; background:#fff; }
     .pick-row { display:flex; align-items:center; gap:10px; padding:10px 12px; border-bottom:1px solid #f1f5f9; font-size:14px; cursor:pointer; }
     .pick-row.on { background:#e8f3ff; font-weight:700; }
@@ -1103,6 +1104,7 @@ body.cap-on #docs_modal{padding-top:46px;}
         <button type="button" class="prof-row" onclick="SwipeCfg.toggle()"><span class="pr-i">👆</span><span class="pr-t"><b>Свайп между шагами</b><small>Листать шаги отчёта движением пальца: <span id="prof_swipe_state">включено</span></small></span><span id="prof_swipe_sw" style="width:46px;height:28px;border-radius:14px;background:#34c759;position:relative;flex:none;transition:background .2s"><i id="prof_swipe_knob" style="position:absolute;right:3px;top:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 2px 5px rgba(0,0,0,.25)"></i></span></button>
         <button type="button" class="prof-row" onclick="DemoCfg.toggle()"><span class="pr-i">⚡</span><span class="pr-t"><b>Кнопка «ДЕМО-расходы»</b><small>Показывать на шаге «Расходы»: <span id="prof_demo_state">включено</span></small></span><span id="prof_demo_sw" style="width:46px;height:28px;border-radius:14px;background:#34c759;position:relative;flex:none;transition:background .2s"><i id="prof_demo_knob" style="position:absolute;right:3px;top:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 2px 5px rgba(0,0,0,.25)"></i></span></button>
         <button type="button" class="prof-row" id="prof_row_audit" style="display:none;" onclick="openAudit()"><span class="pr-i">🧹</span><span class="pr-t"><b>Ревизия и чистка Диска</b><small>Найти и удалить документы, не относящиеся к существующим командировкам</small></span><span class="pr-c">›</span></button>
+ <button type="button" class="prof-row" id="prof_row_treq" style="display:none;" onclick="openTeamReq()"><span class="pr-i">🤝</span><span class="pr-t"><b>Запросы на согласование</b><small id="treq_sub">Доступ руководителей к сотрудникам</small></span><span class="pr-c">›</span></button>
         <button type="button" class="prof-row" id="prof_row_emp" style="display:none;" onclick="switchMainTab('employees')"><span class="pr-i">👥</span><span class="pr-t"><b>База сотрудников</b><small>Данные, права и подписи команды</small></span><span class="pr-c">›</span></button>
         <button type="button" class="prof-row" onclick="WhatsNew.open(true)"><span class="pr-i">🆕</span><span class="pr-t"><b>Что нового</b><small>Список последних изменений в приложении</small></span><span class="pr-c">›</span></button>
         <button type="button" class="prof-row" onclick="openHelp()"><span class="pr-i">❓</span><span class="pr-t"><b>Инструкция</b><small>Как работать с приложением</small></span><span class="pr-c">›</span></button>
@@ -1123,7 +1125,7 @@ body.cap-on #docs_modal{padding-top:46px;}
     <div class="card">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
         <h2 style="margin:0; font-size:17px; white-space:nowrap;">👥 База сотрудников</h2>
-        <button type="button" class="btn btn-primary" style="height:32px; width:auto; padding:0 12px; font-size:12px;" onclick="openAddEmployeeModal()">➕ Добавить</button>
+        <div style="display:flex; gap:6px;"><button type="button" id="btn_team_mine" class="btn btn-secondary" style="display:none; height:32px; width:auto; padding:0 12px; font-size:12px;" onclick="openTeamMine()">👥 Моя команда</button><button type="button" class="btn btn-primary" style="height:32px; width:auto; padding:0 12px; font-size:12px;" onclick="openAddEmployeeModal()">➕ Добавить</button></div>
       </div>
 
       <div id="admin_employees_container">Загрузка...</div>
@@ -4975,8 +4977,15 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
   function renderAdminEmployees() {
     const c = document.getElementById("admin_employees_container");
     const list = globalAppData.employees || [];
-    if (list.length === 0) { c.innerHTML = '<div style="color:#8e8e93; font-size:12px;">Сотрудники не найдены.</div>'; return; }
+    const dirList = globalAppData.directory || [];
+    const tmb = document.getElementById('btn_team_mine');
+    if (tmb) tmb.style.display = (globalAppData.isAdmin && !globalAppData.isSuperAdmin && !((globalAppData.roleInfo || {}).allowedTabs || []).includes('ALL')) ? '' : 'none';
+    if (list.length === 0 && !dirList.length) { c.innerHTML = '<div style="color:#8e8e93; font-size:12px;">Сотрудники не найдены.</div>'; return; }
     const isSuper = !!globalAppData.isSuperAdmin;
+    const dirHtml = dirList.length ? '<div style="grid-column:1/-1; font-weight:800; color:#64748b; margin:10px 2px 6px; font-size:13px;">Остальные сотрудники: доступ по запросу</div>' + dirList.map(d => {
+      const tm = (globalAppData.teams || {})[d.owner];
+      return '<div class="emp-card" style="cursor:default; ' + (tm ? 'border-left:5px solid ' + tm.color + ';' : '') + '"><div class="emp-head"><div class="emp-name">' + escH(d.fio) + teamTag(d.owner) + '</div><div class="emp-meta">' + (d.pending ? '<span title="Ожидает решения" style="font-size:18px;">⏳</span>' : '<button type="button" class="btn btn-secondary" style="height:28px; width:auto; padding:0 10px; font-size:12px;" data-t="' + escH(d.token) + '" onclick="askTeamRequest(this.dataset.t)">Запросить</button>') + '</div></div><div class="emp-sub">' + escH(d.role) + (d.tab ? ' · ' + escH(d.tab) : '') + '</div></div>';
+    }).join('') : '';
     c.innerHTML = list.map((emp, idx) => {
       const open = (idx === empExpanded);
       const adm = adminCfgOf(emp);
@@ -4985,7 +4994,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
       const sig = accI + (emp.hasSignature ? '<span title="Подпись есть" style="font-size:12px;">✍️✅</span>' : '<span title="Подписи нет" style="font-size:12px; opacity:.45;">✍️</span>');
       let body = '';
       if (open) {
-        const rights = adm ? (adm.allowedTabs && adm.allowedTabs.indexOf('ALL') >= 0 ? 'все сотрудники' : ((adm.allowedTabs || []).length + ' сотр.')) : '';
+        const rights = adm ? (adm.allowedTabs && adm.allowedTabs.indexOf('ALL') >= 0 ? 'все сотрудники' : ((adm.allowedTabs || []).filter(t => t !== 'NONE').length + ' сотр.')) : '';
         body = `
           <div class="emp-details">
             ${escH(emp.role)} · Таб: ${escH(emp.tab || '—')} · TG: ${escH(emp.tgId || '—')}
@@ -5006,15 +5015,81 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
         `;
       }
       return `
-        <div class="emp-card ${open ? 'open' : ''}" onclick="toggleEmpCard(${idx})">
+        <div class="emp-card ${open ? 'open' : ''}" style="${((globalAppData.teams || {})[emp.teamOwner] ? 'border-left:5px solid ' + globalAppData.teams[emp.teamOwner].color + ';' : '')}" onclick="toggleEmpCard(${idx})">
           <div class="emp-head">
-            <div class="emp-name">${escH(emp.fio)}${crown}</div>
+            <div class="emp-name">${escH(emp.fio)}${crown}${teamTag(emp.teamOwner)}</div>
             <div class="emp-meta">${sig} <span class="emp-chev">${open ? '▴' : '▾'}</span></div>
           </div>
           <div class="emp-sub">${escH(emp.role)}${emp.tab ? ' · ' + escH(emp.tab) : ''}</div>
           ${body}
         </div>`;
-    }).join('');
+    }).join('') + dirHtml;
+  }
+
+  // ----- Команды: теги, «Моя команда», запросы на согласование -----
+  function teamTag(id) { const t = (globalAppData.teams || {})[id]; if (!t) return ''; return '<span class="team-tag" style="color:' + t.color + '; background:' + t.color + '1a; border-color:' + t.color + '66;">' + escH(t.name) + '</span>'; }
+  function uiConfirm2(id, title, html, yes, onYes) {
+    let m = document.getElementById(id);
+    if (!m) { m = document.createElement('div'); m.id = id; m.style.cssText = 'position:fixed; inset:0; z-index:10300; background:rgba(15,23,42,.55); display:none; align-items:center; justify-content:center; padding:16px;'; document.body.appendChild(m); }
+    m.innerHTML = '<div style="background:#fff; border-radius:18px; padding:18px; max-width:440px; width:100%; max-height:86vh; overflow:auto; box-shadow:0 20px 50px rgba(0,0,0,.3);"><div style="font-weight:900; font-size:17px; margin-bottom:8px;">' + title + '</div><div style="font-size:14px; line-height:1.45; color:#334155;">' + html + '</div><div style="display:flex; gap:8px; margin-top:14px;"><button type="button" class="btn btn-secondary" style="flex:1;" id="' + id + '_no">Отмена</button><button type="button" class="btn btn-primary" style="flex:1;" id="' + id + '_yes">' + yes + '</button></div></div>';
+    m.style.display = 'flex';
+    document.getElementById(id + '_no').onclick = () => { m.style.display = 'none'; };
+    document.getElementById(id + '_yes').onclick = () => { m.style.display = 'none'; onYes(); };
+  }
+  function teamApi(payload, okText) {
+    empApi(Object.assign({ telegram_user: getTelegramUser(), sender_id: getTelegramUser().id }, payload), okText, function () { try { closeTeamMine(); } catch (e) {} });
+  }
+  function askTeamRequest(tok) {
+    const d = (globalAppData.directory || []).find(x => x.token === tok); if (!d) return;
+    uiConfirm2('tr_confirm', '🤝 Добавить сотрудника в команду?', '<b>' + escH(d.fio) + '</b><br>Сейчас в команде: ' + teamTag(d.owner) + '<br><br>Будет отправлено согласование главному руководителю. Пока он не решит, доступа к командировкам и данным сотрудника не будет. После одобрения сотрудник перейдёт в вашу команду.', 'Запросить', () => teamApi({ action: 'team_set_mine', add: [tok], remove: [] }, 'Запрос отправлен'));
+  }
+  let teamPick = null;
+  function openTeamMine() {
+    const own = new Set((globalAppData.employees || []).map(e => e.teamTok).filter(Boolean).filter(t => { const e = (globalAppData.employees || []).find(x => x.teamTok === t); return e && String(e.teamOwner) === String((getTelegramUser() || {}).id); }));
+    teamPick = { own, sel: new Set(own), q: '' };
+    let m = document.getElementById('tpick_modal');
+    if (!m) { m = document.createElement('div'); m.id = 'tpick_modal'; m.style.cssText = 'position:fixed; inset:0; z-index:10250; background:rgba(15,23,42,.55); display:flex; align-items:center; justify-content:center; padding:16px;'; document.body.appendChild(m); }
+    m.style.display = 'flex'; renderTeamMine();
+  }
+  function closeTeamMine() { const m = document.getElementById('tpick_modal'); if (m) m.style.display = 'none'; teamPick = null; }
+  function renderTeamMine() {
+    const m = document.getElementById('tpick_modal'); if (!m || !teamPick) return;
+    const myId = String((getTelegramUser() || {}).id);
+    const all = [].concat((globalAppData.employees || []).filter(e => e.teamTok && String(e.tgId).trim() !== myId).map(e => ({ fio: e.fio, tab: e.tab, tok: e.teamTok, owner: e.teamOwner, pending: false })), (globalAppData.directory || []).map(d => ({ fio: d.fio, tab: d.tab, tok: d.token, owner: d.owner, pending: d.pending })));
+    const q = (teamPick.q || '').toLowerCase();
+    const rows = all.filter(e => !q || String(e.fio).toLowerCase().indexOf(q) >= 0 || String(e.tab).indexOf(q) >= 0).sort((a, b) => String(a.fio).localeCompare(String(b.fio), 'ru')).map(e => {
+      const on = teamPick.sel.has(e.tok), mine = teamPick.own.has(e.tok);
+      const box = e.pending ? '<span style="font-size:16px; width:22px; text-align:center;">⏳</span>' : '<span class="pick-box">' + (on ? '✓' : '') + '</span>';
+      return '<div class="pick-row ' + (on ? 'on' : '') + '" data-t="' + escH(e.tok) + '" data-p="' + (e.pending ? 1 : 0) + '" onclick="teamPickToggle(this)">' + box + '<span>' + escH(e.fio) + (mine ? '' : teamTag(e.owner)) + '</span></div>';
+    }).join('') || '<div style="color:#8e8e93; font-size:12px; padding:6px;">Никого не найдено</div>';
+    const add = Array.from(teamPick.sel).filter(t => !teamPick.own.has(t)).length, rem = Array.from(teamPick.own).filter(t => !teamPick.sel.has(t)).length;
+    m.innerHTML = '<div style="background:#fff; border-radius:18px; padding:16px; max-width:460px; width:100%; max-height:90vh; display:flex; flex-direction:column; box-shadow:0 20px 50px rgba(0,0,0,.3);"><div style="font-weight:900; font-size:17px; margin-bottom:4px;">👥 Моя команда</div><div style="font-size:12px; color:#64748b; margin-bottom:8px; line-height:1.35;">Отмечены ваши сотрудники. Чужих можно запросить: решение примет главный руководитель. ⏳ значит запрос ждёт решения.</div><input type="text" class="pick-search" placeholder="🔍 Поиск сотрудника…" value="' + escH(teamPick.q) + '" oninput="teamPickSearch(this.value)"><div class="pick-list" style="max-height:none; flex:1; min-height:120px;">' + rows + '</div><div style="display:flex; gap:8px; margin-top:12px;"><button type="button" class="btn btn-secondary" style="flex:1;" onclick="closeTeamMine()">Закрыть</button><button type="button" class="btn btn-primary" style="flex:1;" onclick="saveTeamMine()">Сохранить' + (add || rem ? ' (' + (add ? '+' + add : '') + (add && rem ? ' / ' : '') + (rem ? '−' + rem : '') + ')' : '') + '</button></div></div>';
+    const inp = m.querySelector('.pick-search'); if (inp && teamPick.focus) { inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }
+  }
+  function teamPickSearch(v) { teamPick.q = v; teamPick.focus = true; renderTeamMine(); }
+  function teamPickToggle(el) {
+    if (el.dataset.p === '1') { showToast('Запрос на этого сотрудника уже ждёт решения'); return; }
+    const t = el.dataset.t; if (teamPick.sel.has(t)) teamPick.sel.delete(t); else teamPick.sel.add(t); renderTeamMine();
+  }
+  function saveTeamMine() {
+    const add = Array.from(teamPick.sel).filter(t => !teamPick.own.has(t)), rem = Array.from(teamPick.own).filter(t => !teamPick.sel.has(t));
+    if (!add.length && !rem.length) { closeTeamMine(); return; }
+    const nm = (t) => { const e = (globalAppData.employees || []).find(x => x.teamTok === t) || (globalAppData.directory || []).find(x => x.token === t); return e ? escH(e.fio) : escH(t); };
+    uiConfirm2('tr_confirm', '🤝 Подтвердите изменения', (add.length ? '<b>Запросить доступ</b> (согласует главный руководитель):<br>• ' + add.map(nm).join('<br>• ') + '<br><br>' : '') + (rem.length ? '<b>Убрать из команды</b> (перейдут к главному руководителю):<br>• ' + rem.map(nm).join('<br>• ') : ''), 'Подтверждаю', () => teamApi({ action: 'team_set_mine', add, remove: rem }, add.length ? 'Запрос отправлен главному руководителю' : 'Команда обновлена'));
+  }
+  function openTeamReq() {
+    const list = globalAppData.teamRequests || [];
+    let m = document.getElementById('treq_modal');
+    if (!m) { m = document.createElement('div'); m.id = 'treq_modal'; m.style.cssText = 'position:fixed; inset:0; z-index:10250; background:rgba(15,23,42,.55); display:flex; align-items:center; justify-content:center; padding:16px;'; document.body.appendChild(m); }
+    m.style.display = 'flex';
+    const rows = list.map(r => '<div style="border:1px solid #e2e8f0; border-radius:12px; padding:10px; margin-bottom:8px;"><div style="font-weight:800;">' + escH(r.fio) + '</div><div style="font-size:12.5px; color:#475569; margin:2px 0 8px;">Просит: <b>' + escH(r.fromName) + '</b> · сейчас: ' + escH(r.ownerName) + '<br>' + escH(r.time) + '</div><div style="display:flex; gap:8px;"><button type="button" class="btn btn-primary" style="flex:1; height:34px;" onclick="teamDecide([\'' + escH(r.id) + '\'],\'approve\')">Одобрить</button><button type="button" class="btn btn-secondary" style="flex:1; height:34px;" onclick="teamDecide([\'' + escH(r.id) + '\'],\'deny\')">Отказать</button></div></div>').join('') || '<div style="color:#8e8e93; padding:8px;">Запросов нет</div>';
+    m.innerHTML = '<div style="background:#fff; border-radius:18px; padding:16px; max-width:460px; width:100%; max-height:90vh; display:flex; flex-direction:column; box-shadow:0 20px 50px rgba(0,0,0,.3);"><div style="font-weight:900; font-size:17px; margin-bottom:8px;">🤝 Запросы на согласование</div><div style="overflow:auto; flex:1;">' + rows + '</div>' + (list.length > 1 ? '<div style="display:flex; gap:8px; margin-top:8px;"><button type="button" class="btn btn-primary" style="flex:1;" onclick="teamDecide(null,\'approve\')">Одобрить все</button><button type="button" class="btn btn-secondary" style="flex:1;" onclick="teamDecide(null,\'deny\')">Отказать по всем</button></div>' : '') + '<button type="button" class="btn btn-secondary" style="margin-top:8px;" onclick="document.getElementById(\'treq_modal\').style.display=\'none\'">Закрыть</button></div>';
+  }
+  function teamDecide(ids, decision) {
+    const payload = { action: 'team_decide', decision, telegram_user: getTelegramUser(), sender_id: getTelegramUser().id };
+    if (ids) payload.ids = ids; else payload.all = true;
+    const left = (globalAppData.teamRequests || []).filter(r => ids ? ids.indexOf(r.id) < 0 : false);
+    empApi(payload, decision === 'approve' ? 'Одобрено' : 'Отказано', function () { globalAppData.teamRequests = left; try { renderProfile(); } catch (e) {} if (left.length) openTeamReq(); else document.getElementById('treq_modal').style.display = 'none'; });
   }
 
   // ----- Назначение руководителя: поиск и выбор подчинённых -----
@@ -5022,7 +5097,8 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     const emp = globalAppData.employees[idx];
     if (!emp.tgId) { showToast('У сотрудника нет Telegram ID: добавьте его через «Изменить»'); return; }
     const adm = adminCfgOf(emp);
-    const sel = new Set(adm && adm.allowedTabs ? adm.allowedTabs.filter(t => t !== 'ALL') : []);
+    const sel = new Set(adm && adm.allowedTabs ? adm.allowedTabs.filter(t => t !== 'ALL' && t !== 'NONE') : []);
+    (globalAppData.employees || []).forEach(e => { if (e.teamOwner && String(e.teamOwner) === String(emp.tgId).trim()) sel.add(empAccessToken(e)); });
     adminPick = { idx, selected: sel, query: '', all: !!(adm && adm.allowedTabs && adm.allowedTabs.indexOf('ALL') >= 0) };
     renderAdminEmployees();
   }
@@ -5033,7 +5109,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     const rows = emps.filter(e => e !== lead && (!q || String(e.fio).toLowerCase().indexOf(q) >= 0 || String(e.tab).indexOf(q) >= 0)).map(e => {
       const tok = empAccessToken(e), on = adminPick.all || adminPick.selected.has(tok);
       const eIdx = emps.indexOf(e);
-      return `<div class="pick-row ${on ? 'on' : ''}" onclick="event.stopPropagation(); togglePick(${eIdx});"><span class="pick-box">${on ? '✓' : ''}</span><span>${escH(e.fio)}</span></div>`;
+      return `<div class="pick-row ${on ? 'on' : ''}" onclick="event.stopPropagation(); togglePick(${eIdx});"><span class="pick-box">${on ? '✓' : ''}</span><span>${escH(e.fio)}${teamTag(e.teamOwner)}</span></div>`;
     }).join('') || '<div style="color:#8e8e93; font-size:12px; padding:6px;">Никого не найдено</div>';
     const chips = adminPick.all ? '<span class="pick-chip">Все сотрудники</span>' :
       Array.from(adminPick.selected).map(t => { const e = emps.find(x => empAccessToken(x) === t); return `<span class="pick-chip">${escH(e ? e.fio.split(' ').slice(0, 2).join(' ') : t)}</span>`; }).join('') || '<span style="color:#8e8e93; font-size:12px;">Пока никто не выбран</span>';
@@ -6916,6 +6992,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
       document.getElementById('prof_sub').textContent = [role, cu && cu.tab ? 'таб. ' + cu.tab : ''].filter(Boolean).join(' · ');
       document.getElementById('prof_sig_hint').textContent = cu && cu.hasSignature ? 'Подпись загружена ✅' : 'Подписи пока нет';
       const eb = document.getElementById('tab_btn_emp');
+      (function () { const r = document.getElementById('prof_row_treq'); const n = ((globalAppData && globalAppData.teamRequests) || []).length; if (r) { r.style.display = (globalAppData && globalAppData.isSuperAdmin && n) ? '' : 'none'; const s = document.getElementById('treq_sub'); if (s) s.textContent = 'Ожидают решения: ' + n; } })();
       (function () { const a = document.getElementById('prof_row_audit'); if (a) a.style.display = (globalAppData && globalAppData.isSuperAdmin) ? '' : 'none'; })();
       document.getElementById('prof_row_emp').style.display = (eb && eb.style.display !== 'none') ? 'flex' : 'none';
       const hb = document.getElementById('tg_header_badge'), pb = document.getElementById('prof_notif_badge');
@@ -7096,6 +7173,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
   const VER = '20261019';
   // d — дата изменения; a — только для руководителей
   const ITEMS = [
+    { d: '20261019', i: '👥', a: 1, t: 'Команды руководителей: теги и запросы', p: 'В «Базе сотрудников» у каждого сотрудника цветной тег его команды («КО Илгин» зелёный, остальные другого цвета). Руководители видят всех, но командировки и данные открыты только по своей команде. Чужого сотрудника можно запросить кнопкой «Запросить» или в окне «Моя команда»: запрос получает главный руководитель (бот и раздел «Запросы на согласование» в Профиле) и решает точечно или сразу по всем. После одобрения сотрудник переходит в команду запросившего.' },
     { d: '20261019', i: '📅', t: 'Подсказка, если у коллеги изменился срок', p: 'Если в вашей командировке у другого участника поменялись даты, при входе появится окно: изменить свой срок на такой же (приложение само поправит черновик, форму открывать не нужно) или оставить прежний. Бот тоже сообщает об изменении срока.' },
     { d: '20261019', i: '🧳', t: 'Одна командировка для одного города', p: 'В разделе «Командировки» участники одного города с пересекающимися сроками собраны в одну командировку, у каждого видны его даты и дни. Если сотрудник продлил командировку в другой город, он выделяется отдельно: общий срок и города через запятую.' },
     { d: '20261019', i: '🗓', t: 'Актуальные даты в списке и в «Найден черновик»', p: 'Даты командировки в таймлайне и в окне «Найден черновик» теперь берутся из самого черновика, а не остаются старыми после редактирования. Конец срока в архиве командировок считается по норме (18 дней).' },
