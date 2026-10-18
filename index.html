@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Авансовый отчёт">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="app-build" content="20261019-21">
+  <meta name="app-build" content="20261019-22">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -2073,6 +2073,10 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
   // ===== Автосохранение черновика АО-1 в реестр =====
   let draftInFlight = false;
   let draftDirty = false;
+  // Подпись последнего состояния, которое уже лежит на сервере: если ничего не изменилось, повторно не сохраняем
+  let lastDraftSig = null, lastDraftSigUid = null;
+  function draftSig() { try { return JSON.stringify({ p: buildPassportObject(), e: store.expenses, t: store.taxis }); } catch (e) { return null; } }
+  function markDraftSynced() { lastDraftSig = draftSig(); lastDraftSigUid = CURRENT_REPORT_UID; }
 
   function setStrip(kind, text) {
     const el = document.getElementById('status_strip');
@@ -2102,6 +2106,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     draftInFlight = true;
     draftDirty = false;
     savePassport();
+    const sigAtSend = draftSig(), uidAtSend = CURRENT_REPORT_UID;
     setDraftStatus('saving');
     fetch(GOOGLE_SHEET_API, {
       method: "POST",
@@ -2121,6 +2126,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     .then(res => {
       const okSave = res && (res.status === 'success' || res.status === 'ok');
       setDraftStatus(okSave ? 'saved' : 'error');
+      if (okSave) { lastDraftSig = sigAtSend; lastDraftSigUid = uidAtSend; }
       if (okSave) needsTreeRefresh = true; // таймлайн нужно перечитать при возврате на вкладку «Командировки»
     })
     .catch(() => { setDraftStatus('error'); })
@@ -2134,6 +2140,8 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     if (isViewingRemoteReport) return;
     // Данные не отличаются от сданного отчёта: ничего не сохраняем, статус «Сдан» не трогаем
     if (!isReportChangedSinceLoad()) return;
+    // Ничего не изменилось с последнего сохранения (например, просто листали шаги туда-обратно): не пересохраняем
+    if (lastDraftSig !== null && lastDraftSigUid === CURRENT_REPORT_UID && draftSig() === lastDraftSig) return;
     // Первая реальная правка сданного отчёта: кнопки Excel/PDF снова требуют пересохранения
     if (editBaseline !== null && !editMarkedUnsaved) { editMarkedUnsaved = true; markStep4ButtonsUnsaved(); }
     clearTimeout(autoSaveTimeout);
@@ -4299,7 +4307,9 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     document.getElementById('p_tab').value = tr.tab || d.tab || '';
     document.getElementById('p_city').value = formatUniqueCities(tr.cities || d.city || '');
     
-    const dates = (tr.dates || '').split('—').map(s => s.trim());
+    // Даты берём из сохранённого отчёта/черновика (там самые свежие), и только если его нет, из записи о командировке
+    const sp = (savedData && savedData.passport) || {};
+    const dates = (sp.dStart && sp.dEnd) ? [sp.dStart, sp.dEnd] : (tr.dates || '').split('—').map(s => s.trim());
     let daysCount = 18;
     if (dates.length === 2) {
       document.getElementById('p_date_start').value = dates[0];
@@ -4316,6 +4326,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     calcDaily();
     savePassport();
     renderExpenseList();
+    if (savedRep && savedRep.isDraft) markDraftSynced();   // состояние только что поднято с сервера: пересохранять не нужно
 
     // Если загружен уже сданный отчёт (не черновик), запоминаем его как исходный: пока ничего не изменено, он остаётся сданным
     if (savedRep && !savedRep.isDraft) { captureEditBaseline(stageForReport(savedRep)); }
@@ -4850,6 +4861,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
 
     calcDaily();
     renderExpenseList();
+    markDraftSynced();   // поднято с сервера: пересохранять без правок не нужно
     switchMainTab('form');
     openAoEditingStep();
     showToast("Черновик открыт!");
