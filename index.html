@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Авансовый отчёт">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="app-build" content="20261019-18">
+  <meta name="app-build" content="20261019-19">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -1091,7 +1091,7 @@ body.cap-on #docs_modal{padding-top:46px;}
     <div class="card prof-card">
       <div class="prof-head">
         <div class="prof-ava" id="prof_ava">👤</div>
-        <div class="prof-who"><div class="prof-name" id="prof_name">Профиль</div><div class="prof-sub" id="prof_sub"></div></div>
+        <div class="prof-who"><div class="prof-name" id="prof_name">Профиль</div><div class="prof-sub" id="prof_sub"></div><div id="prof_home" style="display:none; margin-top:5px;"></div></div>
       </div>
       <div class="prof-list">
         <button type="button" class="prof-row" onclick="openMyProfileModal()"><span class="pr-i">🪪</span><span class="pr-t"><b>Мои данные</b><small>ФИО, должность, табельный номер, телефон, банковские реквизиты</small></span><span class="pr-c">›</span></button>
@@ -1461,7 +1461,7 @@ body.cap-on #docs_modal{padding-top:46px;}
     <div class="field"><label>ИНН банка</label><input type="text" id="mp_inn" inputmode="numeric" placeholder="7707083893"></div>
     <div style="display:flex; gap:8px;">
       <div class="field" style="flex:1;"><label>БИК банка</label><input type="text" id="mp_bik" inputmode="numeric" placeholder="046902606"></div>
-      <div class="field" style="flex:1;"><label>Домашний город</label><input type="text" id="mp_city" placeholder="г. Томск"><div style="font-size:11px; color:#64748b; margin-top:3px; line-height:1.3;">При смене города прошлые периоды остаются как были: прежний город считается домашним (не командировкой) до даты смены, новый город — с даты смены.</div></div>
+      <div class="field" style="flex:1;"><label style="color:#8b5e3c; font-weight:800;">🏠 Домашний город (обязательно, меняет понятие командировки)</label><input type="text" id="mp_city" placeholder="г. Томск" style="border:2px solid #b08968; background:#fbf6f1;"><div style="font-size:11px; color:#64748b; margin-top:3px; line-height:1.3;">При смене города прошлые периоды остаются как были: прежний город считается домашним (не командировкой) до даты смены, новый город — с даты смены.</div></div>
     </div>
     <div class="field"><label>Лицевой счёт (20 знаков)</label><input type="text" id="mp_acc" inputmode="numeric" placeholder="40817810364004802956"></div>
     <div style="display:flex; gap:8px; margin-top:12px;">
@@ -2442,7 +2442,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
   }
 
   window.addEventListener('DOMContentLoaded', () => {
-    try { const _keep = {}; ['last_tg_user','swipe_off','hap_off','demo_off','whatsnew_seen','a2hs_seen','a2hs_later','web_token','web_uid','web_fio'].forEach(k => { const v = localStorage.getItem(k); if (v !== null) _keep[k] = v; }); localStorage.clear(); Object.keys(_keep).forEach(k => localStorage.setItem(k, _keep[k])); } catch(e){}
+    try { const _keep = {}; ['last_tg_user','home_ok_v1','swipe_off','hap_off','demo_off','whatsnew_seen','a2hs_seen','a2hs_later','web_token','web_uid','web_fio'].forEach(k => { const v = localStorage.getItem(k); if (v !== null) _keep[k] = v; }); localStorage.clear(); Object.keys(_keep).forEach(k => localStorage.setItem(k, _keep[k])); } catch(e){}
 
     datePickerRange = flatpickr("#p_date_range", {
       mode: "range", locale: "ru", dateFormat: "d.m.Y", showMonths: 1,
@@ -2513,6 +2513,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
       { img: 'cal', t: 'Интерактивный календарь', p: 'Над списком командировок: 12 месяцев года, командировки закрашены цветом. Нажмите на период — заметка с датами и числом дней и кнопка «Открыть черновик» или отчёт PDF/Excel. Годы листаются стрелками, под годом короткая сводка по городам.' },
       { img: 'pn', t: 'Если у коллеги изменился срок', p: 'Когда в вашей командировке у другого участника поменялись даты, при входе появится окно: изменить свой срок так же (черновик поправится сам) или оставить прежний.' },
       { img: 'prof', t: 'Профиль', p: 'Здесь ваши данные, подпись ✍️ (рисуется один раз и ставится в заявки), уведомления Telegram, свайп между шагами и инструкция «?».' },
+      { hero: '🏠 📍 🧳', t: 'Домашний город: важная настройка', p: 'Домашний город определяет, что считается командировкой: поездки дальше 100 км от него — командировка, а ближе (и сам город) — работа без командировки. Он обязателен: приложение просит подтвердить его при первом входе. При смене прошлые периоды остаются как были, новое правило действует со дня смены. Относитесь к этому внимательно: Профиль → плашка «Дом» или «Мои данные».' },
       { img: 'req', t: 'Заявка на деньги (ДС)', p: 'Город, цель, сроки, участники — и готово. Бланки на Google Диске и письмо на согласование система сформирует сама.' },
       { img: 'step', t: 'Отчёт АО-1 за 4 шага', p: '1 Сведения → 2 Расходы → 3 Проверка → 4 Итог. Загрузите чек или документ — приложение распознает его само. Всё сохраняется автоматически, шаги листаются свайпом по полосе шагов.' },
       { img: 'bot', t: 'Чеки через бота', p: 'Можно просто отправить фото чека боту: он распознает дату, сумму и тип, вы нажимаете «Верно» — расход появляется в отчёте. Меню бота — кнопка «Меню» внизу чата.' },
@@ -2523,7 +2524,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
       { img: 'drawer', t: 'Итог и документы', p: 'На последнем шаге: «Скачать Excel», «Сохранить в PDF» и список документов для бухгалтерии. Панель действий также выезжает свайпом влево по нижней панели.' },
       { hero: '✅ 📦 🙌', t: 'Готово!', p: 'Скачайте Excel и PDF, распечатайте и сдайте с чеками. Если что-то забудете — кнопка «?» в профиле всегда под рукой: там краткая демонстрация и подробная памятка.' }
     ];
-    if (globalAppData && globalAppData.isAdmin) s.splice(13, 0,
+    if (globalAppData && globalAppData.isAdmin) s.splice(14, 0,
       { hero: '👥 🔑 📋', t: 'Для руководителей', p: 'В профиле — «База сотрудников»: реквизиты, подписи, доступы и уведомления команды. Заявку можно оформить сразу на нескольких сотрудников; в «Журнале действий» видно, кто что делал.' },
       { img: 'wbase', t: 'Значки входа', p: 'В карточке сотрудника: значок Telegram (привязан или нет), глобус 🌐 (есть ли логин и пароль для веба) и подпись. Яркий значок значит «есть», блёклый значит «нет». Кнопка «Логин и пароль для веба» выдаёт веб-доступ.' },
       { img: 'wcode', t: 'Код привязки Telegram', p: 'Если человек работал только через веб, нажмите «Код привязки Telegram» и передайте ему код (копия придёт главному руководителю). Он вводит код в Telegram, и система сама переносит на него все записи и права. Веб-вход продолжает работать.' });
@@ -2891,6 +2892,34 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     document.getElementById('tm_yes').onclick = () => { m.style.display = 'none'; try { Cal.closePop(); } catch (e) {} setCityOv(city, mode); };
   }
   function hcDiffers(a, b) { return !!String(b || '').trim() && taNormCity(a || 'г. Томск') !== taNormCity(b); }
+  const HomeGate = {
+    confirmed() { try { const cu = (globalAppData && globalAppData.currentUser) || {}; if (globalAppData && globalAppData.homeOk) return true; return (localStorage.getItem('home_ok_v1') || '').split(',').indexOf(String(cu.tgId || '')) >= 0; } catch (e) { return false; } },
+    mark() { try { const cu = globalAppData.currentUser || {}; globalAppData.homeOk = true; const a = (localStorage.getItem('home_ok_v1') || '').split(',').filter(Boolean); if (a.indexOf(String(cu.tgId)) < 0) a.push(String(cu.tgId)); localStorage.setItem('home_ok_v1', a.join(',')); } catch (e) {} },
+    check() { try { const cu = globalAppData && globalAppData.currentUser; if (!cu || !cu.tgId || this.confirmed()) return; if (document.getElementById('home_gate') && document.getElementById('home_gate').style.display === 'flex') return; this.open(true); } catch (e) {} },
+    open(mandatory) {
+      const cu = globalAppData.currentUser || {};
+      let m = document.getElementById('home_gate');
+      if (!m) { m = document.createElement('div'); m.id = 'home_gate'; m.style.cssText = 'position:fixed; inset:0; z-index:10400; background:rgba(15,23,42,.6); display:none; align-items:center; justify-content:center; padding:16px;'; document.body.appendChild(m); }
+      const cur = String(cu.homeCity || 'г. Томск');
+      m.innerHTML = '<div style="background:#fff; border-radius:18px; padding:18px; max-width:440px; width:100%; max-height:90vh; overflow:auto; box-shadow:0 20px 50px rgba(0,0,0,.35); border-top:6px solid #b08968;"><div style="font-weight:900; font-size:18px; margin-bottom:8px; color:#7a4a24;">🏠 Ваш домашний город</div><div style="font-size:14px; line-height:1.5; color:#334155;">Это важная настройка: <b>домашний город меняет понятие командировки</b>.<br><br>• Поездки <b>дальше 100 км</b> от домашнего города считаются командировками.<br>• Объекты в самом городе и ближе 100 км не считаются командировкой, они только видны на календаре как «НЕ КОМАНДИРОВКА».<br>• Если позже вы смените город, <b>прошлые командировки не изменятся</b>: для них останется прежний город, а новое правило начнёт действовать со дня смены.<br><br>' + (mandatory ? 'Проверьте город и подтвердите.' : 'Оставьте текущий или измените.') + '</div><div class="field" style="margin-top:10px;"><label style="color:#8b5e3c; font-weight:800;">Домашний город</label><input type="text" id="hg_city" value="' + escHtml(cur) + '" placeholder="г. Томск" style="border:2px solid #b08968; background:#fbf6f1;"></div><div style="display:flex; gap:8px; margin-top:12px;">' + (mandatory ? '' : '<button type="button" class="btn btn-secondary" style="flex:1;" id="hg_no">Закрыть</button>') + '<button type="button" class="btn btn-primary" style="flex:2;" id="hg_yes">' + (mandatory ? 'Подтвердить' : 'Сохранить') + '</button></div></div>';
+      m.style.display = 'flex';
+      const no = document.getElementById('hg_no'); if (no) no.onclick = () => { m.style.display = 'none'; };
+      document.getElementById('hg_yes').onclick = () => {
+        const nc = document.getElementById('hg_city').value.trim();
+        if (!nc) { showToast('Укажите домашний город'); return; }
+        const go = () => HomeGate.save(nc, m);
+        if (hcDiffers(cur, nc) && HomeGate.confirmed()) askHomeChange(cur, nc, go); else go();
+      };
+    },
+    save(nc, m) {
+      const cu = globalAppData.currentUser || {};
+      empApi({ action: 'home_set', city: nc, telegram_user: getTelegramUser(), sender_id: getTelegramUser().id }, 'Домашний город сохранён', function () {
+        hchLocal(cu, nc); cu.homeCity = nc; HomeGate.mark(); m.style.display = 'none';
+        try { renderProfile(); if (taItems) renderTripArchive(); } catch (e) {}
+      });
+    }
+  };
+  setInterval(function () { try { HomeGate.check(); } catch (e) {} }, 4000);
   function askHomeChange(oldC, newC, onYes) {
     let m = document.getElementById('hc_confirm');
     if (!m) { m = document.createElement('div'); m.id = 'hc_confirm'; m.style.cssText = 'position:fixed; inset:0; z-index:10200; background:rgba(15,23,42,.55); display:none; align-items:center; justify-content:center; padding:16px;'; document.body.appendChild(m); }
@@ -6990,6 +7019,14 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
       const gd = (typeof globalAppData !== 'undefined') ? globalAppData : {};
       const role = gd.isSuperAdmin ? 'Главный руководитель' : (gd.isAdmin ? 'Руководитель' : (cu && cu.role) || '');
       document.getElementById('prof_sub').textContent = [role, cu && cu.tab ? 'таб. ' + cu.tab : ''].filter(Boolean).join(' · ');
+      try {
+        const hb2 = document.getElementById('prof_home');
+        if (hb2) {
+          if (cu) { const hc = String(cu.homeCity || 'г. Томск').replace(/^\s*г\.?\s*/i, ''); hb2.style.display = 'block'; hb2.innerHTML = '<button type="button" onclick="HomeGate.open(false)" style="background:#f3e6d8; color:#7a4a24; border:1px solid #b08968; border-radius:12px; padding:3px 10px; font-size:12px; font-weight:800;">🏠 Дом — ' + escHtml(hc) + (HomeGate.confirmed() ? '' : ' · подтвердите') + '</button>'; }
+          else hb2.style.display = 'none';
+        }
+        if (gd.isAdmin && gd.myTeam && !gd.isSuperAdmin) document.getElementById('prof_sub').textContent += ' · вы в команде ' + gd.myTeam.name;
+      } catch (eH) {}
       document.getElementById('prof_sig_hint').textContent = cu && cu.hasSignature ? 'Подпись загружена ✅' : 'Подписи пока нет';
       const eb = document.getElementById('tab_btn_emp');
       (function () { const r = document.getElementById('prof_row_treq'); const n = ((globalAppData && globalAppData.teamRequests) || []).length; if (r) { r.style.display = (globalAppData && globalAppData.isSuperAdmin && n) ? '' : 'none'; const s = document.getElementById('treq_sub'); if (s) s.textContent = 'Ожидают решения: ' + n; } })();
@@ -7173,6 +7210,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
   const VER = '20261019';
   // d — дата изменения; a — только для руководителей
   const ITEMS = [
+    { d: '20261019', i: '🏠', t: 'Домашний город: обязательная настройка', p: 'Домашний город меняет понятие командировки: дальше 100 км от него — командировка, ближе — нет. Приложение просит подтвердить его при первом входе. В Профиле под именем плашка «Дом — Томск»: нажмите, чтобы оставить или изменить. При смене прошлые периоды не пересчитываются.' },
     { d: '20261019', i: '👥', a: 1, t: 'Команды руководителей: теги и запросы', p: 'В «Базе сотрудников» у каждого сотрудника цветной тег его команды («КО Илгин» зелёный, остальные другого цвета). Руководители видят всех, но командировки и данные открыты только по своей команде. Чужого сотрудника можно запросить кнопкой «Запросить» или в окне «Моя команда»: запрос получает главный руководитель (бот и раздел «Запросы на согласование» в Профиле) и решает точечно или сразу по всем. После одобрения сотрудник переходит в команду запросившего.' },
     { d: '20261019', i: '📅', t: 'Подсказка, если у коллеги изменился срок', p: 'Если в вашей командировке у другого участника поменялись даты, при входе появится окно: изменить свой срок на такой же (приложение само поправит черновик, форму открывать не нужно) или оставить прежний. Бот тоже сообщает об изменении срока.' },
     { d: '20261019', i: '🧳', t: 'Одна командировка для одного города', p: 'В разделе «Командировки» участники одного города с пересекающимися сроками собраны в одну командировку, у каждого видны его даты и дни. Если сотрудник продлил командировку в другой город, он выделяется отдельно: общий срок и города через запятую.' },
