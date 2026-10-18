@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Авансовый отчёт">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="app-build" content="20261019-20">
+  <meta name="app-build" content="20261019-21">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -2858,7 +2858,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
   // ---- проверка «до 100 км от домашнего города» по координатам (дополнительно к названию) ----
   let taOver = {}, taSrc = '', taBk = 0;
   window.__geoDist = window.__geoDist || {};
-  const geoQ = (c) => String(c || '').replace(/\d+/g, ' ').replace(/\s+/g, ' ').trim();
+  const geoQ = (c) => String(c || '').replace(/_/g, ' ').replace(/\d+/g, ' ').replace(/^\s*г\.?\s+/i, '').replace(/\s+/g, ' ').trim();
   function loadGeo(round) {
     if (!taItems || !globalAppData || !globalAppData.currentUser) return;
     const cu = globalAppData.currentUser || {};
@@ -2961,7 +2961,9 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
       let s, e, est = false;
       const ts0 = parseDateToTimestamp(o.ts), te0 = parseDateToTimestamp(o.te);
       // полная пара дат: приёмка → открытие; если какой-то даты нет, берём средний срок командировки 18 дней
-      if (ts0 && te0 && te0 >= ts0) { s = ts0; e = te0 + day; }
+      const st0 = ts0 || s0;   // начало поездки: явная дата начала, иначе дата приёмки
+      if (te0 && st0 && st0 <= te0) { s = st0; e = te0 + day; }   // реальное окончание командировки из таблицы
+      else if (te0) { e = te0 + day; s = e - 17 * day; est = true; }
       else if (s0 && g0) { s = s0; e = Math.max(g0 + day, s0 + 17 * day); }
       else if (s0) { s = s0; e = s0 + 17 * day; est = true; }
       else if (g0) { e = g0 + day; s = e - 17 * day; est = true; }
