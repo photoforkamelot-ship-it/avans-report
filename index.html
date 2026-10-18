@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Авансовый отчёт">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="app-build" content="20261019-11">
+  <meta name="app-build" content="20261019-12">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -2884,7 +2884,8 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
       if (e >= T.getTime()) { dg.ongoing++; return; }   // только завершённые
       const city = exCity(o.a);
       if (!city) { dg.noDates++; return; }
-      const isHome = taNormCity(city) === homeAt(s);
+      // «Томск (Зональная станция)» и подобные записи с уточнением в скобках — это тот же город
+      const isHome = taNormCity(city) === homeAt(s) || taNormCity(String(city).replace(/\(.*?\)/g, '')) === homeAt(s);
       if (!isHome && real.some(r => s <= r[1] && e >= r[0])) { dg.overlap++; return; }
       if (est) dg.est++;
       const it = { city, s, e, est, home: isHome, days: Math.round((e - s) / day) + 1 };
