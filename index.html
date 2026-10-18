@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Авансовый отчёт">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="app-build" content="20261019-24">
+  <meta name="app-build" content="20261019-25">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -580,6 +580,9 @@
 /* Капсула-статус и окно хода процесса */
 #cap_pill{position:fixed; left:50%; top:calc(var(--tg-top, 0px) + 10px); transform:translate(-50%,-140%); opacity:0; transition:transform .28s cubic-bezier(.2,.9,.3,1.2), opacity .2s; z-index:10060; background:#000; color:#fff; border-radius:22px; padding:8px 16px; display:flex; align-items:center; gap:9px; font-size:13px; font-weight:600; box-shadow:0 6px 18px rgba(0,0,0,.3); max-width:92vw; pointer-events:none;}
 #cap_pill.on{transform:translate(-50%,0); opacity:1;}
+#obs_pill{position:fixed; left:50%; top:calc(var(--tg-top, 0px) + 10px); transform:translateX(-50%); z-index:10065; background:#7c3aed; color:#fff; border-radius:22px; padding:8px 16px; font-size:13px; font-weight:800; box-shadow:0 6px 18px rgba(124,58,237,.45); animation:obsblink 1.6s ease-in-out infinite; cursor:pointer; white-space:nowrap; max-width:92vw; overflow:hidden; text-overflow:ellipsis;}
+@keyframes obsblink{0%,100%{opacity:1} 50%{opacity:.55}}
+body.obs-on #cap_pill{top:calc(var(--tg-top, 0px) + 54px);}
 #cap_pill .sp,.pm-sp{width:14px; height:14px; border:2.5px solid #5ac8fa; border-top-color:transparent; border-radius:50%; animation:capspin .8s linear infinite; flex:none;}
 @keyframes capspin{to{transform:rotate(360deg)}}
 #cap_pill .ic{font-size:15px; font-weight:800; flex:none;}
@@ -1106,6 +1109,7 @@ body.cap-on #docs_modal{padding-top:46px;}
         <button type="button" class="prof-row" id="prof_row_audit" style="display:none;" onclick="openAudit()"><span class="pr-i">🧹</span><span class="pr-t"><b>Ревизия и чистка Диска</b><small>Найти и удалить документы, не относящиеся к существующим командировкам</small></span><span class="pr-c">›</span></button>
  <button type="button" class="prof-row" id="prof_row_treq" style="display:none;" onclick="openTeamReq()"><span class="pr-i">🤝</span><span class="pr-t"><b>Запросы на согласование</b><small id="treq_sub">Доступ руководителей к сотрудникам</small></span><span class="pr-c">›</span></button>
  <button type="button" class="prof-row" id="prof_row_mdel" style="display:none;" onclick="openMsgDel()"><span class="pr-i">🧹</span><span class="pr-t"><b>Удаление уведомлений</b><small>Сообщения бота у всех: по времени или по типу</small></span><span class="pr-c">›</span></button>
+ <button type="button" class="prof-row" id="prof_row_obs" style="display:none;" onclick="openObserver()"><span class="pr-i">👁</span><span class="pr-t"><b>Режим наблюдателя</b><small>Смотреть приложение глазами сотрудника</small></span><span class="pr-c">›</span></button>
         <button type="button" class="prof-row" id="prof_row_emp" style="display:none;" onclick="switchMainTab('employees')"><span class="pr-i">👥</span><span class="pr-t"><b>База сотрудников</b><small>Данные, права и подписи команды</small></span><span class="pr-c">›</span></button>
         <button type="button" class="prof-row" onclick="WhatsNew.open(true)"><span class="pr-i">🆕</span><span class="pr-t"><b>Что нового</b><small>Список последних изменений в приложении</small></span><span class="pr-c">›</span></button>
         <button type="button" class="prof-row" onclick="openHelp()"><span class="pr-i">❓</span><span class="pr-t"><b>Инструкция</b><small>Как работать с приложением</small></span><span class="pr-c">›</span></button>
@@ -2013,8 +2017,55 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
   }
 
   // Ко всем запросам к серверу добавляем подпись Telegram (initData): по ней сервер проверяет, кто обращается
+  // ----- Режим наблюдателя: главный руководитель смотрит и действует от имени сотрудника -----
+  let ACT_AS = null, ACT_PASS = false, obsBusy = false;
+  try { ACT_AS = JSON.parse(sessionStorage.getItem('obs_act_as') || 'null'); if (ACT_AS && !ACT_AS.id) ACT_AS = null; } catch (e) { ACT_AS = null; }
+  const OBS_SKIP = { log_event: 1, log_event_anon: 1, tour_seen: 1 };
+  const OBS_READ = { get_journal: 1, ext_overview: 1, ext_trips_archive: 1, ext_geo_dist: 1, get_receipts: 1, receipt_blob: 1, receipt_counts: 1, receipt_docs: 1, get_pdf_blob: 1, get_signature: 1, msg_del_stats: 1 };
+  const OBS_NAMES = { save_cloud_draft: 'Сохранить черновик отчёта', submit_report: 'Сдать авансовый отчёт', save_advance_request: 'Отправить заявку на деньги', update_single_request: 'Изменить заявку на деньги', delete_report: 'Удалить отчёт',
+    delete_full_trip_group: 'Удалить командировку со всеми участниками', delete_single_member_trip: 'Удалить командировку сотрудника', period_apply: 'Принять новый срок командировки', period_ack: 'Оставить прежний срок командировки',
+    update_notification_settings: 'Изменить настройки уведомлений', notify_prefs: 'Изменить настройки уведомлений', attach_final_pdf: 'Прикрепить итоговый PDF', generate_final_print_pdf: 'Сформировать PDF', cancel_unsaved_changes: 'Отменить несохранённые правки',
+    ext_override_set: 'Отметить город: командировка или нет', ext_set_notify: 'Изменить подписку на объекты', cal_vis_set: 'Изменить настройку календаря', receipt_upload: 'Загрузить документ', receipt_attach: 'Прикрепить документ к расходу',
+    receipt_remove: 'Удалить документ', receipt_reorder: 'Изменить порядок документов', receipt_dismiss: 'Скрыть документ', receipt_used: 'Отметить документ использованным', clear_recent_bot_messages: 'Очистить сообщения бота' };
+  function obsShort(fio) { const p = String(fio || '').trim().split(/\s+/); return p[0] ? p[0] + (p[1] ? ' ' + p[1][0] + '.' : '') + (p[2] ? p[2][0] + '.' : '') : ''; }
+  function obsReply(ok, msg) { return Promise.resolve(new Response(JSON.stringify(ok ? { status: 'ok' } : { status: 'error', message: msg || 'Отменено' }), { status: 200, headers: { 'Content-Type': 'application/json' } })); }
+  function obsAsk(act, body, cb) {
+    let m = document.getElementById('obs_ask');
+    if (!m) { m = document.createElement('div'); m.id = 'obs_ask'; m.style.cssText = 'position:fixed; inset:0; z-index:10500; background:rgba(15,23,42,.6); display:none; align-items:center; justify-content:center; padding:16px;'; document.body.appendChild(m); }
+    const nm = OBS_NAMES[act] || ('Действие «' + act + '»');
+    const det = [body.city ? 'Город: ' + body.city : '', body.fio ? 'Сотрудник: ' + body.fio : '', body.tripId ? 'Командировка: ' + body.tripId : ''].filter(Boolean).join('<br>');
+    m.innerHTML = '<div style="background:#fff; border-radius:18px; padding:18px; max-width:420px; width:100%; box-shadow:0 20px 50px rgba(0,0,0,.35); border-top:6px solid #7c3aed;"><div style="font-weight:900; font-size:17px; margin-bottom:8px;">👁 Выполнить от имени ' + obsShort(ACT_AS.fio) + '?</div><div style="font-size:14px; line-height:1.5; color:#334155;"><b>' + nm + '</b>' + (det ? '<br>' + det : '') + '<br><br>Действие будет записано в журнал как выполненное вами, а руководители получат пометку «в режиме наблюдателя».</div><div style="display:flex; gap:8px; margin-top:14px;"><button type="button" class="btn btn-secondary" style="flex:1;" id="obs_ask_no">Отмена</button><button type="button" class="btn btn-primary" style="flex:2; background:#7c3aed;" id="obs_ask_yes">Выполнить</button></div></div>';
+    m.style.display = 'flex';
+    document.getElementById('obs_ask_no').onclick = () => { m.style.display = 'none'; cb(false); };
+    document.getElementById('obs_ask_yes').onclick = () => { m.style.display = 'none'; cb(true); };
+  }
   const _origFetch = window.fetch.bind(window);
   window.fetch = function (url, opts) {
+    if (ACT_AS && !ACT_PASS && String(url).indexOf(GOOGLE_SHEET_API) === 0) {
+      try {
+        if (opts && opts.method === 'POST' && typeof opts.body === 'string') {
+          const ob = JSON.parse(opts.body); ob.act_as = ACT_AS.id;
+          const act = ob.action || '';
+          opts = Object.assign({}, opts, { body: JSON.stringify(ob) });
+          if (OBS_SKIP[act]) return obsReply(true);
+          if (!OBS_READ[act]) {
+            if (obsBusy) return obsReply(false, 'Подтвердите или отмените предыдущее действие');
+            obsBusy = true;
+            const u0 = url, o0 = opts;
+            return new Promise(function (resolve) {
+              obsAsk(act, ob, function (yes) {
+                obsBusy = false;
+                if (!yes) { try { showToast('Действие отменено'); } catch (e) {} resolve(new Response(JSON.stringify({ status: 'error', message: 'Отменено' }), { status: 200, headers: { 'Content-Type': 'application/json' } })); return; }
+                ACT_PASS = true; let pr; try { pr = window.fetch(u0, o0); } finally { ACT_PASS = false; }
+                resolve(pr);
+              });
+            });
+          }
+        } else if (!opts || !opts.method || opts.method === 'GET') {
+          const uu = String(url); url = uu + (uu.indexOf('?') >= 0 ? '&' : '?') + 'act_as=' + encodeURIComponent(ACT_AS.id);
+        }
+      } catch (eObs) {}
+    }
     try {
       const u = String(url);
       if (u.indexOf(GOOGLE_SHEET_API) === 0 && window.__testMode && opts && opts.method === 'POST' && typeof opts.body === 'string') {
@@ -2102,6 +2153,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
 
   function sendDraftNow(isFinalFlush) {
     if (isViewingRemoteReport) return;
+    if (ACT_AS && isFinalFlush) return;   // в режиме наблюдателя ничего не уходит без явного подтверждения
     // Одновременно в пути только одно сохранение: свежие правки уйдут сразу после него (чтобы старая версия не затёрла новую)
     if (draftInFlight && !isFinalFlush) { draftDirty = true; return; }
     draftInFlight = true;
@@ -2147,7 +2199,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     if (editBaseline !== null && !editMarkedUnsaved) { editMarkedUnsaved = true; markStep4ButtonsUnsaved(); }
     clearTimeout(autoSaveTimeout);
     setDraftStatus('pending');
-    autoSaveTimeout = setTimeout(() => { autoSaveTimeout = null; sendDraftNow(false); }, immediate === true ? 150 : 1000);
+    autoSaveTimeout = setTimeout(() => { autoSaveTimeout = null; sendDraftNow(false); }, ACT_AS ? 8000 : (immediate === true ? 150 : 1000));
   }
 
   // При сворачивании или закрытии окна немедленно отправляем всё, что ещё не успело уйти
@@ -5142,6 +5194,57 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     const nm = (t) => { const e = (globalAppData.employees || []).find(x => x.teamTok === t) || (globalAppData.directory || []).find(x => x.token === t); return e ? escH(e.fio) : escH(t); };
     uiConfirm2('tr_confirm', '🤝 Подтвердите изменения', (add.length ? '<b>Запросить доступ</b> (согласует главный руководитель):<br>• ' + add.map(nm).join('<br>• ') + '<br><br>' : '') + (rem.length ? '<b>Убрать из команды</b> (перейдут к главному руководителю):<br>• ' + rem.map(nm).join('<br>• ') : ''), 'Подтверждаю', () => teamApi({ action: 'team_set_mine', add, remove: rem }, add.length ? 'Запрос отправлен главному руководителю' : 'Команда обновлена'));
   }
+  // ----- Режим наблюдателя: вход, выход, капсула -----
+  function obsPaintPill() {
+    if (!ACT_AS) return;
+    document.body.classList.add('obs-on');
+    let el = document.getElementById('obs_pill');
+    if (!el) { el = document.createElement('div'); el.id = 'obs_pill'; document.body.appendChild(el); el.onclick = obsExitAsk; }
+    el.textContent = '👁 Смотрим UI ' + obsShort(ACT_AS.fio);
+  }
+  function obsExitAsk() {
+    uiConfirm2('obs_exit_c', '👁 Выйти из режима наблюдателя?', 'Вы вернётесь в свой профиль. Подтверждённые действия уже выполнены и в журнале.', 'Выйти', function () {
+      try { sessionStorage.removeItem('obs_act_as'); sessionStorage.setItem('obs_exit', '1'); } catch (e) {}
+      location.reload();
+    });
+  }
+  function openObserver() {
+    const emps = (globalAppData.employees || []).filter(function (e) { return e.tgId; });
+    let m = document.getElementById('obs_modal');
+    if (!m) { m = document.createElement('div'); m.id = 'obs_modal'; m.style.cssText = 'position:fixed; inset:0; z-index:10250; background:rgba(15,23,42,.55); display:flex; align-items:center; justify-content:center; padding:16px;'; document.body.appendChild(m); }
+    m.style.display = 'flex';
+    m.innerHTML = '<div style="background:#fff; border-radius:18px; padding:16px; max-width:460px; width:100%; max-height:90vh; display:flex; flex-direction:column; box-shadow:0 20px 50px rgba(0,0,0,.3);"><div style="font-weight:900; font-size:17px;">👁 Режим наблюдателя</div><div style="font-size:12.5px; color:#64748b; margin:4px 0 8px;">Выберите сотрудника: приложение откроется так, как его видит он. Любое изменяющее действие потребует вашего подтверждения. Личные данные, подпись, логин и пароль в этом режиме недоступны.</div><input type="text" id="obs_q" placeholder="Поиск по ФИО или табельному" style="margin-bottom:8px;"><div id="obs_list" style="overflow:auto; flex:1;"></div><button type="button" class="btn btn-secondary" style="margin-top:8px;" onclick="document.getElementById(\'obs_modal\').style.display=\'none\'">Закрыть</button></div>';
+    const paint = function () {
+      const q = String(document.getElementById('obs_q').value || '').toLowerCase().trim();
+      const rows = emps.filter(function (e) { return !q || (String(e.fio || '') + ' ' + String(e.tab || '')).toLowerCase().indexOf(q) >= 0; }).slice(0, 80);
+      document.getElementById('obs_list').innerHTML = rows.map(function (e) { return '<button type="button" class="prof-row" style="width:100%; text-align:left;" data-t="' + escH(String(e.tgId)) + '"><span class="pr-i">👤</span><span class="pr-t"><b>' + escH(e.fio) + '</b><small>таб. ' + escH(e.tab || '—') + '</small></span><span class="pr-c">›</span></button>'; }).join('') || '<div style="color:#94a3b8; padding:10px;">Никого не найдено</div>';
+      Array.prototype.forEach.call(document.querySelectorAll('#obs_list button[data-t]'), function (b) {
+        b.onclick = function () {
+          const e = emps.find(function (x) { return String(x.tgId) === b.getAttribute('data-t'); }); if (!e) return;
+          uiConfirm2('obs_enter_c', '👁 Войти в режим наблюдателя?', 'Вы увидите приложение глазами сотрудника <b>' + escH(e.fio) + '</b>. Изменяющие действия будут выполняться от его имени и только после вашего подтверждения.', 'Войти', function () {
+            try { sessionStorage.setItem('obs_act_as', JSON.stringify({ id: String(e.tgId), fio: e.fio })); } catch (er) {}
+            location.reload();
+          });
+        };
+      });
+    };
+    document.getElementById('obs_q').oninput = paint; paint();
+  }
+  (function () {
+    function init() { obsPaintPill(); }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+    let exitTried = 0;
+    try {
+      if (sessionStorage.getItem('obs_exit') === '1') {
+        const iv = setInterval(function () {
+          exitTried++;
+          if (globalAppData && globalAppData.currentUser) { clearInterval(iv); try { sessionStorage.removeItem('obs_exit'); } catch (e) {} setTimeout(function () { try { switchMainTab('profile'); } catch (e) {} }, 300); }
+          else if (exitTried > 60) clearInterval(iv);
+        }, 500);
+      }
+    } catch (e) {}
+  })();
+
   // ----- Суперадмин: удаление сообщений бота у всех -----
   let mdSel = { types: new Set(), hours: 24, stats: null };
   function mdCall(payload, cb) {
@@ -7112,7 +7215,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
       } catch (eH) {}
       document.getElementById('prof_sig_hint').textContent = cu && cu.hasSignature ? 'Подпись загружена ✅' : 'Подписи пока нет';
       const eb = document.getElementById('tab_btn_emp');
-      (function () { const r = document.getElementById('prof_row_treq'); const n = ((globalAppData && globalAppData.teamRequests) || []).length; if (r) { r.style.display = (globalAppData && globalAppData.isSuperAdmin && n) ? '' : 'none'; const rd = document.getElementById('prof_row_mdel'); if (rd) rd.style.display = (globalAppData && globalAppData.isSuperAdmin) ? '' : 'none'; const s = document.getElementById('treq_sub'); if (s) s.textContent = 'Ожидают решения: ' + n; } })();
+      (function () { const r = document.getElementById('prof_row_treq'); const n = ((globalAppData && globalAppData.teamRequests) || []).length; if (r) { r.style.display = (globalAppData && globalAppData.isSuperAdmin && n) ? '' : 'none'; const rd = document.getElementById('prof_row_mdel'); if (rd) rd.style.display = (globalAppData && globalAppData.isSuperAdmin) ? '' : 'none'; const ro = document.getElementById('prof_row_obs'); if (ro) ro.style.display = (globalAppData && globalAppData.isSuperAdmin && !ACT_AS) ? '' : 'none'; const s = document.getElementById('treq_sub'); if (s) s.textContent = 'Ожидают решения: ' + n; } })();
       (function () { const a = document.getElementById('prof_row_audit'); if (a) a.style.display = (globalAppData && globalAppData.isSuperAdmin) ? '' : 'none'; })();
       document.getElementById('prof_row_emp').style.display = (eb && eb.style.display !== 'none') ? 'flex' : 'none';
       const hb = document.getElementById('tg_header_badge'), pb = document.getElementById('prof_notif_badge');
@@ -7290,9 +7393,10 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
 
 <script id="wn-js">
 (function () {
-  const VER = '20261020';
+  const VER = '20261021';
   // d — дата изменения; a — только для руководителей
   const ITEMS = [
+    { d: '20261021', i: '👁', a: 1, t: 'Режим наблюдателя', p: 'Профиль → «Режим наблюдателя» (главному руководителю): выберите сотрудника и смотрите приложение его глазами. Вверху мигает «Смотрим UI …», по нажатию можно выйти. Любое изменяющее действие выполняется от его имени только после вашего подтверждения, в журнале записывается ваше имя, а руководители получают пометку. Подпись, личные данные, логин и пароль в этом режиме недоступны. Автосохранение отключено до подтверждения.' },
     { d: '20261020', i: '🧹', a: 1, t: 'Удаление уведомлений бота (главному руководителю)', p: 'Профиль → «Удаление уведомлений»: можно удалить сообщения бота у всех за последние 2 часа, за 48 часов или выбрать типы сообщений (смена срока, расходы, документы, логины и др.). Перед удалением показывается, сколько сообщений и у скольких человек. Ваш чат не затрагивается. Тип записывается только у новых сообщений, прежние попадают в «Прочее».' },
     { d: '20261020', i: '💾', t: 'Сохранение без лишних перезаписей', p: 'Черновик больше не пересохраняется при переходе между шагами, если ничего не менялось. Командировка открывается со сроком из сохранённого черновика, а при смене срока он одинаково обновляется в списке, календаре и таймлайне. Из-за этого срок больше не «прыгает» и не рассылаются повторные уведомления.' },
     { d: '20261019', i: '🗓', t: 'Календарь: архив, 100 км, код объекта', p: 'На календаре серые периоды — командировки не через приложение, в заметке код объекта, адрес и даты приёмки и открытия. Коричневые «НЕ КОМАНДИРОВКА» — объекты в домашнем городе и ближе 100 км (расстояние считается по карте). Ошибку исправляют кнопки «Это была командировка» и «Это не командировка» с подтверждением. Реальные даты поездки берутся из таблицы, а средние 18 дней только если дат нет.' },
