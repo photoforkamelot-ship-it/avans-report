@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Авансовый отчёт">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="app-build" content="20261019-12">
+  <meta name="app-build" content="20261019-13">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -2842,7 +2842,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
   }
   function taNormCity(c) { return String(c || '').toLowerCase().replace(/ё/g, 'е').split(/\s+/).filter(w => !/^(г|гор|город)\.?$/.test(w)).join('').replace(/^г\./, '').replace(/[^a-zа-я0-9]/g, ''); }
   function loadTripArchive() {
-    if (!globalAppData || !globalAppData.isAdmin) return;
+    if (!globalAppData || !globalAppData.currentUser) return;
     fetch(GOOGLE_SHEET_API, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'ext_trips_archive', telegram_user: getTelegramUser() }) })
       .then(r => r.json())
       .then(res => { if (res && res.status === 'ok' && Array.isArray(res.items)) { taItems = res.items; renderTripArchive(); } })
@@ -2858,11 +2858,14 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
   }
   function renderTripArchive() {
     const box = document.getElementById('trip_archive_box');
-    if (!box || !taItems || !globalAppData || !globalAppData.isAdmin) return;
+    if (!box || !taItems || !globalAppData || !globalAppData.currentUser) return;
     const cu = globalAppData.currentUser || {};
     const hh = (cu.homeHist || []).slice().sort((a, b) => a.f - b.f);
     // домашний город на дату начала объекта: до смены действует прежний, после смены новый
-    const homeAt = (t) => { let c = cu.homeCity || 'г. Томск'; if (hh.length) { c = hh[0].c; hh.forEach(x => { if (x.f <= t) c = x.c; }); } return taNormCity(c); };
+    const homeRawAt = (t) => { let c = cu.homeCity || 'г. Томск'; if (hh.length) { c = hh[0].c; hh.forEach(x => { if (x.f <= t) c = x.c; }); } return c; };
+    const words = (c) => String(c || '').replace(/\(.*?\)/g, ' ').toLowerCase().replace(/ё/g, 'е').split(/[^a-zа-я0-9]+/).filter(w => w && !/^(г|гор|город)$/.test(w));
+    // тот же город: совпадает название, либо название города стоит первым словом («Томск (Зональная станция)», «Томск Левобережный лайф»)
+    const isHomeCity = (city, t) => { const hw = words(homeRawAt(t)), cw = words(city); return !!hw.length && cw.length >= hw.length && hw.every((w, i) => cw[i] === w); };
     const me = String(cu.fio || '').toLowerCase().replace(/ё/g, 'е');
     const day = 86400000;
     const T = new Date(); T.setHours(0, 0, 0, 0);
@@ -2885,7 +2888,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
       const city = exCity(o.a);
       if (!city) { dg.noDates++; return; }
       // «Томск (Зональная станция)» и подобные записи с уточнением в скобках — это тот же город
-      const isHome = taNormCity(city) === homeAt(s) || taNormCity(String(city).replace(/\(.*?\)/g, '')) === homeAt(s);
+      const isHome = isHomeCity(city, s);
       if (!isHome && real.some(r => s <= r[1] && e >= r[0])) { dg.overlap++; return; }
       if (est) dg.est++;
       const it = { city, s, e, est, home: isHome, days: Math.round((e - s) / day) + 1 };
@@ -3245,7 +3248,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
         }
 
         TOUR_SEEN = (res.tourSeen !== false);
-        if (res.isAdmin) setTimeout(loadTripArchive, 2500);
+        setTimeout(loadTripArchive, 2500);
         if (window.PeriodN && (res.periodNotices || []).length && !isViewingRemoteReport) PeriodN.run(res.periodNotices, () => checkCloudDraftPopup(res.reports, userId, res.isAdmin));
         else checkCloudDraftPopup(res.reports, userId, res.isAdmin);
         try { if (window.WhatsNew) WhatsNew.maybe(res); } catch (e) {}
