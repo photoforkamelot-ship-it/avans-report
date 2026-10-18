@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Авансовый отчёт">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="app-build" content="20261019-3">
+  <meta name="app-build" content="20261019-4">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -1598,7 +1598,8 @@ body.cap-on #docs_modal{padding-top:46px;}
 </div>
 
 <div id="a2hs" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,.6); z-index:10085; align-items:flex-end; justify-content:center; padding:12px;">
-  <div style="background:#fff; border-radius:22px; width:100%; max-width:440px; max-height:92vh; overflow-y:auto; padding:18px 16px calc(16px + env(safe-area-inset-bottom,0px)); box-shadow:0 16px 48px rgba(0,0,0,.4);">
+  <div style="position:relative; background:#fff; border-radius:22px; width:100%; max-width:440px; max-height:92vh; overflow-y:auto; padding:18px 16px calc(16px + env(safe-area-inset-bottom,0px)); box-shadow:0 16px 48px rgba(0,0,0,.4);">
+    <button type="button" id="a2hs_x" aria-label="Закрыть" style="display:none; position:absolute; top:8px; right:8px; width:34px; height:34px; border-radius:17px; border:none; background:#eef2f7; color:#475569; font-size:18px; line-height:34px; padding:0; z-index:2;">✕</button>
     <div style="display:flex; gap:12px; align-items:center;">
       <img src="icon-192.png" alt="" style="width:56px; height:56px; border-radius:13px; box-shadow:0 3px 10px rgba(0,0,0,.25);">
       <div><div style="font-size:18px; font-weight:800; color:#0b2a8a;">Добавьте на главный экран</div><div style="font-size:12.5px; color:#64748b; margin-top:2px;">Иконка «Авансовый отчёт» откроет приложение в один тап, без адреса и браузерных панелей</div></div>
@@ -7003,7 +7004,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
   const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const isAndroid = /Android/i.test(ua);
   const isSafari = isIOS && /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS|YaBrowser/.test(ua);
-  let manual = false, deferred = null, tab = isIOS ? 'ios' : 'android';
+  let xTimer = null, shownThisSession = false, manual = false, deferred = null, tab = isIOS ? 'ios' : 'android';
   window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferred = e; });
   window.addEventListener('appinstalled', () => { try { localStorage.setItem('a2hs_seen', '1'); } catch (e) {} close(); });
   function standalone() { try { return (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true; } catch (e) { return false; } }
@@ -7029,7 +7030,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     const btns = [];
     if (tab === 'android' && deferred) btns.push('<button type="button" class="btn btn-primary" style="width:100%; height:48px; font-size:15px; font-weight:700; margin-bottom:8px;" id="a2hs_inst">📲 Установить</button>');
     if (manual) btns.push('<button type="button" class="btn btn-secondary" style="width:100%; height:44px; font-size:15px; margin-bottom:8px;" id="a2hs_later">Закрыть</button>');
-    else btns.push('<div style="font-size:12.5px; color:#b45309; background:#fffbeb; border:1px solid #fde68a; border-radius:10px; padding:8px 10px; margin-bottom:8px;">Окно будет появляться при каждом входе через веб, пока вы не нажмёте кнопку ниже.</div>');
+    else btns.push('<div style="font-size:12.5px; color:#b45309; background:#fffbeb; border:1px solid #fde68a; border-radius:10px; padding:8px 10px; margin-bottom:8px;">Окно будет появляться при каждом новом входе через веб, пока вы не нажмёте кнопку ниже. Крестик появится через 2 секунды.</div>');
     btns.push('<button type="button" class="btn ' + (manual ? 'btn-secondary' : 'btn-primary') + '" style="width:100%; height:46px; font-size:15px; font-weight:700;" id="a2hs_never">✅ Уже добавил (больше не показывать)</button>');
     $('a2hs_btns').innerHTML = btns.join('');
     const i = $('a2hs_inst'); if (i) i.onclick = () => { deferred.prompt(); deferred.userChoice.then(() => { deferred = null; close(); }); };
@@ -7039,12 +7040,20 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
   function close() { $('a2hs').style.display = 'none'; }
   window.A2HS = {
     standalone: standalone,
-    open(force) { manual = !!force; tab = isIOS ? 'ios' : (isAndroid ? 'android' : tab); paint(); $('a2hs').style.display = 'flex'; },
+    open(force) {
+      manual = !!force; tab = isIOS ? 'ios' : (isAndroid ? 'android' : tab); paint(); $('a2hs').style.display = 'flex';
+      const x = $('a2hs_x'); clearTimeout(xTimer); x.style.display = 'none';
+      if (manual) return;
+      // автопоказ: один раз за сеанс; крестик появляется через 2 секунды
+      shownThisSession = true; try { sessionStorage.setItem('a2hs_shown', '1'); } catch (e) {}
+      xTimer = setTimeout(() => { x.style.display = 'block'; x.onclick = close; }, 2000);
+    },
     // Автопредложение: только в обычном браузере (не в Telegram и не в установленном приложении), после знакомства и «Что нового»
     maybe(res) {
       try {
         if (inTelegram_() || standalone()) return;
         if (localStorage.getItem('a2hs_seen') === '1') return;
+        if (shownThisSession || sessionStorage.getItem('a2hs_shown') === '1') return;
       } catch (e) {}
       if (!res || !res.currentUser) return;
       const tryShow = (n) => {
