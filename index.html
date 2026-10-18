@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Авансовый отчёт">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="app-build" content="20261019-26">
+  <meta name="app-build" content="20261019-27">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -101,12 +101,12 @@
     .md-item button { margin-top:6px; height:40px; font-size:14px; width:auto; padding:0 14px; }
 
     /* Нажатия: лёгкое «вдавливание», затемнение и контур */
-    button, .btn, .tab-btn, .tg-notif-btn, .trip-accordion-btn, .trip-emp-btn, .timeline-node-field, .emp-card, .emp-act, .emp-big-btn, .pick-row {
+    button, .btn, .tab-btn, .tg-notif-btn, .trip-accordion-btn, .trip-emp-btn, .timeline-node-field, .emp-card, .emp-act, .emp-big-btn {
       -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none;
       transition: transform .12s ease, box-shadow .15s ease, filter .15s ease;
     }
     button:active, .btn:active, .tab-btn:active, .tg-notif-btn:active, .trip-accordion-btn:active, .trip-emp-btn:active,
-    .timeline-node-field:active, .emp-act:active, .emp-big-btn:active, .pick-row:active {
+    .timeline-node-field:active, .emp-act:active, .emp-big-btn:active {
       transform: scale(.965); filter: brightness(.92); box-shadow: 0 0 0 3px rgba(0,122,255,.28);
     }
     .emp-card:active { transform: scale(.992); filter: brightness(.97); }
@@ -138,7 +138,9 @@
     .pick-search { width:100%; height:42px; font-size:15px; border:1.5px solid #cbd5e1; border-radius:10px; padding:0 12px; box-sizing:border-box; }
     .pick-all { display:flex; align-items:center; gap:8px; font-size:13px; margin:8px 2px; }
     .team-tag { display:inline-block; border-radius:10px; padding:1px 8px; font-size:11px; font-weight:800; margin-left:6px; border:1px solid; white-space:nowrap; vertical-align:middle; }
-    .pick-list { max-height:220px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:10px; background:#fff; }
+    .pick-list { max-height:min(46vh, 380px); overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain; touch-action:pan-y; border:1px solid #e2e8f0; border-radius:10px; background:#fff; }
+    .emp-card:has(.pick-box-wrap):active { transform:none; filter:none; }
+    .pick-row { -webkit-user-select:none; }
     .pick-row { display:flex; align-items:center; gap:10px; padding:10px 12px; border-bottom:1px solid #f1f5f9; font-size:14px; cursor:pointer; }
     .pick-row.on { background:#e8f3ff; font-weight:700; }
     .pick-box { width:22px; height:22px; border:1.5px solid #94a3b8; border-radius:6px; display:inline-flex; align-items:center; justify-content:center; font-size:14px; color:#fff; flex-shrink:0; background:#fff; }
@@ -2977,7 +2979,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
   const HomeGate = {
     confirmed() { try { const cu = (globalAppData && globalAppData.currentUser) || {}; if (globalAppData && globalAppData.homeOk) return true; return (localStorage.getItem('home_ok_v1') || '').split(',').indexOf(String(cu.tgId || '')) >= 0; } catch (e) { return false; } },
     mark() { try { const cu = globalAppData.currentUser || {}; globalAppData.homeOk = true; const a = (localStorage.getItem('home_ok_v1') || '').split(',').filter(Boolean); if (a.indexOf(String(cu.tgId)) < 0) a.push(String(cu.tgId)); localStorage.setItem('home_ok_v1', a.join(',')); } catch (e) {} },
-    check() { try { const cu = globalAppData && globalAppData.currentUser; if (!cu || !cu.tgId || this.confirmed()) return; if (document.getElementById('home_gate') && document.getElementById('home_gate').style.display === 'flex') return; this.open(true); } catch (e) {} },
+    check() { try { if (ACT_AS && window.__obsSkipHome) return; const cu = globalAppData && globalAppData.currentUser; if (!cu || !cu.tgId || this.confirmed()) return; if (document.getElementById('home_gate') && document.getElementById('home_gate').style.display === 'flex') return; this.open(true); } catch (e) {} },
     open(mandatory) {
       const cu = globalAppData.currentUser || {};
       let m = document.getElementById('home_gate');
@@ -5171,6 +5173,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
   function closeTeamMine() { const m = document.getElementById('tpick_modal'); if (m) m.style.display = 'none'; teamPick = null; }
   function renderTeamMine() {
     const m = document.getElementById('tpick_modal'); if (!m || !teamPick) return;
+    const oldL = m.querySelector('.pick-list'); const oldTop = oldL ? oldL.scrollTop : 0;
     const myId = String((getTelegramUser() || {}).id);
     const all = [].concat((globalAppData.employees || []).filter(e => e.teamTok && String(e.tgId).trim() !== myId).map(e => ({ fio: e.fio, tab: e.tab, tok: e.teamTok, owner: e.teamOwner, pending: false })), (globalAppData.directory || []).map(d => ({ fio: d.fio, tab: d.tab, tok: d.token, owner: d.owner, pending: d.pending })));
     const q = (teamPick.q || '').toLowerCase();
@@ -5181,6 +5184,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     }).join('') || '<div style="color:#8e8e93; font-size:12px; padding:6px;">Никого не найдено</div>';
     const add = Array.from(teamPick.sel).filter(t => !teamPick.own.has(t)).length, rem = Array.from(teamPick.own).filter(t => !teamPick.sel.has(t)).length;
     m.innerHTML = '<div style="background:#fff; border-radius:18px; padding:16px; max-width:460px; width:100%; max-height:90vh; display:flex; flex-direction:column; box-shadow:0 20px 50px rgba(0,0,0,.3);"><div style="font-weight:900; font-size:17px; margin-bottom:4px;">👥 Моя команда</div><div style="font-size:12px; color:#64748b; margin-bottom:8px; line-height:1.35;">Отмечены ваши сотрудники. Чужих можно запросить: решение примет главный руководитель. ⏳ значит запрос ждёт решения.</div><input type="text" class="pick-search" placeholder="🔍 Поиск сотрудника…" value="' + escH(teamPick.q) + '" oninput="teamPickSearch(this.value)"><div class="pick-list" style="max-height:none; flex:1; min-height:120px;">' + rows + '</div><div style="display:flex; gap:8px; margin-top:12px;"><button type="button" class="btn btn-secondary" style="flex:1;" onclick="closeTeamMine()">Закрыть</button><button type="button" class="btn btn-primary" style="flex:1;" onclick="saveTeamMine()">Сохранить' + (add || rem ? ' (' + (add ? '+' + add : '') + (add && rem ? ' / ' : '') + (rem ? '−' + rem : '') + ')' : '') + '</button></div></div>';
+    const newL = m.querySelector('.pick-list'); if (newL) newL.scrollTop = oldTop;
     const inp = m.querySelector('.pick-search'); if (inp && teamPick.focus) { inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }
   }
   function teamPickSearch(v) { teamPick.q = v; teamPick.focus = true; renderTeamMine(); }
@@ -5243,6 +5247,33 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
         }, 500);
       }
     } catch (e) {}
+  })();
+
+  // В режиме наблюдателя обязательные окна сотрудника видны, но их можно пропустить (ничего никуда не записывается)
+  (function () {
+    if (!ACT_AS) return;
+    const IDS = ['home_gate', 'tour', 'whatsnew', 'missing_data_modal', 'period_notice_modal', 'a2hs', 'web_modal', 'bank_modal'];
+    const shown = function () { return IDS.map(function (id) { return document.getElementById(id); }).filter(function (el) { return el && el.style.display && el.style.display !== 'none' && getComputedStyle(el).display !== 'none'; }); };
+    function ensure() {
+      let b = document.getElementById('obs_skip');
+      const vis = shown().length > 0;
+      if (!b) {
+        if (!vis || !document.body) return;
+        b = document.createElement('button'); b.id = 'obs_skip'; b.type = 'button';
+        b.style.cssText = 'position:fixed; left:50%; bottom:calc(env(safe-area-inset-bottom, 0px) + 16px); transform:translateX(-50%); z-index:10600; background:#7c3aed; color:#fff; border:0; border-radius:22px; padding:12px 18px; font-size:14px; font-weight:800; box-shadow:0 8px 24px rgba(124,58,237,.5);';
+        b.textContent = '👁 Пропустить окно (наблюдатель)';
+        b.onclick = function () {
+          shown().forEach(function (el) { el.style.display = 'none'; });
+          window.__obsSkipHome = true;
+          try { TOUR_SEEN = true; } catch (e) {}
+          b.style.display = 'none';
+          try { showToast('Окно пропущено только для вас: сотруднику оно покажется как обычно'); } catch (e) {}
+        };
+        document.body.appendChild(b);
+      }
+      b.style.display = vis ? '' : 'none';
+    }
+    setInterval(ensure, 700);
   })();
 
   // ----- Суперадмин: удаление сообщений бота у всех -----
@@ -5341,6 +5372,11 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
       </div>`;
   }
 
+  function pickKeepScroll(fn) {
+    const l = document.querySelector('.pick-list'); const t = l ? l.scrollTop : 0;
+    fn();
+    const l2 = document.querySelector('.pick-list'); if (l2) l2.scrollTop = t;
+  }
   function onPickSearch(v) {
     adminPick.query = v;
     renderAdminEmployees();
@@ -5351,9 +5387,9 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     const tok = empAccessToken(globalAppData.employees[eIdx]);
     if (adminPick.all) { adminPick.all = false; }
     if (adminPick.selected.has(tok)) adminPick.selected.delete(tok); else adminPick.selected.add(tok);
-    renderAdminEmployees();
+    pickKeepScroll(renderAdminEmployees);
   }
-  function togglePickAll(on) { adminPick.all = on; renderAdminEmployees(); }
+  function togglePickAll(on) { adminPick.all = on; pickKeepScroll(renderAdminEmployees); }
 
   function saveAdminPick() {
     const lead = globalAppData.employees[adminPick.idx];
@@ -7396,7 +7432,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
   const VER = '20261021';
   // d — дата изменения; a — только для руководителей
   const ITEMS = [
-    { d: '20261021', i: '👁', a: 1, t: 'Режим наблюдателя', p: 'Профиль → «Режим наблюдателя» (главному руководителю): выберите сотрудника и смотрите приложение его глазами. Вверху мигает «Смотрим UI …», по нажатию можно выйти. Любое изменяющее действие выполняется от его имени только после вашего подтверждения, в журнале записывается ваше имя, а руководители получают пометку. Подпись, личные данные, логин и пароль в этом режиме недоступны. Автосохранение отключено до подтверждения.' },
+    { d: '20261021', i: '👁', a: 1, t: 'Режим наблюдателя', p: 'Профиль → «Режим наблюдателя» (главному руководителю): выберите сотрудника и смотрите приложение его глазами. Вверху мигает «Смотрим UI …», по нажатию можно выйти. Любое изменяющее действие выполняется от его имени только после вашего подтверждения, в журнале записывается ваше имя, а руководители получают пометку. Подпись, личные данные, логин и пароль в этом режиме недоступны. Автосохранение отключено до подтверждения. Обязательные окна сотрудника (домашний город, знакомство и др.) видны, но кнопкой «Пропустить окно» их можно обойти, не меняя ничего у сотрудника.' },
     { d: '20261020', i: '🧹', a: 1, t: 'Удаление уведомлений бота (главному руководителю)', p: 'Профиль → «Удаление уведомлений»: можно удалить сообщения бота у всех за последние 2 часа, за 48 часов или выбрать типы сообщений (смена срока, расходы, документы, логины и др.). Перед удалением показывается, сколько сообщений и у скольких человек. Ваш чат не затрагивается. Тип записывается только у новых сообщений, прежние попадают в «Прочее».' },
     { d: '20261020', i: '💾', t: 'Сохранение без лишних перезаписей', p: 'Черновик больше не пересохраняется при переходе между шагами, если ничего не менялось. Командировка открывается со сроком из сохранённого черновика, а при смене срока он одинаково обновляется в списке, календаре и таймлайне. Из-за этого срок больше не «прыгает» и не рассылаются повторные уведомления.' },
     { d: '20261019', i: '🗓', t: 'Календарь: архив, 100 км, код объекта', p: 'На календаре серые периоды — командировки не через приложение, в заметке код объекта, адрес и даты приёмки и открытия. Коричневые «НЕ КОМАНДИРОВКА» — объекты в домашнем городе и ближе 100 км (расстояние считается по карте). Ошибку исправляют кнопки «Это была командировка» и «Это не командировка» с подтверждением. Реальные даты поездки берутся из таблицы, а средние 18 дней только если дат нет.' },
