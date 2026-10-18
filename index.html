@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Авансовый отчёт">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="app-build" content="20261019-13">
+  <meta name="app-build" content="20261019-14">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -2748,7 +2748,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
         exLoading = false;
         if (!res || res.status !== 'ok') { document.getElementById('ex_body').innerHTML = '<div class="jr-empty">Не удалось получить данные.<br>' + escHtml((res && res.message) || '') + '<br><br><button type="button" class="btn btn-primary" onclick="loadExt()">Повторить</button></div>'; return; }
         document.getElementById('ex_notify').checked = !!res.notify;
-        document.getElementById('ex_upd').innerText = 'обновлено ' + res.updated;
+        document.getElementById('ex_upd').innerText = 'обновлено ' + res.updated + (res.offline ? ' · таблица недоступна, показана копия' : '');
         exLast = res;
         document.getElementById('ex_v_arch').innerText = '📦 Архив (' + (((res.archive || []).length) + (res.stores || []).filter(o => { const t = parseDateToTimestamp(o.x) || 0; const d = new Date(); d.setHours(12,0,0,0); return o.s !== 'sus' && t && t < d.getTime(); }).length) + ')';
         renderExt();
@@ -2845,8 +2845,36 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     if (!globalAppData || !globalAppData.currentUser) return;
     fetch(GOOGLE_SHEET_API, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'ext_trips_archive', telegram_user: getTelegramUser() }) })
       .then(r => r.json())
-      .then(res => { if (res && res.status === 'ok' && Array.isArray(res.items)) { taItems = res.items; renderTripArchive(); } })
+      .then(res => { if (res && res.status === 'ok' && Array.isArray(res.items)) { taItems = res.items; taOver = res.overrides || {}; taSrc = res.src || ''; taBk = res.bk || 0; renderTripArchive(); loadGeo(); } })
       .catch(() => {});
+  }
+  // ---- проверка «до 100 км от домашнего города» по координатам (дополнительно к названию) ----
+  let taOver = {}, taSrc = '', taBk = 0;
+  window.__geoDist = window.__geoDist || {};
+  const geoQ = (c) => String(c || '').replace(/\d+/g, ' ').replace(/\s+/g, ' ').trim();
+  function loadGeo(round) {
+    if (!taItems || !globalAppData || !globalAppData.currentUser) return;
+    const cu = globalAppData.currentUser || {};
+    const home = geoQ(String(cu.homeCity || 'г. Томск').replace(/\(.*?\)/g, ''));
+    const seen = {}, items = [];
+    taItems.forEach(o => { const c = exCity(o.a); const k = taNormCity(c); if (!c || !k || seen[k] || window.__geoDist[k] !== undefined) return; seen[k] = 1; items.push({ k, q: geoQ(c) + ' ' + (geoRegion(o.a) || ''), h: home }); });
+    if (!items.length || (round || 0) > 8) return;
+    fetch(GOOGLE_SHEET_API, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'ext_geo_dist', items: items.slice(0, 40), telegram_user: getTelegramUser() }) })
+      .then(r => r.json())
+      .then(res => {
+        if (!res || res.status !== 'ok') return;
+        let got = 0; Object.keys(res.dist || {}).forEach(k => { window.__geoDist[k] = res.dist[k]; got++; });
+        if (got) renderTripArchive();
+        if (res.pending > 0 && got) setTimeout(() => loadGeo((round || 0) + 1), 500);
+      }).catch(() => {});
+  }
+  function geoRegion(addr) { const m = String(addr || '').split(',').map(x => x.trim()).find(x => /(област|край|республик|округ)/i.test(x)); return m || ''; }
+  function setCityOv(city, mode) {
+    const k = taNormCity(city);
+    taOver[k] = mode || undefined; if (!mode) delete taOver[k];
+    renderTripArchive();
+    fetch(GOOGLE_SHEET_API, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'ext_override_set', city: city, mode: mode || '', telegram_user: getTelegramUser() }) })
+      .then(r => r.json()).then(res => { if (res && res.status === 'ok' && res.overrides) { taOver = res.overrides; renderTripArchive(); } }).catch(() => {});
   }
   function hchLocal(o, nc) {
     if (!o || !nc) return;
@@ -2878,8 +2906,10 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     taItems.forEach(o => {
       const s0 = parseDateToTimestamp(o.f), g0 = parseDateToTimestamp(o.g), n0 = parseDateToTimestamp(o.e);
       let s, e, est = false;
+      const ts0 = parseDateToTimestamp(o.ts), te0 = parseDateToTimestamp(o.te);
       // полная пара дат: приёмка → открытие; если какой-то даты нет, берём средний срок командировки 18 дней
-      if (s0 && g0) { s = s0; e = Math.max(g0 + day, s0 + 17 * day); }
+      if (ts0 && te0 && te0 >= ts0) { s = ts0; e = te0 + day; }
+      else if (s0 && g0) { s = s0; e = Math.max(g0 + day, s0 + 17 * day); }
       else if (s0) { s = s0; e = s0 + 17 * day; est = true; }
       else if (g0) { e = g0 + day; s = e - 17 * day; est = true; }
       else if (n0) { s = n0; e = n0 + 17 * day; est = true; }
@@ -2888,10 +2918,14 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
       const city = exCity(o.a);
       if (!city) { dg.noDates++; return; }
       // «Томск (Зональная станция)» и подобные записи с уточнением в скобках — это тот же город
-      const isHome = isHomeCity(city, s);
+      const ck = taNormCity(city), ov = taOver[ck], gd = (window.__geoDist || {})[ck];
+      let isHome = isHomeCity(city, s), kmNote = 0;
+      if (ov === 'home') isHome = true;
+      else if (ov === 'trip') isHome = false;
+      else if (!isHome && typeof gd === 'number' && gd >= 0 && gd < 100) { isHome = true; kmNote = gd; }
       if (!isHome && real.some(r => s <= r[1] && e >= r[0])) { dg.overlap++; return; }
       if (est) dg.est++;
-      const it = { city, s, e, est, home: isHome, days: Math.round((e - s) / day) + 1 };
+      const it = { city, s, e, est, home: isHome, km: kmNote, ov: ov || '', days: Math.round((e - s) / day) + 1 };
       if (isHome) { dg.home++; calAll.push(it); return; }   // домашний город: не командировка, только на календаре
       trips.push(it); calAll.push(it);
     });
@@ -2911,11 +2945,12 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     if (dg.home) parts.push('в домашнем городе (на календаре, без командировки): ' + dg.home);
     if (dg.overlap) parts.push('совпали с командировками в приложении: ' + dg.overlap);
     if (dg.ongoing) parts.push('ещё не завершены: ' + dg.ongoing);
-    const diagLine = `<div style="font-size:11.5px; color:#94a3b8; line-height:1.4; padding:0 2px 6px;">Объектов в списке: ${dg.total} · показано: ${trips.length}${parts.length ? '. ' + parts.join('; ') + '.' : ''}</div>`;
+    const srcLine = taSrc === 'live' ? `<div style="font-size:11.5px; color:#15803d; padding:0 2px 4px;">🟢 Исходная таблица доступна: свежие и текущие объекты подгружаются при каждом заходе. В резервной копии: ${taBk} записей.</div>` : (taSrc === 'backup' ? `<div style="font-size:11.5px; color:#b45309; padding:0 2px 4px;">🟠 Исходная таблица сейчас недоступна: показаны сохранённые данные из резервной копии (${taBk} записей). Как только доступ вернётся, свежие объекты подгрузятся сами.</div>` : '');
+    const diagLine = srcLine + `<div style="font-size:11.5px; color:#94a3b8; line-height:1.4; padding:0 2px 6px;">Объектов в списке: ${dg.total} · показано: ${trips.length}${parts.length ? '. ' + parts.join('; ') + '.' : ''}</div>`;
     box.innerHTML = `<details style="border-top:1px solid #e5e5ea; padding-top:8px;"><summary style="cursor:pointer; font-weight:800; color:#64748b; padding:6px 2px;">📦 Архив командировок (${trips.length})</summary>${diagLine}` +
       years.map((y, i) => `<details class="ta-year"${i === 0 ? ' open' : ''}><summary>${y} (${by[y].length})</summary>` + by[y].map(t => {
         const mo = MN[new Date(t.s).getMonth()];
-        return `<details class="ta-card"><summary><span class="ta-t">🧳 Командировка г. ${escHtml(t.city)} (${dn(t.days)})<small>${fmt(t.s)} — ${fmt(t.e)} · ${mo}${t.est ? ' · срок ≈ по среднему (18 дн.)' : ''}</small></span><span class="ta-ok">✅ Сдан</span></summary><div class="ta-body">Отчётные документы сданы не через это приложение. Информации о тратах нет.</div></details>`;
+        return `<details class="ta-card"><summary><span class="ta-t">🧳 Командировка г. ${escHtml(t.city)} (${dn(t.days)})<small>${fmt(t.s)} — ${fmt(t.e)} · ${mo}${t.est ? ' · срок ≈ по среднему (18 дн.)' : ''}</small></span><span class="ta-ok">✅ Сдан</span></summary><div class="ta-body">Отчётные документы сданы не через это приложение. Информации о тратах нет.<div style="margin-top:6px;"><button type="button" class="btn btn-secondary" style="padding:4px 10px; font-size:12px;" onclick="setCityOv(this.dataset.c,'home')" data-c="${escHtml(t.city)}">Это не командировка (рядом с домом)</button>${t.ov === 'trip' ? '' : ''}</div></div></details>`;
       }).join('') + '</details>').join('') + '</details>';
     box.style.display = 'block';
   }
@@ -6047,7 +6082,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     clusters.forEach((cl, i) => { cl.color = PAL[i % PAL.length]; cl.items.forEach(it => { it.cl = cl; }); });
     // архив: командировки, оформленные не через приложение (только даты и город)
     ((typeof window !== 'undefined' && window.__archTrips) || []).forEach(t => {
-      const it = { fio: (g.currentUser && g.currentUser.fio) || 'Сотрудник', city: formatUniqueCities(t.city || ''), s: t.s, e: t.e, closed: true, foreign: true, arch: true, est: !!t.est, home: !!t.home };
+      const it = { fio: (g.currentUser && g.currentUser.fio) || 'Сотрудник', city: formatUniqueCities(t.city || ''), s: t.s, e: t.e, closed: true, foreign: true, arch: true, est: !!t.est, home: !!t.home, km: t.km || 0, ov: t.ov || '', rawCity: t.city };
       const cl = { city: it.city, s: it.s, e: it.e, items: [it], color: t.home ? '#b08968' : '#94a3b8', arch: true, home: !!t.home }; it.cl = cl; clusters.push(cl); out.push(it);
     });
     list = out;
@@ -6111,13 +6146,14 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
       if (rd && rd.url) acts += '<a class="cal-b" style="border-color:' + c + ';color:' + c + ';" target="_blank" rel="noopener" href="' + esc(rd.url) + '">📊 Открыть отчёт Excel</a>';
       if (!acts) acts = '<div style="font-size:12px; opacity:.8;">Отчёт ещё не начат</div>';
     }
-    const st = it.home ? ('🏠 НЕ КОМАНДИРОВКА · домашний город' + (it.est ? ' · срок по среднему' : '')) : it.arch ? ('📦 архив · закрыта не в этом приложении' + (it.est ? ' · срок по среднему (18 дн.)' : '')) : it.closed ? '✅ сдан' : (it.draft ? '✏️ в процессе' : (it.ready ? '⏳ отчёт сформирован' : '🧳 командировка'));
+    const st = it.home ? ('🏠 НЕ КОМАНДИРОВКА · домашний город' + (it.km ? ' · ≈' + it.km + ' км от дома (до 100 км)' : '') + (it.ov === 'home' ? ' · отмечено вручную' : '') + (it.est ? ' · срок по среднему' : '')) : it.arch ? ('📦 архив · закрыта не в этом приложении' + (it.est ? ' · срок по среднему (18 дн.)' : '')) : it.closed ? '✅ сдан' : (it.draft ? '✏️ в процессе' : (it.ready ? '⏳ отчёт сформирован' : '🧳 командировка'));
     return '<div class="cal-note"' + (it.arch ? ' data-arch="1"' : '') + ' style="border-left:5px solid ' + c + '; background:linear-gradient(' + c + '22,' + c + '22),#fff; color:' + c + ';">' +
       '<div style="font-weight:800; font-size:14px;">👤 ' + esc(it.fio) + '</div>' +
       '<div>📍 ' + esc(it.city) + (it.home ? ' <b>(НЕ КОМАНДИРОВКА)</b>' : '') + '</div>' +
       '<div>🗓 ' + fmt(it.s) + ' — ' + fmt(it.e) + ' · ' + plural(days, 'день', 'дня', 'дней') + '</div>' +
       '<div style="font-size:12px; opacity:.85;">' + st + '</div>' +
       (it.arch ? '<div style="font-size:11.5px; opacity:.7; margin-top:2px;">Нажмите ещё раз — подробности</div>' : '') +
+      (it.arch && it.home ? '<button type="button" class="cal-b" style="margin-top:4px;" data-c="' + esc(it.rawCity || '') + '" onclick="event.stopPropagation(); setCityOv(this.dataset.c, \'trip\'); Cal.closePop();">Это была командировка</button>' : '') +
       (acts ? '<div class="cal-acts">' + acts + '</div>' : '') + '</div>';
   }
   function pop(dayTs) {
