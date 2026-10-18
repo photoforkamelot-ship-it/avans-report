@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Авансовый отчёт">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="app-build" content="20261019-1">
+  <meta name="app-build" content="20261019-2">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -995,6 +995,10 @@ body.cap-on #docs_modal{padding-top:46px;}
       <div style="font-size:12px; color:#64748b; margin-bottom:12px;">
         Группировка по месяцам. Нажмите на плашку командировки для раскрытия цепочки.
       </div>
+      <details id="cal_details" style="margin:0 0 12px; border:1px solid #e2e8f0; border-radius:14px; background:rgba(255,255,255,.55); padding:2px 10px 8px;" ontoggle="if(this.open&&window.Cal)Cal.render()">
+        <summary style="cursor:pointer; font-weight:800; color:#1d4ed8; padding:10px 2px; list-style:none; display:flex; align-items:center; gap:8px;"><span style="font-size:18px;">📅</span> Интерактивный календарь <span style="margin-left:auto; font-size:11px; color:#64748b; font-weight:600;">нажмите, чтобы раскрыть</span></summary>
+        <div id="cal_body"></div>
+      </details>
       <div id="trips_tree_container">Загрузка командировок...</div>
       <div id="trip_archive_box" style="display:none; margin-top:14px;"></div>
     </div>
@@ -1412,6 +1416,11 @@ body.cap-on #docs_modal{padding-top:46px;}
       <button type="button" class="btn btn-secondary" onclick="confirmDiscardCloudDraft()" style="color:#ff3b30; background:transparent;">🗑 Начать с нуля</button>
     </div>
   </div>
+</div>
+
+<!-- КАЛЕНДАРЬ КОМАНДИРОВОК: ПРИМЕЧАНИЕ К ПЕРИОДУ -->
+<div id="cal_pop" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,.45); -webkit-backdrop-filter:blur(3px); backdrop-filter:blur(3px); z-index:10050; align-items:center; justify-content:center; padding:16px;" onclick="if(event.target===this)Cal.closePop()">
+  <div id="cal_pop_box" style="width:100%; max-width:380px; max-height:82vh; overflow-y:auto;"></div>
 </div>
 
 <!-- ПОДСКАЗКА: У КОЛЛЕГИ ИЗМЕНИЛСЯ СРОК КОМАНДИРОВКИ -->
@@ -3174,6 +3183,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
         }
 
         renderTripsTree(res.trips, res.requestsArchive, res.reports);
+        try { if (window.Cal) Cal.refresh(); } catch (e) {}
         updateHeaderNotificationBadge();
 
         if (!document.getElementById('p_fio').value && !isViewingRemoteReport && !store.passport.fio) {
@@ -4874,6 +4884,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
           </div>
           <div class="emp-actions" onclick="event.stopPropagation();">
             <button type="button" class="emp-act" onclick="Web.openCred(${idx})"><span class="ea-i">🌐</span><span class="ea-t">Логин и пароль для веба</span></button>
+            ${(!adm && emp.tgId) ? `<button type="button" class="emp-act" onclick="Web.openVis(${idx})"><span class="ea-i">📅</span><span class="ea-t">Календарь: ${(emp.calVis && emp.calVis !== 'none') ? 'вся команда' : 'только свои'}</span></button>` : ''}
             ${(emp.hasWeb && !emp.hasTg) ? `<button type="button" class="emp-act" onclick="Web.makeCode(${idx})"><span class="ea-i">🔗</span><span class="ea-t">Код привязки Telegram</span></button>` : ''}
             <button type="button" class="emp-act" onclick="openSignatureModal('${escH(emp.tab)}', ${idx})"><span class="ea-i">✍️</span><span class="ea-t">Подпись ${emp.hasSignature ? '✅' : '➕'}</span></button>
             <button type="button" class="emp-act" onclick="openNotificationSettingsModal('${escH(emp.tab)}', ${idx})"><span class="ea-i">${TG_ICON}</span><span class="ea-t">Уведомления</span></button>
@@ -5926,6 +5937,158 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
   setTimeout(() => DemoCfg.paint(), 400);
 })();
 </script>
+<script id="cal-js">
+/* Годовой календарь командировок: 12 месяцев (3 в строке), периоды закрашены, по нажатию примечание и переход к отчёту */
+(function () {
+  const PAL = ['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#84cc16', '#6366f1', '#0ea5e9', '#d946ef'];
+  const MN = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+  const DAY = 86400000;
+  let year = new Date().getFullYear();
+  let list = [];
+  const esc = (t) => String(t == null ? '' : t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const fmt = (t) => { const d = new Date(t); const p = n => String(n).padStart(2, '0'); return p(d.getDate()) + '.' + p(d.getMonth() + 1) + '.' + d.getFullYear(); };
+  const plural = (n, a, b, c) => n + ' ' + (n % 10 === 1 && n % 100 !== 11 ? a : ([2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100) ? b : c));
+  const cityShort = (c) => String(c || '').split(',').map(x => x.replace(/^\s*г\.\s*/i, '').trim()).filter(Boolean);
+  const ts = (str) => (typeof parseDateToTimestamp === 'function' ? parseDateToTimestamp(str) : 0) || 0;
+
+  function aoPer(rep) { try { const pp = (typeof rep.rawJson === 'string' ? JSON.parse(rep.rawJson) : rep.rawJson || {}).passport || {}; return (pp.dStart && pp.dEnd) ? [pp.dStart, pp.dEnd] : null; } catch (e) { return null; } }
+
+  function build() {
+    const g = (typeof globalAppData !== 'undefined' && globalAppData) || {};
+    const reports = g.reports || [];
+    const out = [];
+    (g.trips || []).forEach(tr => {
+      const draft = reports.find(r => r.isDraft && r.tripId === tr.tripId);
+      const ready = reports.find(r => !r.isDraft && String(r.status).toLowerCase() === 'готов' && r.tripId === tr.tripId);
+      const per = (draft && aoPer(draft)) || (ready && aoPer(ready)) || String(tr.dates || '').split('—').map(x => x.trim());
+      const s = ts(per[0]), e = ts(per[1]);
+      if (!s || !e || e < s) return;
+      out.push({ fio: tr.team || 'Сотрудник', city: formatUniqueCities(tr.cities || ''), s, e, draft, ready, closed: !!(ready && ready.pdfUrl && !draft), foreign: false });
+    });
+    (g.calendarTeam || []).forEach(t => {
+      const per = [t.s, t.e]; const s = ts(per[0]), e = ts(per[1]);
+      if (!s || !e || e < s) return;
+      out.push({ fio: t.fio, city: formatUniqueCities(t.cities || ''), s, e, closed: !!t.closed, foreign: true });
+    });
+    // одна командировка = один город и пересекающиеся периоды: общий цвет
+    const byCity = {};
+    out.forEach(it => { (byCity[it.city] = byCity[it.city] || []).push(it); });
+    const clusters = [];
+    Object.keys(byCity).forEach(c => {
+      byCity[c].sort((a, b) => a.s - b.s);
+      let cur = null;
+      byCity[c].forEach(it => {
+        if (cur && it.s <= cur.e) { cur.items.push(it); cur.e = Math.max(cur.e, it.e); }
+        else { cur = { city: c, s: it.s, e: it.e, items: [it] }; clusters.push(cur); }
+      });
+    });
+    clusters.sort((a, b) => a.s - b.s);
+    clusters.forEach((cl, i) => { cl.color = PAL[i % PAL.length]; cl.items.forEach(it => { it.cl = cl; }); });
+    list = out;
+    return clusters;
+  }
+
+  function coverOf(dayTs) { return list.filter(it => dayTs >= it.s && dayTs <= it.e); }
+
+  function monthHtml(m) {
+    const first = new Date(year, m, 1);
+    const lead = (first.getDay() + 6) % 7;                       // неделя с понедельника
+    const dim = new Date(year, m + 1, 0).getDate();
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    let cells = '';
+    for (let i = 0; i < lead; i++) cells += '<i class="cal-e"></i>';
+    for (let d = 1; d <= dim; d++) {
+      const dt = new Date(year, m, d).getTime();
+      const cov = coverOf(dt);
+      let st = '', cls = 'cal-d';
+      if (cov.length) {
+        const cols = []; cov.forEach(it => { if (cols.indexOf(it.cl.color) < 0) cols.push(it.cl.color); });
+        cls += ' has';
+        if (cols.length === 1) st = 'background:' + cols[0] + ';color:#fff;';
+        else { const step = 100 / Math.min(cols.length, 3); st = 'background:linear-gradient(135deg,' + cols.slice(0, 3).map((c, i) => c + ' ' + Math.round(i * step) + '%,' + c + ' ' + Math.round((i + 1) * step) + '%').join(',') + ');color:#fff;'; }
+      }
+      if (dt === today.getTime()) cls += ' today';
+      if ((new Date(dt).getDay() + 6) % 7 >= 5 && !cov.length) cls += ' we';
+      cells += '<b class="' + cls + '" data-t="' + dt + '" style="' + st + '">' + d + '</b>';
+    }
+    return '<div class="cal-m"><div class="cal-mt">' + MN[m] + '</div><div class="cal-wd"><i>п</i><i>в</i><i>с</i><i>ч</i><i>п</i><i>с</i><i>в</i></div><div class="cal-g">' + cells + '</div></div>';
+  }
+
+  function render() {
+    const box = document.getElementById('cal_body');
+    if (!box) return;
+    const clusters = build();
+    const y0 = new Date(year, 0, 1).getTime(), y1 = new Date(year, 11, 31).getTime();
+    const inYear = clusters.filter(c => c.e >= y0 && c.s <= y1);
+    const cities = []; inYear.forEach(c => cityShort(c.city).forEach(x => { if (cities.indexOf(x) < 0) cities.push(x); }));
+    const sum = inYear.length ? plural(inYear.length, 'командировка', 'командировки', 'командировок') + ': ' + cities.join(', ') : 'командировок в этом году нет';
+    let months = '';
+    for (let m = 0; m < 12; m++) months += monthHtml(m);
+    box.innerHTML =
+      '<div class="cal-nav"><button type="button" onclick="Cal.go(-1)">‹</button><div><div class="cal-y">' + year + '</div><div class="cal-sum">' + esc(sum) + '</div></div><button type="button" onclick="Cal.go(1)">›</button></div>' +
+      '<div class="cal-grid">' + months + '</div>' +
+      '<div class="cal-hint">Нажмите на закрашенный день: появится примечание с командировкой и возможностью открыть отчёт.</div>';
+    box.querySelectorAll('.cal-d.has').forEach(el => { el.onclick = () => pop(Number(el.dataset.t)); });
+  }
+
+  function itemHtml(it) {
+    const days = Math.round((it.e - it.s) / DAY) + 1;
+    const c = it.cl.color;
+    let acts = '';
+    if (!it.foreign) {
+      const dr = it.draft, rd = it.ready;
+      if (dr && !it.closed) acts += '<button type="button" class="cal-b" style="border-color:' + c + ';color:' + c + ';" onclick="Cal.openDraft(\'' + esc(dr.id) + '\')">✏️ Открыть черновик АО-1</button>';
+      if (rd && rd.pdfUrl) acts += '<a class="cal-b" style="border-color:' + c + ';color:' + c + ';" target="_blank" rel="noopener" href="' + esc(rd.pdfUrl) + '">📄 Открыть отчёт PDF</a>';
+      if (rd && rd.url) acts += '<a class="cal-b" style="border-color:' + c + ';color:' + c + ';" target="_blank" rel="noopener" href="' + esc(rd.url) + '">📊 Открыть отчёт Excel</a>';
+      if (!acts) acts = '<div style="font-size:12px; opacity:.8;">Отчёт ещё не начат</div>';
+    }
+    const st = it.closed ? '✅ сдан' : (it.draft ? '✏️ в процессе' : (it.ready ? '⏳ отчёт сформирован' : '🧳 командировка'));
+    return '<div class="cal-note" style="border-left:5px solid ' + c + '; background:linear-gradient(' + c + '22,' + c + '22),#fff; color:' + c + ';">' +
+      '<div style="font-weight:800; font-size:14px;">👤 ' + esc(it.fio) + '</div>' +
+      '<div>📍 ' + esc(it.city) + '</div>' +
+      '<div>🗓 ' + fmt(it.s) + ' — ' + fmt(it.e) + ' · ' + plural(days, 'день', 'дня', 'дней') + '</div>' +
+      '<div style="font-size:12px; opacity:.85;">' + st + '</div>' +
+      (acts ? '<div class="cal-acts">' + acts + '</div>' : '') + '</div>';
+  }
+  function pop(dayTs) {
+    const cov = coverOf(dayTs);
+    if (!cov.length) return;
+    const box = document.getElementById('cal_pop_box');
+    box.innerHTML = '<div class="cal-pop-h">' + fmt(dayTs) + '</div>' + cov.map(itemHtml).join('') +
+      '<button type="button" class="btn" style="margin-top:6px; width:100%; background:#fff; color:#0f172a; border:1px solid #cbd5e1; font-weight:700;" onclick="Cal.closePop()">Закрыть</button>';
+    document.getElementById('cal_pop').style.display = 'flex';
+    try { Hap.tap(); } catch (e) {}
+  }
+  window.Cal = {
+    render,
+    refresh() { const d = document.getElementById('cal_details'); if (d && d.open) render(); },
+    go(dir) { year += dir; render(); try { Hap.tick(); } catch (e) {} },
+    closePop() { document.getElementById('cal_pop').style.display = 'none'; },
+    openDraft(id) { this.closePop(); try { openDraftForEditing(id); } catch (e) {} }
+  };
+})();
+</script>
+<style>
+  #cal_body .cal-nav { display:flex; align-items:center; justify-content:space-between; gap:8px; margin:4px 0 10px; }
+  #cal_body .cal-nav > div { text-align:center; flex:1; min-width:0; }
+  #cal_body .cal-nav button { width:40px; height:40px; border-radius:12px; border:1px solid #cbd5e1; background:#fff; font-size:22px; font-weight:700; color:#1d4ed8; flex:none; }
+  #cal_body .cal-y { font-size:24px; font-weight:900; color:#0f172a; line-height:1.1; }
+  #cal_body .cal-sum { font-size:11.5px; color:#475569; line-height:1.3; margin-top:2px; }
+  #cal_body .cal-grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:10px 8px; }
+  #cal_body .cal-m { min-width:0; }
+  #cal_body .cal-mt { font-weight:800; font-size:12px; color:#1e293b; text-align:center; margin-bottom:2px; }
+  #cal_body .cal-wd, #cal_body .cal-g { display:grid; grid-template-columns:repeat(7, 1fr); gap:1px; }
+  #cal_body .cal-wd i { font-style:normal; font-size:7.5px; color:#94a3b8; text-align:center; }
+  #cal_body .cal-g b { font-weight:600; font-size:9px; height:17px; line-height:17px; text-align:center; border-radius:4px; color:#334155; }
+  #cal_body .cal-g b.we { color:#dc2626; }
+  #cal_body .cal-g b.has { cursor:pointer; font-weight:800; }
+  #cal_body .cal-g b.today { outline:2px solid #0f172a; outline-offset:-1px; }
+  #cal_body .cal-hint { font-size:11px; color:#94a3b8; margin-top:10px; text-align:center; }
+  #cal_pop .cal-pop-h { color:#fff; font-weight:800; font-size:15px; text-align:center; margin-bottom:8px; text-shadow:0 1px 4px rgba(0,0,0,.4); }
+  #cal_pop .cal-note { border-radius:12px; padding:10px 12px; margin-bottom:8px; line-height:1.5; font-size:13px; box-shadow:0 6px 18px rgba(0,0,0,.18); background-color:#fff; }
+  #cal_pop .cal-acts { display:flex; flex-direction:column; gap:6px; margin-top:8px; }
+  #cal_pop .cal-b { display:block; text-align:center; text-decoration:none; padding:9px 10px; border-radius:10px; border:1.5px solid; background:#fff; font-weight:700; font-size:13px; }
+</style>
 <script id="period-js">
 /* Подсказка: у других участников командировки изменился срок. Предлагаем изменить свой срок или оставить прежний */
 (function () {
@@ -6744,6 +6907,17 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
           post({ action: 'web_link_telegram', code: code }).then(r => { if (r.status === 'ok') { close(); showToast('Готово: Telegram привязан'); loadAppData(); } else showToast(r.message || 'Не удалось привязать'); }).catch(() => showToast('Нет связи с сервером'));
         } }, { t: 'Позже', f: close }]);
     },
+    openVis(idx) {
+      const e = empAt(idx); if (!e) return;
+      const cur = e.calVis || 'none';
+      const set = (lv) => post({ action: 'cal_vis_set', target_tab: e.tab, target_fio: e.fio, level: lv }).then(r => {
+        if (r.status === 'ok') { e.calVis = lv; close(); showToast('Видимость обновлена'); try { renderAdminEmployees(); } catch (x) {} } else showToast(r.message || 'Не удалось сохранить');
+      }).catch(() => showToast('Нет связи с сервером'));
+      modal('📅 Календарь: ' + esc(e.fio), 'Что <b>' + esc(e.fio) + '</b> видит в «Интерактивном календаре» из командировок своей команды (сотрудников, закреплённых за тем же руководителем). Свои командировки сотрудник видит всегда. Данные из отчётов коллег при этом не открываются.',
+        [{ t: (cur === 'none' ? '✅ ' : '') + 'Только свои командировки', cls: cur === 'none' ? 'btn-primary' : '', f: () => set('none') },
+         { t: (cur !== 'none' ? '✅ ' : '') + 'Вся команда: кто, город, даты', cls: cur !== 'none' ? 'btn-primary' : '', f: () => set('summary') },
+         { t: 'Отмена', f: close }]);
+    },
     openCred(idx) {
       const e = empAt(idx); if (!e) return;
       modal('🌐 Веб-вход: ' + esc(e.fio), 'Логин и пароль для входа из браузера (без Telegram). ' + (e.hasWeb ? 'Сейчас задан логин <b>' + esc(e.webLogin) + '</b>; новый пароль заменит прежний, а все открытые входы завершатся.' : 'Передайте их сотруднику сами.') +
@@ -6751,7 +6925,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
         '<input id="web_cred_p" type="text" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="Пароль (от 6 символов)" style="width:100%; height:46px; font-size:16px; margin-top:8px;">',
         [{ t: '💾 Сохранить', cls: 'btn-primary', f: () => {
           const l = $('web_cred_l').value.trim(), p = $('web_cred_p').value;
-          post({ action: 'web_set_credentials', target_tab: e.tab, target_fio: e.fio, login: l, password: p }).then(r => { if (r.status === 'ok') { close(); showToast('Веб-доступ сохранён'); loadAppData(); } else showToast(r.message || 'Не удалось сохранить'); }).catch(() => showToast('Нет связи с сервером'));
+          post({ action: 'web_set_credentials', target_tab: e.tab, target_fio: e.fio, login: l, password: p }).then(r => { if (r.status === 'ok') { close(); showToast(r.sentTelegram ? 'Веб-доступ сохранён. Сотруднику отправлено сообщение в Telegram со ссылкой и данными для входа (удалится через 24 часа)' : 'Веб-доступ сохранён'); loadAppData(); } else showToast(r.message || 'Не удалось сохранить'); }).catch(() => showToast('Нет связи с сервером'));
         } }].concat(e.hasWeb ? [{ t: '🗑 Отключить веб-доступ', f: () => { post({ action: 'web_remove_credentials', target_tab: e.tab, target_fio: e.fio }).then(r => { close(); showToast(r.status === 'ok' ? 'Веб-доступ отключён' : (r.message || 'Ошибка')); loadAppData(); }); } }] : []).concat([{ t: 'Закрыть', f: close }]));
     },
     makeCode(idx) {
@@ -6776,6 +6950,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     { d: '20261019', i: '🧳', t: 'Одна командировка для одного города', p: 'В разделе «Командировки» участники одного города с пересекающимися сроками собраны в одну командировку, у каждого видны его даты и дни. Если сотрудник продлил командировку в другой город, он выделяется отдельно: общий срок и города через запятую.' },
     { d: '20261019', i: '🗓', t: 'Актуальные даты в списке и в «Найден черновик»', p: 'Даты командировки в таймлайне и в окне «Найден черновик» теперь берутся из самого черновика, а не остаются старыми после редактирования. Конец срока в архиве командировок считается по норме (18 дней).' },
     { d: '20261019', i: '🔔', a: 1, t: 'Уведомления: одна сводка и авторство правок', p: 'Руководителю вместо двух сообщений о новой заявке приходит одно подробное: по каждому сотруднику суммы и ссылки, автор заявки. Бот сообщает о смене срока, правках сумм и сроков старых заявок и изменении данных сотрудников, всегда с автором правки. Включается в Профиле → «Уведомления Telegram» → «Изменены сроки и суммы».' },
+    { d: '20261019', i: '📅', t: 'Интерактивный календарь', p: 'Над списком командировок — раздел «Календарь»: 12 месяцев года, командировки закрашены цветом. Нажмите на период — появится заметка с датами и днями и кнопка «Открыть черновик» или отчёт PDF/Excel. Годы листаются стрелками. Руководитель в карточке сотрудника может открыть ему видимость командировок команды.' },
     { d: '20261019', i: '📳', t: 'Рычажок вибрации', p: 'В Профиле вибрация включается и выключается переключателем, как свайп и кнопка «ДЕМО-расходы».' },
     { d: '20261016', i: '🌐', t: 'Вход из браузера по логину и паролю', p: 'Руководитель может выдать логин и пароль, и работать можно без Telegram. Если вы уже работаете в браузере, а в Telegram система предложит привязать учётку по коду: Профиль → «Привязать веб-учётку». Подробнее: Инструкция → «Вход из браузера и привязка Telegram». В браузере приложение предложит добавить иконку на главный экран (повторно: Профиль → «Добавить на главный экран»).' },
     { d: '20261016', i: '🔑', a: 1, t: 'Веб-доступ, коды привязки и значки', p: 'В «Базе сотрудников» у карточки появились значки Telegram и 🌐 (яркий значит «есть», блёклый «нет»), кнопки «Логин и пароль для веба» и «Код привязки Telegram». В журнале действия помечаются «[веб]» и «[Telegram]». Подробнее: Памятка администратора, раздел 10.' },
