@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Авансовый отчёт">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="app-build" content="20261019-22">
+  <meta name="app-build" content="20261019-23">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -1105,6 +1105,7 @@ body.cap-on #docs_modal{padding-top:46px;}
         <button type="button" class="prof-row" onclick="DemoCfg.toggle()"><span class="pr-i">⚡</span><span class="pr-t"><b>Кнопка «ДЕМО-расходы»</b><small>Показывать на шаге «Расходы»: <span id="prof_demo_state">включено</span></small></span><span id="prof_demo_sw" style="width:46px;height:28px;border-radius:14px;background:#34c759;position:relative;flex:none;transition:background .2s"><i id="prof_demo_knob" style="position:absolute;right:3px;top:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 2px 5px rgba(0,0,0,.25)"></i></span></button>
         <button type="button" class="prof-row" id="prof_row_audit" style="display:none;" onclick="openAudit()"><span class="pr-i">🧹</span><span class="pr-t"><b>Ревизия и чистка Диска</b><small>Найти и удалить документы, не относящиеся к существующим командировкам</small></span><span class="pr-c">›</span></button>
  <button type="button" class="prof-row" id="prof_row_treq" style="display:none;" onclick="openTeamReq()"><span class="pr-i">🤝</span><span class="pr-t"><b>Запросы на согласование</b><small id="treq_sub">Доступ руководителей к сотрудникам</small></span><span class="pr-c">›</span></button>
+ <button type="button" class="prof-row" id="prof_row_mdel" style="display:none;" onclick="openMsgDel()"><span class="pr-i">🧹</span><span class="pr-t"><b>Удаление уведомлений</b><small>Сообщения бота у всех: по времени или по типу</small></span><span class="pr-c">›</span></button>
         <button type="button" class="prof-row" id="prof_row_emp" style="display:none;" onclick="switchMainTab('employees')"><span class="pr-i">👥</span><span class="pr-t"><b>База сотрудников</b><small>Данные, права и подписи команды</small></span><span class="pr-c">›</span></button>
         <button type="button" class="prof-row" onclick="WhatsNew.open(true)"><span class="pr-i">🆕</span><span class="pr-t"><b>Что нового</b><small>Список последних изменений в приложении</small></span><span class="pr-c">›</span></button>
         <button type="button" class="prof-row" onclick="openHelp()"><span class="pr-i">❓</span><span class="pr-t"><b>Инструкция</b><small>Как работать с приложением</small></span><span class="pr-c">›</span></button>
@@ -5121,6 +5122,53 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     const nm = (t) => { const e = (globalAppData.employees || []).find(x => x.teamTok === t) || (globalAppData.directory || []).find(x => x.token === t); return e ? escH(e.fio) : escH(t); };
     uiConfirm2('tr_confirm', '🤝 Подтвердите изменения', (add.length ? '<b>Запросить доступ</b> (согласует главный руководитель):<br>• ' + add.map(nm).join('<br>• ') + '<br><br>' : '') + (rem.length ? '<b>Убрать из команды</b> (перейдут к главному руководителю):<br>• ' + rem.map(nm).join('<br>• ') : ''), 'Подтверждаю', () => teamApi({ action: 'team_set_mine', add, remove: rem }, add.length ? 'Запрос отправлен главному руководителю' : 'Команда обновлена'));
   }
+  // ----- Суперадмин: удаление сообщений бота у всех -----
+  let mdSel = { types: new Set(), hours: 24, stats: null };
+  function mdCall(payload, cb) {
+    fetch(GOOGLE_SHEET_API, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(Object.assign({ telegram_user: getTelegramUser(), sender_id: getTelegramUser().id }, payload)) })
+      .then(r => r.text()).then(t => { let res = null; try { res = JSON.parse(t); } catch (e) {} if (!res || res.status === 'error') { showToast((res && res.message) || 'Не удалось выполнить'); return; } cb(res); })
+      .catch(() => showToast('Нет связи с сервером, повторите позже'));
+  }
+  function openMsgDel() {
+    let m = document.getElementById('mdel_modal');
+    if (!m) { m = document.createElement('div'); m.id = 'mdel_modal'; m.style.cssText = 'position:fixed; inset:0; z-index:10250; background:rgba(15,23,42,.55); display:flex; align-items:center; justify-content:center; padding:16px;'; document.body.appendChild(m); }
+    m.style.display = 'flex'; mdSel.types = new Set(); mdSel.stats = null;
+    m.innerHTML = '<div style="background:#fff; border-radius:18px; padding:16px; max-width:460px; width:100%; max-height:90vh; overflow:auto; box-shadow:0 20px 50px rgba(0,0,0,.3);"><div style="font-weight:900; font-size:17px; margin-bottom:4px;">🧹 Удаление уведомлений</div><div style="font-size:12.5px; color:#64748b; margin-bottom:10px;">Удаляет сообщения бота у сотрудников и руководителей. <b>Ваш чат не затрагивается</b>, ваши логины и пароли останутся. Удалённое восстановить нельзя. Telegram позволяет удалять только сообщения младше 48 часов.</div><div id="mdel_body" style="font-size:13px;">Загрузка…</div><button type="button" class="btn btn-secondary" style="margin-top:10px;" onclick="document.getElementById(\'mdel_modal\').style.display=\'none\'">Закрыть</button></div>';
+    mdLoad();
+  }
+  function mdLoad() {
+    mdCall({ action: 'msg_del_stats', hours: mdSel.hours }, function (res) { mdSel.stats = res; mdRender(); });
+  }
+  function mdRender() {
+    const st = mdSel.stats; const b = document.getElementById('mdel_body'); if (!b || !st) return;
+    const hs = [[2, '2 часа'], [6, '6 часов'], [24, '24 часа'], [48, '48 часов']];
+    const rows = st.byType.map(function (t) { return '<label style="display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid #f1f5f9;"><input type="checkbox" ' + (mdSel.types.has(t.key) ? 'checked ' : '') + (t.msgs ? '' : 'disabled ') + 'onchange="mdToggle(\'' + t.key + '\', this.checked)"><span style="flex:1;">' + escH(t.label) + '</span><span style="color:#64748b; font-size:12px;">' + t.msgs + ' шт. · ' + t.people + ' чел.</span></label>'; }).join('');
+    b.innerHTML =
+      '<div style="font-weight:800; margin:4px 0;">1. По времени</div>' +
+      '<div style="display:flex; gap:6px; flex-wrap:wrap;"><button type="button" class="btn btn-secondary" style="width:auto; padding:0 12px; height:36px;" onclick="mdAskAll(2)">Все за последние 2 часа</button><button type="button" class="btn btn-secondary" style="width:auto; padding:0 12px; height:36px;" onclick="mdAskAll(48)">Все за 48 часов</button></div>' +
+      '<div style="font-weight:800; margin:14px 0 4px;">2. По типу сообщений</div>' +
+      '<div style="font-size:12px; color:#64748b; margin-bottom:6px;">За какой период:</div>' +
+      '<div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px;">' + hs.map(function (h) { return '<button type="button" class="btn ' + (mdSel.hours === h[0] ? 'btn-primary' : 'btn-secondary') + '" style="width:auto; padding:0 10px; height:30px; font-size:12px;" onclick="mdHours(' + h[0] + ')">' + h[1] + '</button>'; }).join('') + '</div>' +
+      rows +
+      '<button type="button" class="btn btn-primary" style="margin-top:10px; background:#dc2626;" ' + (mdSel.types.size ? '' : 'disabled ') + 'onclick="mdAskTypes()">Удалить отмеченные типы</button>' +
+      '<div style="font-size:11px; color:#94a3b8; margin-top:6px;">Тип определяется по тексту сообщения. У сообщений, отправленных до этого обновления, типа нет: они попадают в «Прочее».</div>';
+  }
+  function mdToggle(k, on) { if (on) mdSel.types.add(k); else mdSel.types.delete(k); const st = mdSel.stats; mdRender(); }
+  function mdHours(h) { mdSel.hours = h; mdLoad(); }
+  function mdConfirmRun(hours, types) {
+    mdCall({ action: 'msg_del_stats', hours: hours, types: types }, function (st) {
+      if (!st.msgs) { showToast('За этот период нечего удалять'); return; }
+      const hl = hours === 2 ? 'последние 2 часа' : (hours === 48 ? '48 часов' : 'последние ' + hours + ' ч');
+      const tl = types ? '<br>Типы: ' + types.map(function (k) { const t = (mdSel.stats.byType.find(function (x) { return x.key === k; }) || {}); return escH(t.label || k); }).join('; ') : '<br>Все типы сообщений';
+      uiConfirm2('mdel_confirm', '🗑 Удалить ' + st.msgs + ' сообщений у ' + st.people + ' человек?', 'Период: ' + hl + tl + '<br><br>Ваш чат не затрагивается. Восстановить удалённое нельзя.', 'Удалить', function () {
+        showToast('Удаляю…');
+        mdCall({ action: 'msg_del_run', hours: hours, types: types }, function (r) { showToast('Удалено сообщений: ' + (r.deleted || 0) + (r.failed ? ' (не удалось: ' + r.failed + ')' : '')); mdLoad(); });
+      });
+    });
+  }
+  function mdAskAll(h) { mdConfirmRun(h, null); }
+  function mdAskTypes() { mdConfirmRun(mdSel.hours, Array.from(mdSel.types)); }
+
   function openTeamReq() {
     const list = globalAppData.teamRequests || [];
     let m = document.getElementById('treq_modal');
@@ -7044,7 +7092,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
       } catch (eH) {}
       document.getElementById('prof_sig_hint').textContent = cu && cu.hasSignature ? 'Подпись загружена ✅' : 'Подписи пока нет';
       const eb = document.getElementById('tab_btn_emp');
-      (function () { const r = document.getElementById('prof_row_treq'); const n = ((globalAppData && globalAppData.teamRequests) || []).length; if (r) { r.style.display = (globalAppData && globalAppData.isSuperAdmin && n) ? '' : 'none'; const s = document.getElementById('treq_sub'); if (s) s.textContent = 'Ожидают решения: ' + n; } })();
+      (function () { const r = document.getElementById('prof_row_treq'); const n = ((globalAppData && globalAppData.teamRequests) || []).length; if (r) { r.style.display = (globalAppData && globalAppData.isSuperAdmin && n) ? '' : 'none'; const rd = document.getElementById('prof_row_mdel'); if (rd) rd.style.display = (globalAppData && globalAppData.isSuperAdmin) ? '' : 'none'; const s = document.getElementById('treq_sub'); if (s) s.textContent = 'Ожидают решения: ' + n; } })();
       (function () { const a = document.getElementById('prof_row_audit'); if (a) a.style.display = (globalAppData && globalAppData.isSuperAdmin) ? '' : 'none'; })();
       document.getElementById('prof_row_emp').style.display = (eb && eb.style.display !== 'none') ? 'flex' : 'none';
       const hb = document.getElementById('tg_header_badge'), pb = document.getElementById('prof_notif_badge');
@@ -7222,9 +7270,11 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
 
 <script id="wn-js">
 (function () {
-  const VER = '20261019';
+  const VER = '20261020';
   // d — дата изменения; a — только для руководителей
   const ITEMS = [
+    { d: '20261020', i: '🧹', a: 1, t: 'Удаление уведомлений бота (главному руководителю)', p: 'Профиль → «Удаление уведомлений»: можно удалить сообщения бота у всех за последние 2 часа, за 48 часов или выбрать типы сообщений (смена срока, расходы, документы, логины и др.). Перед удалением показывается, сколько сообщений и у скольких человек. Ваш чат не затрагивается. Тип записывается только у новых сообщений, прежние попадают в «Прочее».' },
+    { d: '20261020', i: '💾', t: 'Сохранение без лишних перезаписей', p: 'Черновик больше не пересохраняется при переходе между шагами, если ничего не менялось. Командировка открывается со сроком из сохранённого черновика, а при смене срока он одинаково обновляется в списке, календаре и таймлайне. Из-за этого срок больше не «прыгает» и не рассылаются повторные уведомления.' },
     { d: '20261019', i: '🗓', t: 'Календарь: архив, 100 км, код объекта', p: 'На календаре серые периоды — командировки не через приложение, в заметке код объекта, адрес и даты приёмки и открытия. Коричневые «НЕ КОМАНДИРОВКА» — объекты в домашнем городе и ближе 100 км (расстояние считается по карте). Ошибку исправляют кнопки «Это была командировка» и «Это не командировка» с подтверждением. Реальные даты поездки берутся из таблицы, а средние 18 дней только если дат нет.' },
     { d: '20261019', i: '🔑', a: 1, t: 'Веб-доступ: копии главному руководителю', p: 'Главному руководителю в бот приходят логин и пароль для веба (даже если их задал сам сотрудник), коды привязки и запросы на согласование команд; такие сообщения не удаляются. Сотруднику сообщение с паролем удаляется через 24 часа, в нём предупреждение и просьба сохранить скриншот.' },
     { d: '20261019', i: '🏠', t: 'Домашний город: обязательная настройка', p: 'Домашний город меняет понятие командировки: дальше 100 км от него — командировка, ближе — нет. Приложение просит подтвердить его при первом входе. В Профиле под именем плашка «Дом — Томск»: нажмите, чтобы оставить или изменить. При смене прошлые периоды не пересчитываются, а о смене приходит уведомление в Telegram вам и руководителям команды.' },
