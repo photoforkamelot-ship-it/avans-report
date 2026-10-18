@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Авансовый отчёт">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="app-build" content="20261019-6">
+  <meta name="app-build" content="20261019-7">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -995,10 +995,12 @@ body.cap-on #docs_modal{padding-top:46px;}
       <div style="font-size:12px; color:#64748b; margin-bottom:12px;">
         Группировка по месяцам. Нажмите на плашку командировки для раскрытия цепочки.
       </div>
-      <details id="cal_details" style="margin:0 0 12px; border:1px solid #e2e8f0; border-radius:14px; background:rgba(255,255,255,.55); padding:2px 10px 8px;" ontoggle="if(this.open&&window.Cal)Cal.render()">
-        <summary style="cursor:pointer; font-weight:800; color:#1d4ed8; padding:10px 2px; list-style:none; display:flex; align-items:center; gap:8px;"><span style="font-size:18px;">📅</span> Интерактивный календарь <span style="margin-left:auto; font-size:11px; color:#64748b; font-weight:600;">нажмите, чтобы раскрыть</span></summary>
+      <div id="cal_wrap">
+      <details id="cal_details" style="margin:0 0 8px; border:1px solid #e6ebf2; border-radius:12px; background:rgba(255,255,255,.4); padding:0 10px 4px;" ontoggle="if(this.open&&window.Cal)Cal.render()">
+        <summary style="cursor:pointer; font-weight:600; font-size:13px; color:#475569; padding:6px 0; list-style:none; display:flex; align-items:center; gap:6px;"><span style="font-size:14px; line-height:1;">📅</span><span>Календарь</span><button type="button" id="cal_mv" aria-label="Переместить календарь" onclick="event.preventDefault(); event.stopPropagation(); Cal.move()" style="margin-left:auto; width:28px; height:24px; border:none; background:none; color:#94a3b8; font-size:15px; line-height:1; padding:0;">⇣</button></summary>
         <div id="cal_body"></div>
       </details>
+      </div>
       <div id="trips_tree_container">Загрузка командировок...</div>
       <div id="trip_archive_box" style="display:none; margin-top:14px;"></div>
     </div>
@@ -2080,11 +2082,14 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
   }
 
   function setDraftStatus(state) {
-    const hhmm = new Date().toTimeString().slice(0, 5);
-    if (state === 'pending') setStrip('pending', '✎ Изменения сохранятся автоматически');
-    else if (state === 'saving') setStrip('pending', '💾 Сохраняю…');
-    else if (state === 'saved') setStrip('ok', '💾 Черновик сохранён ' + hhmm);
-    else setStrip('err', '⚠️ Не сохранено: проверьте связь');
+    // единый стиль: статусы сохранения показываются в капсуле сверху; прежняя плашка прячется
+    const st = document.getElementById('status_strip');
+    if (st && /(^| )(pending|ok)( |$)/.test(st.className) && !/Отчёт сдан|Excel готов/.test(st.innerText)) setStrip(null);
+    const busy = window.Cap && Cap.kind === 'progress';
+    if (state === 'pending') return;
+    if (state === 'saving') { if (!busy && window.Cap) Cap.save('Сохраняю…'); }
+    else if (state === 'saved') { if (!busy && window.Cap) Cap.done('Черновик сохранён', 1500); }
+    else if (window.Cap) Cap.err('Не сохранено: проверьте связь', 4000);
   }
 
   function sendDraftNow(isFinalFlush) {
@@ -2868,6 +2873,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
       trips.push({ city, s, e, days: Math.round((e - s) / day) + 1 });
     });
     trips.sort((a, b) => b.s - a.s);
+    window.__archTrips = trips; try { Cal.refresh(); } catch (e) {}
     if (!trips.length) { box.style.display = 'none'; return; }
     const MN = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
     const fmt = (t) => { const d = new Date(t); const p = n => String(n).padStart(2, '0'); return `${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()}`; };
@@ -5188,6 +5194,14 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
   });
 
   function showToast(m) {
+    // сообщения о сохранении показываются в капсуле, как остальные статусы
+    try {
+      if (window.Cap && typeof m === 'string' && m.length <= 48) {
+        if (/^Сохранение\b.*\.{2,3}$/.test(m)) { Cap.save(m.replace(/\.{2,3}$/, '…')); return; }
+        if (/(сохранен[аоы]?|сохранён|обновлен[аоы]?)(\b|$)/i.test(m) && !/Сохранение/.test(m)) { Cap.done(m.replace(/!$/, ''), 1800); return; }
+      }
+      if (window.Cap && Cap.kind === 'save') Cap.hide();
+    } catch (e) {}
     const t = document.getElementById('toast');
     t.innerText = m; t.style.display = 'block';
     setTimeout(() => t.style.display = 'none', 2500);
@@ -6000,6 +6014,11 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     });
     clusters.sort((a, b) => a.s - b.s);
     clusters.forEach((cl, i) => { cl.color = PAL[i % PAL.length]; cl.items.forEach(it => { it.cl = cl; }); });
+    // архив: командировки, оформленные не через приложение (только даты и город)
+    ((typeof window !== 'undefined' && window.__archTrips) || []).forEach(t => {
+      const it = { fio: (g.currentUser && g.currentUser.fio) || 'Сотрудник', city: formatUniqueCities(t.city || ''), s: t.s, e: t.e, closed: true, foreign: true, arch: true };
+      const cl = { city: it.city, s: it.s, e: it.e, items: [it], color: '#94a3b8', arch: true }; it.cl = cl; clusters.push(cl); out.push(it);
+    });
     list = out;
     return clusters;
   }
@@ -6058,12 +6077,13 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
       if (rd && rd.url) acts += '<a class="cal-b" style="border-color:' + c + ';color:' + c + ';" target="_blank" rel="noopener" href="' + esc(rd.url) + '">📊 Открыть отчёт Excel</a>';
       if (!acts) acts = '<div style="font-size:12px; opacity:.8;">Отчёт ещё не начат</div>';
     }
-    const st = it.closed ? '✅ сдан' : (it.draft ? '✏️ в процессе' : (it.ready ? '⏳ отчёт сформирован' : '🧳 командировка'));
-    return '<div class="cal-note" style="border-left:5px solid ' + c + '; background:linear-gradient(' + c + '22,' + c + '22),#fff; color:' + c + ';">' +
+    const st = it.arch ? '📦 архив · закрыта не в этом приложении' : it.closed ? '✅ сдан' : (it.draft ? '✏️ в процессе' : (it.ready ? '⏳ отчёт сформирован' : '🧳 командировка'));
+    return '<div class="cal-note"' + (it.arch ? ' data-arch="1"' : '') + ' style="border-left:5px solid ' + c + '; background:linear-gradient(' + c + '22,' + c + '22),#fff; color:' + c + ';">' +
       '<div style="font-weight:800; font-size:14px;">👤 ' + esc(it.fio) + '</div>' +
       '<div>📍 ' + esc(it.city) + '</div>' +
       '<div>🗓 ' + fmt(it.s) + ' — ' + fmt(it.e) + ' · ' + plural(days, 'день', 'дня', 'дней') + '</div>' +
       '<div style="font-size:12px; opacity:.85;">' + st + '</div>' +
+      (it.arch ? '<div style="font-size:11.5px; opacity:.7; margin-top:2px;">Нажмите ещё раз — подробности</div>' : '') +
       (acts ? '<div class="cal-acts">' + acts + '</div>' : '') + '</div>';
   }
   function pop(dayTs) {
@@ -6072,6 +6092,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     const box = document.getElementById('cal_pop_box');
     box.innerHTML = '<div class="cal-pop-h">' + fmt(dayTs) + '</div>' + cov.map(itemHtml).join('') +
       '<button type="button" class="btn" style="margin-top:6px; width:100%; background:#fff; color:#0f172a; border:1px solid #cbd5e1; font-weight:700;" onclick="Cal.closePop()">Закрыть</button>';
+    box.querySelectorAll('.cal-note[data-arch]').forEach(n => { n.onclick = () => Cal.archInfo(); });
     document.getElementById('cal_pop').style.display = 'flex';
     try { Hap.tap(); } catch (e) {}
   }
@@ -6079,9 +6100,24 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     render,
     refresh() { const d = document.getElementById('cal_details'); if (d && d.open) render(); },
     go(dir) { year += dir; render(); try { Hap.tick(); } catch (e) {} },
+    move() {
+      const w = document.getElementById('cal_wrap'), a = document.getElementById('trip_archive_box'); if (!w || !a) return;
+      const bottom = !(w.dataset.pos === 'bottom');
+      if (bottom) a.parentNode.insertBefore(w, a.nextSibling); else document.getElementById('trips_tree_container').parentNode.insertBefore(w, document.getElementById('trips_tree_container'));
+      w.dataset.pos = bottom ? 'bottom' : 'top'; w.style.marginTop = bottom ? '12px' : '';
+      const b = document.getElementById('cal_mv'); if (b) b.textContent = bottom ? '⇡' : '⇣';
+      try { localStorage.setItem('cal_pos', w.dataset.pos); } catch (e) {}
+      try { Hap.tap(); } catch (e) {}
+    },
+    applyPos() { try { if (localStorage.getItem('cal_pos') === 'bottom') this.move(); } catch (e) {} },
+    archInfo() {
+      const box = document.getElementById('cal_pop_box');
+      box.innerHTML = '<div class="cal-note" style="border-left:5px solid #94a3b8; background:#fff; color:#334155;"><div style="font-weight:800; font-size:14px;">📦 Командировка закрыта не в этом приложении</div><div style="margin-top:4px;">Отчёт сдан, документы оформлены вне приложения. Данных о расходах и документов здесь нет.</div></div><button type="button" class="btn" style="margin-top:6px; width:100%; background:#fff; color:#0f172a; border:1px solid #cbd5e1; font-weight:700;" onclick="Cal.closePop()">Понятно</button>';
+    },
     closePop() { document.getElementById('cal_pop').style.display = 'none'; },
     openDraft(id) { this.closePop(); try { openDraftForEditing(id); } catch (e) {} }
   };
+  try { Cal.applyPos(); } catch (e) {}
 })();
 </script>
 <style>
@@ -6202,13 +6238,15 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
   }
   const esc = (t) => String(t == null ? '' : t).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
   window.Cap = {
+    kind: '',
+    save(text) { clearTimeout(capTimer); this.kind = 'save'; paint('<div class="sp"></div><span class="tx">' + esc(text) + '</span>'); },
     show(text, frac) {
-      clearTimeout(capTimer);
+      clearTimeout(capTimer); this.kind = 'progress';
       paint('<div class="sp"></div><span class="tx">' + esc(text) + '</span>' + (frac != null ? '<div class="bar"><i style="width:' + Math.round(frac * 100) + '%"></i></div>' : ''));
     },
-    done(text, ms) { clearTimeout(capTimer); paint('<span class="ic" style="color:#34c759">✓</span><span class="tx">' + esc(text) + '</span>'); Hap.ok(); const m = ms || 2200; capTimer = setTimeout(() => { const e = document.getElementById('cap_pill'); if (e) { e.classList.remove('t-top'); e.classList.add('t-back'); } capTimer = setTimeout(() => Cap.hide(), 700); }, Math.max(600, m - 700)); },
-    err(text, ms) { clearTimeout(capTimer); paint('<span class="ic" style="color:#ff453a">!</span><span class="tx">' + esc(text) + '</span>'); Hap.err(); const m = ms || 3800; capTimer = setTimeout(() => { const e = document.getElementById('cap_pill'); if (e) { e.classList.remove('t-top'); e.classList.add('t-back'); } capTimer = setTimeout(() => Cap.hide(), 700); }, Math.max(600, m - 700)); },
-    hide() { clearTimeout(capTimer); const el = document.getElementById('cap_pill'); if (el) { el.classList.remove('on', 'pulse', 't-top', 't-back'); } document.body.classList.remove('cap-on'); }
+    done(text, ms) { clearTimeout(capTimer); this.kind = 'done'; paint('<span class="ic" style="color:#34c759">✓</span><span class="tx">' + esc(text) + '</span>'); Hap.ok(); const m = ms || 2200; capTimer = setTimeout(() => { const e = document.getElementById('cap_pill'); if (e) { e.classList.remove('t-top'); e.classList.add('t-back'); } capTimer = setTimeout(() => Cap.hide(), 700); }, Math.max(600, m - 700)); },
+    err(text, ms) { clearTimeout(capTimer); this.kind = 'err'; paint('<span class="ic" style="color:#ff453a">!</span><span class="tx">' + esc(text) + '</span>'); Hap.err(); const m = ms || 3800; capTimer = setTimeout(() => { const e = document.getElementById('cap_pill'); if (e) { e.classList.remove('t-top'); e.classList.add('t-back'); } capTimer = setTimeout(() => Cap.hide(), 700); }, Math.max(600, m - 700)); },
+    hide() { clearTimeout(capTimer); this.kind = ''; const el = document.getElementById('cap_pill'); if (el) { el.classList.remove('on', 'pulse', 't-top', 't-back'); } document.body.classList.remove('cap-on'); }
   };
 
   // ----- Окно хода процесса -----
@@ -6967,6 +7005,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     { d: '20261019', i: '🗓', t: 'Актуальные даты в списке и в «Найден черновик»', p: 'Даты командировки в таймлайне и в окне «Найден черновик» теперь берутся из самого черновика, а не остаются старыми после редактирования. Конец срока в архиве командировок считается по норме (18 дней).' },
     { d: '20261019', i: '🔔', a: 1, t: 'Уведомления: одна сводка и авторство правок', p: 'Руководителю вместо двух сообщений о новой заявке приходит одно подробное: по каждому сотруднику суммы и ссылки, автор заявки. Бот сообщает о смене срока, правках сумм и сроков старых заявок и изменении данных сотрудников, всегда с автором правки. Включается в Профиле → «Уведомления Telegram» → «Изменены сроки и суммы».' },
     { d: '20261019', i: '📅', t: 'Интерактивный календарь', p: 'Над списком командировок — раздел «Календарь»: 12 месяцев года, командировки закрашены цветом. Нажмите на период — появится заметка с датами и днями и кнопка «Открыть черновик» или отчёт PDF/Excel. Годы листаются стрелками. Руководитель в карточке сотрудника может открыть ему видимость командировок команды.' },
+    { d: '20261019', i: '💾', t: 'Единый вид статусов сохранения', p: 'Сообщения «Сохраняю…», «Черновик сохранён», «Подпись сохранена» и подобные теперь показываются в капсуле сверху, как статусы формирования отчёта. Календарь стал компактнее, его можно переместить вниз списка (стрелка справа), а архив командировок, оформленных не через приложение, отображается в календаре серым.' },
     { d: '20261019', i: '📳', t: 'Рычажок вибрации', p: 'В Профиле вибрация включается и выключается переключателем, как свайп и кнопка «ДЕМО-расходы».' },
     { d: '20261016', i: '🌐', t: 'Вход из браузера по логину и паролю', p: 'Руководитель может выдать логин и пароль, и работать можно без Telegram. Если вы уже работаете в браузере, а в Telegram система предложит привязать учётку по коду: Профиль → «Привязать веб-учётку». Подробнее: Инструкция → «Вход из браузера и привязка Telegram». В браузере приложение предложит добавить иконку на главный экран (повторно: Профиль → «Добавить на главный экран»).' },
     { d: '20261016', i: '🔑', a: 1, t: 'Веб-доступ, коды привязки и значки', p: 'В «Базе сотрудников» у карточки появились значки Telegram и 🌐 (яркий значит «есть», блёклый «нет»), кнопки «Логин и пароль для веба» и «Код привязки Telegram». В журнале действия помечаются «[веб]» и «[Telegram]». Подробнее: Памятка администратора, раздел 10.' },
