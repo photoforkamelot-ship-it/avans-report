@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Авансовый отчёт">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="app-build" content="20261016-10">
+  <meta name="app-build" content="20261018-1">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -1090,7 +1090,7 @@ body.cap-on #docs_modal{padding-top:46px;}
         <button type="button" class="prof-row" onclick="openMyProfileModal()"><span class="pr-i">🪪</span><span class="pr-t"><b>Мои данные</b><small>ФИО, должность, табельный номер, телефон, банковские реквизиты</small></span><span class="pr-c">›</span></button>
         <button type="button" class="prof-row" onclick="openSignatureModal()"><span class="pr-i">✍️</span><span class="pr-t"><b>Подпись</b><small id="prof_sig_hint">Подпись для печатных форм</small></span><span class="pr-c">›</span></button>
         <button type="button" class="prof-row" onclick="openNotificationSettingsModal()"><span class="pr-i">🔔</span><span class="pr-t"><b>Уведомления Telegram</b><small>Какие сообщения присылает бот</small></span><span class="pr-badge" id="prof_notif_badge"></span><span class="pr-c">›</span></button>
-        <button type="button" class="prof-row" onclick="Hap.toggle()"><span class="pr-i">📳</span><span class="pr-t"><b>Вибрация</b><small>Тактильный отклик при действиях: <span id="prof_hap_state">включена</span> · версия <span id="app_build_lbl">…</span></small></span><span class="pr-c">›</span></button>
+        <button type="button" class="prof-row" onclick="Hap.toggle()"><span class="pr-i">📳</span><span class="pr-t"><b>Вибрация</b><small>Тактильный отклик при действиях: <span id="prof_hap_state">включена</span> · версия <span id="app_build_lbl">…</span></small></span><span id="prof_hap_sw" style="width:46px;height:28px;border-radius:14px;background:#34c759;position:relative;flex:none;transition:background .2s"><i id="prof_hap_knob" style="position:absolute;right:3px;top:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 2px 5px rgba(0,0,0,.25)"></i></span></button>
         <button type="button" class="prof-row" id="prof_row_link" style="display:none;" onclick="Web.openLink()"><span class="pr-i">🔗</span><span class="pr-t"><b>Привязать веб-учётку</b><small>Если вы уже работаете через браузер: введите код привязки от руководителя</small></span><span class="pr-c">›</span></button>
         <button type="button" class="prof-row" id="prof_row_a2hs" style="display:none;" onclick="A2HS.open(true)"><span class="pr-i">📲</span><span class="pr-t"><b>Добавить на главный экран</b><small>Иконка быстрого доступа, как у обычного приложения</small></span><span class="pr-c">›</span></button>
         <button type="button" class="prof-row" id="prof_row_logout" style="display:none;" onclick="Web.logout()"><span class="pr-i">🚪</span><span class="pr-t"><b>Выйти из веб-версии</b><small id="prof_web_who">Вы вошли через браузер</small></span><span class="pr-c">›</span></button>
@@ -2090,7 +2090,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     });
   }
 
-  function triggerCloudAutoSave() {
+  function triggerCloudAutoSave(immediate) {
     if (isViewingRemoteReport) return;
     // Данные не отличаются от сданного отчёта: ничего не сохраняем, статус «Сдан» не трогаем
     if (!isReportChangedSinceLoad()) return;
@@ -2098,7 +2098,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     if (editBaseline !== null && !editMarkedUnsaved) { editMarkedUnsaved = true; markStep4ButtonsUnsaved(); }
     clearTimeout(autoSaveTimeout);
     setDraftStatus('pending');
-    autoSaveTimeout = setTimeout(() => { autoSaveTimeout = null; sendDraftNow(false); }, 1000);
+    autoSaveTimeout = setTimeout(() => { autoSaveTimeout = null; sendDraftNow(false); }, immediate === true ? 150 : 1000);
   }
 
   // При сворачивании или закрытии окна немедленно отправляем всё, что ещё не успело уйти
@@ -2415,7 +2415,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
           const diffDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
           document.getElementById('p_days').value = diffDays > 0 ? diffDays : 1;
           calcDaily();
-          triggerCloudAutoSave();
+          triggerCloudAutoSave(true); // даты выбираются разом, не печатаются: отправляем сразу, чтобы не потерять при быстром выходе
         }
       }
     });
@@ -2820,7 +2820,8 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     taItems.forEach(o => {
       const s = parseDateToTimestamp(o.f), g = parseDateToTimestamp(o.g);
       if (!s || !g) return;
-      const e = g + day;                       // дорога обратно — на следующий день после открытия
+      // Начало — приёмка магазина. Конец — не раньше нормативных 18 дней командировки и не раньше дня после открытия
+      const e = Math.max(g + day, s + 17 * day);
       if (e < s || e >= T.getTime()) return;   // только завершённые
       const city = exCity(o.a);
       if (!city || taNormCity(city) === home) return;
@@ -3425,18 +3426,29 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
 
       // Сданный отчёт мог скорректировать сроки (дорога заняла больше): показываем фактический период, а срок по заявке — отдельной строкой
       const aoPeriod = (rep) => { try { const pp = (typeof rep.rawJson === 'string' ? JSON.parse(rep.rawJson) : rep.rawJson || {}).passport || {}; return (pp.dStart && pp.dEnd) ? `${pp.dStart} — ${pp.dEnd}` : ''; } catch (e) { return ''; } };
-      let shownDates = grp.dates;
+      // Актуальный срок участника: сначала его черновик (самые свежие правки), затем сданный отчёт, иначе срок по заявке
+      const memberPeriod = (m) => {
+        const dr = (reports || []).find(r => r.isDraft && r.tripId === m.tripId);
+        const pd = dr ? aoPeriod(dr) : '';
+        if (pd) return pd;
+        const rp = (reports || []).find(r => !r.isDraft && String(r.status).toLowerCase() === 'готов' && r.tripId === m.tripId);
+        return (rp ? aoPeriod(rp) : '') || grp.dates;
+      };
+      const periodDays = (per) => {
+        const pp = String(per || '').split('—').map(x => x.trim());
+        if (pp.length === 2) { const a = parseDateToTimestamp(pp[0]), b = parseDateToTimestamp(pp[1]); if (a > 0 && b >= a) return Math.ceil((b - a) / 86400000) + 1; }
+        return 0;
+      };
+      // Общий срок группы: от самого раннего начала до самого позднего конца среди участников
+      let shownDates = grp.dates, minS = 0, maxE = 0, minStr = '', maxStr = '';
       for (const m of grp.members) {
-        const rep = (reports || []).find(r => !r.isDraft && String(r.status).toLowerCase() === 'готов' && r.tripId === m.tripId);
-        const per = rep ? aoPeriod(rep) : '';
-        if (per) { shownDates = per; break; }
+        const pp = memberPeriod(m).split('—').map(x => x.trim());
+        const a = parseDateToTimestamp(pp[0]), b = parseDateToTimestamp(pp[1]);
+        if (a > 0 && (!minS || a < minS)) { minS = a; minStr = pp[0]; }
+        if (b > 0 && b > maxE) { maxE = b; maxStr = pp[1]; }
       }
-      const dParts = shownDates.split('—').map(s => s.trim());
-      let daysCount = 0;
-      if (dParts.length === 2) {
-        const t1 = parseDateToTimestamp(dParts[0]), t2 = parseDateToTimestamp(dParts[1]);
-        if (t2 >= t1 && t1 > 0) daysCount = Math.ceil((t2 - t1)/(1000*60*60*24)) + 1;
-      }
+      if (minStr && maxStr) shownDates = minStr + ' — ' + maxStr;
+      const daysCount = periodDays(shownDates);
 
       const hasAnyWarning = grp.members.some(m => m.hasPendingRecalc);
       const warnClass = hasAnyWarning ? 'warning-active' : '';
@@ -3487,6 +3499,9 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
           (r.tripId === tr.tripId)
         );
         const draftAo = (reports || []).find(r => r.isDraft && r.tripId === tr.tripId && draftHasContent(r));
+        const memPer = memberPeriod(tr);
+        const memDays = periodDays(memPer) || daysCount;
+        const memDatesNote = (memPer && memPer !== shownDates) ? `<br><small style="opacity:.75; font-weight:400;">${memPer}</small>` : '';
         const memberState = aoState({ tripId: tr.tripId, status: tr.status });
         const isMemberDone = memberState === 'done';
         const isMemberInterim = memberState === 'interim';
@@ -3494,7 +3509,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
         html += `
           <div style="display:flex; gap:6px; align-items:center; margin:4px 0;">
             <button type="button" class="trip-emp-btn" style="margin:0; flex:1;" onclick="toggleAccordion('${memberBoxId}')">
-              <span>👤 ${shortFio}${(cleanEmpCity && cleanEmpCity !== grp.cities) ? ' ' + cleanEmpCity : ''} <small style="opacity:.8;">(${daysCount || 18} дн)</small></span>
+              <span>👤 ${shortFio}${(cleanEmpCity && cleanEmpCity !== grp.cities) ? ' ' + cleanEmpCity : ''} <small style="opacity:.8;">(${memDays || 18} дн)</small>${memDatesNote}</span>
               <span class="emp-pill-status ${isMemberDone ? 'emp-icon-done' : (isMemberInterim ? 'emp-icon-interim' : 'emp-icon-progress')}" title="${isMemberDone ? 'Отчёт сдан' : (isMemberInterim ? 'Excel готов, сформируйте PDF' : (draftAo ? 'Есть несданные правки' : 'В процессе'))}">${isMemberDone ? '✅' : (isMemberInterim ? '⏳' : '📝')} <span style="font-size:11px; color:#007aff;">▾</span></span>
             </button>
             ${globalAppData.isAdmin ? `<button type="button" class="btn btn-danger" title="Удалить командировку сотрудника" onclick="deleteSingleMemberTrip('${tr.tripId}', '${personFio.replace(/'/g, "\\'")}')">🗑️</button>` : ''}
@@ -4564,8 +4579,12 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     let cleanCity = formatUniqueCities(detectedDraftReport.city || '—');
 
     let desc = `Командировка: <b>${cleanCity}</b><br>`;
-    { const trD = (globalAppData.trips || []).find(t => t.tripId === detectedDraftReport.tripId);
-      if (trD && trD.dates) desc += `Период: ${trD.dates}<br>`;
+    { // Период берём из самого черновика (там самые свежие даты), и только потом из записи о командировке
+      let per = '';
+      try { const pj = (typeof detectedDraftReport.rawJson === 'string' ? JSON.parse(detectedDraftReport.rawJson) : detectedDraftReport.rawJson || {}).passport || {}; if (pj.dStart && pj.dEnd) per = pj.dStart + ' — ' + pj.dEnd; } catch (e) {}
+      const trD = (globalAppData.trips || []).find(t => t.tripId === detectedDraftReport.tripId);
+      if (!per && trD && trD.dates) per = trD.dates;
+      if (per) desc += `Период: ${per}<br>`;
       else if (detectedDraftReport.date) desc += `Обновлён: ${detectedDraftReport.date}<br>`; }
     desc += `Накоплено расходов: <b>${Number(detectedDraftReport.sum || 0).toLocaleString('ru-RU')} ₽</b>`;
 
@@ -5856,7 +5875,8 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
   const HF = () => (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.HapticFeedback) || null;
   window.Hap = {
     on: hapOn,
-    set(v) { try { localStorage.setItem('hap_off', v ? '0' : '1'); } catch (e) {} const b = document.getElementById('prof_hap_state'); if (b) b.innerText = v ? 'включена' : 'выключена'; },
+    paint() { const v = hapOn(); const b = document.getElementById('prof_hap_state'); if (b) b.innerText = v ? 'включена' : 'выключена'; const sw = document.getElementById('prof_hap_sw'), k = document.getElementById('prof_hap_knob'); if (sw) sw.style.background = v ? '#34c759' : '#c7c7cc'; if (k) { k.style.right = v ? '3px' : 'auto'; k.style.left = v ? 'auto' : '3px'; } },
+    set(v) { try { localStorage.setItem('hap_off', v ? '0' : '1'); } catch (e) {} this.paint(); },
     toggle() { const v = !hapOn(); this.set(v); if (v) this.tap(); showToast('Вибрация ' + (v ? 'включена' : 'выключена')); },
     tap() { try { if (hapOn() && HF()) HF().impactOccurred('light'); } catch (e) {} },
     tick() { try { if (hapOn() && HF()) HF().selectionChanged(); } catch (e) {} },
@@ -5864,7 +5884,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     warn() { try { if (hapOn() && HF()) HF().notificationOccurred('warning'); } catch (e) {} },
     err() { try { if (hapOn() && HF()) HF().notificationOccurred('error'); } catch (e) {} }
   };
-  setTimeout(() => { const b = document.getElementById('prof_hap_state'); if (b) b.innerText = hapOn() ? 'включена' : 'выключена'; }, 0);
+  setTimeout(() => Hap.paint(), 0); setTimeout(() => Hap.paint(), 500);
 
   // ----- Капсула -----
   let capTimer = null;
