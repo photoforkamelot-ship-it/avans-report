@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Авансовый отчёт">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="app-build" content="20261019-9">
+  <meta name="app-build" content="20261019-10">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -2860,7 +2860,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     const real = (globalAppData.trips || []).filter(t => String(t.tgId || '') === String(cu.tgId || '') || String(t.team || '').toLowerCase().replace(/ё/g, 'е') === me).map(t => {
       const p = String(t.dates || '').split('—').map(x => x.trim()); return [parseDateToTimestamp(p[0]), parseDateToTimestamp(p[1])];
     }).filter(r => r[0] && r[1]);
-    const trips = [];
+    const trips = [], calAll = [];
     const dg = { total: taItems.length, noDates: 0, ongoing: 0, home: 0, overlap: 0, est: 0 };
     taItems.forEach(o => {
       const s0 = parseDateToTimestamp(o.f), g0 = parseDateToTimestamp(o.g), n0 = parseDateToTimestamp(o.e);
@@ -2873,14 +2873,17 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
       else { dg.noDates++; return; }
       if (e >= T.getTime()) { dg.ongoing++; return; }   // только завершённые
       const city = exCity(o.a);
-      if (!city || taNormCity(city) === home) { dg.home++; return; }
-      if (real.some(r => s <= r[1] && e >= r[0])) { dg.overlap++; return; }
+      if (!city) { dg.noDates++; return; }
+      const isHome = taNormCity(city) === home;
+      if (!isHome && real.some(r => s <= r[1] && e >= r[0])) { dg.overlap++; return; }
       if (est) dg.est++;
-      trips.push({ city, s, e, est, days: Math.round((e - s) / day) + 1 });
+      const it = { city, s, e, est, home: isHome, days: Math.round((e - s) / day) + 1 };
+      if (isHome) { dg.home++; calAll.push(it); return; }   // домашний город: не командировка, только на календаре
+      trips.push(it); calAll.push(it);
     });
     window.__archDiag = dg;
     trips.sort((a, b) => b.s - a.s);
-    window.__archTrips = trips; try { Cal.refresh(); } catch (e) {}
+    window.__archTrips = calAll; try { Cal.refresh(); } catch (e) {}
     if (!trips.length) { box.style.display = 'none'; return; }
     const MN = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
     const fmt = (t) => { const d = new Date(t); const p = n => String(n).padStart(2, '0'); return `${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()}`; };
@@ -2891,7 +2894,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     const parts = [];
     if (dg.est) parts.push('со сроком по среднему (18 дн.): ' + dg.est);
     if (dg.noDates) parts.push('без единой даты (на календаре нельзя): ' + dg.noDates);
-    if (dg.home) parts.push('в домашнем городе: ' + dg.home);
+    if (dg.home) parts.push('в домашнем городе (на календаре, без командировки): ' + dg.home);
     if (dg.overlap) parts.push('совпали с командировками в приложении: ' + dg.overlap);
     if (dg.ongoing) parts.push('ещё не завершены: ' + dg.ongoing);
     const diagLine = `<div style="font-size:11.5px; color:#94a3b8; line-height:1.4; padding:0 2px 6px;">Объектов в списке: ${dg.total} · показано: ${trips.length}${parts.length ? '. ' + parts.join('; ') + '.' : ''}</div>`;
@@ -6030,8 +6033,8 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     clusters.forEach((cl, i) => { cl.color = PAL[i % PAL.length]; cl.items.forEach(it => { it.cl = cl; }); });
     // архив: командировки, оформленные не через приложение (только даты и город)
     ((typeof window !== 'undefined' && window.__archTrips) || []).forEach(t => {
-      const it = { fio: (g.currentUser && g.currentUser.fio) || 'Сотрудник', city: formatUniqueCities(t.city || ''), s: t.s, e: t.e, closed: true, foreign: true, arch: true, est: !!t.est };
-      const cl = { city: it.city, s: it.s, e: it.e, items: [it], color: '#94a3b8', arch: true }; it.cl = cl; clusters.push(cl); out.push(it);
+      const it = { fio: (g.currentUser && g.currentUser.fio) || 'Сотрудник', city: formatUniqueCities(t.city || ''), s: t.s, e: t.e, closed: true, foreign: true, arch: true, est: !!t.est, home: !!t.home };
+      const cl = { city: it.city, s: it.s, e: it.e, items: [it], color: t.home ? '#b08968' : '#94a3b8', arch: true, home: !!t.home }; it.cl = cl; clusters.push(cl); out.push(it);
     });
     list = out;
     return clusters;
@@ -6068,9 +6071,12 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     if (!box) return;
     const clusters = build();
     const y0 = new Date(year, 0, 1).getTime(), y1 = new Date(year, 11, 31).getTime();
-    const inYear = clusters.filter(c => c.e >= y0 && c.s <= y1);
+    const inYearAll = clusters.filter(c => c.e >= y0 && c.s <= y1);
+    const inYear = inYearAll.filter(c => !c.home), homeY = inYearAll.filter(c => c.home);
     const cities = []; inYear.forEach(c => cityShort(c.city).forEach(x => { if (cities.indexOf(x) < 0) cities.push(x); }));
-    const sum = inYear.length ? plural(inYear.length, 'командировка', 'командировки', 'командировок') + ': ' + cities.join(', ') : 'командировок в этом году нет';
+    const hcities = []; homeY.forEach(c => cityShort(c.city).forEach(x => { if (hcities.indexOf(x) < 0) hcities.push(x); }));
+    let sum = inYear.length ? plural(inYear.length, 'командировка', 'командировки', 'командировок') + ': ' + cities.join(', ') : 'командировок в этом году нет';
+    if (homeY.length) sum += (inYear.length ? '; ' : ', ') + hcities.join(', ') + ' (без командировки)';
     let months = '';
     for (let m = 0; m < 12; m++) months += monthHtml(m);
     box.innerHTML =
@@ -6091,10 +6097,10 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
       if (rd && rd.url) acts += '<a class="cal-b" style="border-color:' + c + ';color:' + c + ';" target="_blank" rel="noopener" href="' + esc(rd.url) + '">📊 Открыть отчёт Excel</a>';
       if (!acts) acts = '<div style="font-size:12px; opacity:.8;">Отчёт ещё не начат</div>';
     }
-    const st = it.arch ? ('📦 архив · закрыта не в этом приложении' + (it.est ? ' · срок по среднему (18 дн.)' : '')) : it.closed ? '✅ сдан' : (it.draft ? '✏️ в процессе' : (it.ready ? '⏳ отчёт сформирован' : '🧳 командировка'));
+    const st = it.home ? ('🏠 НЕ КОМАНДИРОВКА · домашний город' + (it.est ? ' · срок по среднему' : '')) : it.arch ? ('📦 архив · закрыта не в этом приложении' + (it.est ? ' · срок по среднему (18 дн.)' : '')) : it.closed ? '✅ сдан' : (it.draft ? '✏️ в процессе' : (it.ready ? '⏳ отчёт сформирован' : '🧳 командировка'));
     return '<div class="cal-note"' + (it.arch ? ' data-arch="1"' : '') + ' style="border-left:5px solid ' + c + '; background:linear-gradient(' + c + '22,' + c + '22),#fff; color:' + c + ';">' +
       '<div style="font-weight:800; font-size:14px;">👤 ' + esc(it.fio) + '</div>' +
-      '<div>📍 ' + esc(it.city) + '</div>' +
+      '<div>📍 ' + esc(it.city) + (it.home ? ' <b>(НЕ КОМАНДИРОВКА)</b>' : '') + '</div>' +
       '<div>🗓 ' + fmt(it.s) + ' — ' + fmt(it.e) + ' · ' + plural(days, 'день', 'дня', 'дней') + '</div>' +
       '<div style="font-size:12px; opacity:.85;">' + st + '</div>' +
       (it.arch ? '<div style="font-size:11.5px; opacity:.7; margin-top:2px;">Нажмите ещё раз — подробности</div>' : '') +
