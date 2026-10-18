@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Авансовый отчёт">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="app-build" content="20261019-14">
+  <meta name="app-build" content="20261019-15">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -2876,6 +2876,15 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     fetch(GOOGLE_SHEET_API, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'ext_override_set', city: city, mode: mode || '', telegram_user: getTelegramUser() }) })
       .then(r => r.json()).then(res => { if (res && res.status === 'ok' && res.overrides) { taOver = res.overrides; renderTripArchive(); } }).catch(() => {});
   }
+  function hcDiffers(a, b) { return !!String(b || '').trim() && taNormCity(a || 'г. Томск') !== taNormCity(b); }
+  function askHomeChange(oldC, newC, onYes) {
+    let m = document.getElementById('hc_confirm');
+    if (!m) { m = document.createElement('div'); m.id = 'hc_confirm'; m.style.cssText = 'position:fixed; inset:0; z-index:10200; background:rgba(15,23,42,.55); display:none; align-items:center; justify-content:center; padding:16px;'; document.body.appendChild(m); }
+    m.innerHTML = '<div style="background:#fff; border-radius:18px; padding:18px; max-width:420px; width:100%; box-shadow:0 20px 50px rgba(0,0,0,.3);"><div style="font-weight:900; font-size:17px; margin-bottom:8px;">🏠 Сменить домашний город?</div><div style="font-size:14px; line-height:1.45; color:#334155;">Было: <b>' + escHtml(oldC) + '</b><br>Станет: <b>' + escHtml(newC) + '</b><br><br>С этого дня командировкой считаются только поездки дальше 100 км от нового города (по расстоянию на карте); объекты ближе 100 км не считаются командировкой.<br><br>Прошлые командировки и периоды <b>не изменятся</b>: для них действует прежний домашний город.<br><br>Всем, кому положено, придёт уведомление о смене.</div><div style="display:flex; gap:8px; margin-top:14px;"><button type="button" class="btn btn-secondary" style="flex:1;" id="hc_no">Отмена</button><button type="button" class="btn btn-primary" style="flex:1;" id="hc_yes">Да, сменить</button></div></div>';
+    m.style.display = 'flex';
+    document.getElementById('hc_no').onclick = () => { m.style.display = 'none'; };
+    document.getElementById('hc_yes').onclick = () => { m.style.display = 'none'; onYes(); };
+  }
   function hchLocal(o, nc) {
     if (!o || !nc) return;
     const old = o.homeCity || 'г. Томск';
@@ -5186,6 +5195,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     const bik = document.getElementById('bm_bik').value.trim();
     const acc = document.getElementById('bm_acc').value.trim();
     const city = document.getElementById('bm_city').value.trim();
+    if (!window.__hcOk) { const em0 = (globalAppData.employees || []).find(e => e.fio === fio); const oc = (em0 && em0.homeCity) || 'г. Томск'; if (hcDiffers(oc, city)) { askHomeChange(oc, city, () => { window.__hcOk = true; try { saveBankDetailsModal(); } finally { window.__hcOk = false; } }); return; } }
 
     const dg = (v) => String(v || '').replace(/\D/g, '');
     if (!(dg(inn).length === 10 || dg(inn).length === 12)) { showToast('ИНН банка: 10 или 12 цифр'); return; }
@@ -6952,6 +6962,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     return rows;
   }
   window.saveMyProfile = function () {
+    if (!window.__hcOk) { const nc = document.getElementById('mp_city').value.trim(), oc = (globalAppData.currentUser || {}).homeCity || 'г. Томск'; if (hcDiffers(oc, nc)) { askHomeChange(oc, nc, () => { window.__hcOk = true; try { window.saveMyProfile(); } finally { window.__hcOk = false; } }); return; } }
     const v = id => document.getElementById(id).value.trim();
     const dg = x => String(x || '').replace(/\D/g, '');
     const prof = { fio: v('mp_fio').replace(/\s+/g, ' '), role: v('mp_role'), tab: dg(v('mp_tab')), phone: v('mp_phone'),
