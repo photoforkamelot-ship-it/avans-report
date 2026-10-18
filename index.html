@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Авансовый отчёт">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="app-build" content="20261019-15">
+  <meta name="app-build" content="20261019-16">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -2876,6 +2876,15 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     fetch(GOOGLE_SHEET_API, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'ext_override_set', city: city, mode: mode || '', telegram_user: getTelegramUser() }) })
       .then(r => r.json()).then(res => { if (res && res.status === 'ok' && res.overrides) { taOver = res.overrides; renderTripArchive(); } }).catch(() => {});
   }
+  function confirmTripMark(city, mode) {
+    let m = document.getElementById('tm_confirm');
+    if (!m) { m = document.createElement('div'); m.id = 'tm_confirm'; m.style.cssText = 'position:fixed; inset:0; z-index:10300; background:rgba(15,23,42,.55); display:none; align-items:center; justify-content:center; padding:16px;'; document.body.appendChild(m); }
+    const toTrip = mode === 'trip';
+    m.innerHTML = '<div style="background:#fff; border-radius:18px; padding:18px; max-width:420px; width:100%; box-shadow:0 20px 50px rgba(0,0,0,.3);"><div style="font-weight:900; font-size:17px; margin-bottom:8px;">' + (toTrip ? '🧳 Считать командировкой?' : '🏠 Это не командировка?') + '</div><div style="font-size:14px; line-height:1.45; color:#334155;">Город: <b>' + escHtml(city) + '</b><br><br>' + (toTrip ? 'Все объекты этого города будут считаться командировками.' : 'Все объекты этого города будут считаться работой в домашнем городе, без командировки.') + ' Отметку можно потом изменить.</div><div style="display:flex; gap:8px; margin-top:14px;"><button type="button" class="btn btn-secondary" style="flex:1;" id="tm_no">Отмена</button><button type="button" class="btn btn-primary" style="flex:1;" id="tm_yes">Да, подтверждаю</button></div></div>';
+    m.style.display = 'flex';
+    document.getElementById('tm_no').onclick = () => { m.style.display = 'none'; };
+    document.getElementById('tm_yes').onclick = () => { m.style.display = 'none'; try { Cal.closePop(); } catch (e) {} setCityOv(city, mode); };
+  }
   function hcDiffers(a, b) { return !!String(b || '').trim() && taNormCity(a || 'г. Томск') !== taNormCity(b); }
   function askHomeChange(oldC, newC, onYes) {
     let m = document.getElementById('hc_confirm');
@@ -2934,7 +2943,8 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
       else if (!isHome && typeof gd === 'number' && gd >= 0 && gd < 100) { isHome = true; kmNote = gd; }
       if (!isHome && real.some(r => s <= r[1] && e >= r[0])) { dg.overlap++; return; }
       if (est) dg.est++;
-      const it = { city, s, e, est, home: isHome, km: kmNote, ov: ov || '', days: Math.round((e - s) / day) + 1 };
+      const mc = String(o.a || '').match(/^\s*([A-Za-zА-Яа-я]\d{3})\s+/);
+      const it = { addr: String(o.a || '').replace(/^\s*[A-Za-zА-Яа-я]\d{3}\s+/, '').trim(), code: mc ? mc[1].toUpperCase() : '', nf: o.e || '', af: o.f || '', og: o.g || '', city, s, e, est, home: isHome, km: kmNote, ov: ov || '', days: Math.round((e - s) / day) + 1 };
       if (isHome) { dg.home++; calAll.push(it); return; }   // домашний город: не командировка, только на календаре
       trips.push(it); calAll.push(it);
     });
@@ -2959,7 +2969,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     box.innerHTML = `<details style="border-top:1px solid #e5e5ea; padding-top:8px;"><summary style="cursor:pointer; font-weight:800; color:#64748b; padding:6px 2px;">📦 Архив командировок (${trips.length})</summary>${diagLine}` +
       years.map((y, i) => `<details class="ta-year"${i === 0 ? ' open' : ''}><summary>${y} (${by[y].length})</summary>` + by[y].map(t => {
         const mo = MN[new Date(t.s).getMonth()];
-        return `<details class="ta-card"><summary><span class="ta-t">🧳 Командировка г. ${escHtml(t.city)} (${dn(t.days)})<small>${fmt(t.s)} — ${fmt(t.e)} · ${mo}${t.est ? ' · срок ≈ по среднему (18 дн.)' : ''}</small></span><span class="ta-ok">✅ Сдан</span></summary><div class="ta-body">Отчётные документы сданы не через это приложение. Информации о тратах нет.<div style="margin-top:6px;"><button type="button" class="btn btn-secondary" style="padding:4px 10px; font-size:12px;" onclick="setCityOv(this.dataset.c,'home')" data-c="${escHtml(t.city)}">Это не командировка (рядом с домом)</button>${t.ov === 'trip' ? '' : ''}</div></div></details>`;
+        return `<details class="ta-card"><summary><span class="ta-t">🧳 Командировка г. ${escHtml(t.city)} (${dn(t.days)})<small>${fmt(t.s)} — ${fmt(t.e)} · ${mo}${t.est ? ' · срок ≈ по среднему (18 дн.)' : ''}</small></span><span class="ta-ok">✅ Сдан</span></summary><div class="ta-body">Отчётные документы сданы не через это приложение. Информации о тратах нет.<div style="margin-top:6px;"><button type="button" class="btn btn-secondary" style="padding:4px 10px; font-size:12px;" onclick="confirmTripMark(this.dataset.c,'home')" data-c="${escHtml(t.city)}">Это не командировка (рядом с домом)</button>${t.ov === 'trip' ? '' : ''}</div></div></details>`;
       }).join('') + '</details>').join('') + '</details>';
     box.style.display = 'block';
   }
@@ -6092,7 +6102,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     clusters.forEach((cl, i) => { cl.color = PAL[i % PAL.length]; cl.items.forEach(it => { it.cl = cl; }); });
     // архив: командировки, оформленные не через приложение (только даты и город)
     ((typeof window !== 'undefined' && window.__archTrips) || []).forEach(t => {
-      const it = { fio: (g.currentUser && g.currentUser.fio) || 'Сотрудник', city: formatUniqueCities(t.city || ''), s: t.s, e: t.e, closed: true, foreign: true, arch: true, est: !!t.est, home: !!t.home, km: t.km || 0, ov: t.ov || '', rawCity: t.city };
+      const it = { fio: (g.currentUser && g.currentUser.fio) || 'Сотрудник', city: formatUniqueCities(t.city || ''), s: t.s, e: t.e, closed: true, foreign: true, arch: true, est: !!t.est, home: !!t.home, km: t.km || 0, ov: t.ov || '', rawCity: t.city, addr: t.addr || '', code: t.code || '', nf: t.nf || '', af: t.af || '', og: t.og || '' };
       const cl = { city: it.city, s: it.s, e: it.e, items: [it], color: t.home ? '#b08968' : '#94a3b8', arch: true, home: !!t.home }; it.cl = cl; clusters.push(cl); out.push(it);
     });
     list = out;
@@ -6162,8 +6172,10 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
       '<div>📍 ' + esc(it.city) + (it.home ? ' <b>(НЕ КОМАНДИРОВКА)</b>' : '') + '</div>' +
       '<div>🗓 ' + fmt(it.s) + ' — ' + fmt(it.e) + ' · ' + plural(days, 'день', 'дня', 'дней') + '</div>' +
       '<div style="font-size:12px; opacity:.85;">' + st + '</div>' +
+      (it.arch && (it.addr || it.code) ? '<div style="font-size:12px; margin-top:3px; line-height:1.35;">🏬 ' + (it.code ? '<b>' + esc(it.code) + '</b> · ' : '') + esc(it.addr || '') + '</div>' : '') +
+      (it.arch && (it.af || it.og) ? '<div style="font-size:11.5px; opacity:.85;">' + (it.af ? 'Приёмка: ' + esc(it.af) : '') + (it.af && it.og ? ' · ' : '') + (it.og ? 'Открытие: ' + esc(it.og) : '') + '</div>' : '') +
       (it.arch ? '<div style="font-size:11.5px; opacity:.7; margin-top:2px;">Нажмите ещё раз — подробности</div>' : '') +
-      (it.arch && it.home ? '<button type="button" class="cal-b" style="margin-top:4px;" data-c="' + esc(it.rawCity || '') + '" onclick="event.stopPropagation(); setCityOv(this.dataset.c, \'trip\'); Cal.closePop();">Это была командировка</button>' : '') +
+      (it.arch && it.home ? '<button type="button" class="cal-b" style="margin-top:4px;" data-c="' + esc(it.rawCity || '') + '" onclick="event.stopPropagation(); confirmTripMark(this.dataset.c, \'trip\');">Это была командировка</button>' : '') +
       (acts ? '<div class="cal-acts">' + acts + '</div>' : '') + '</div>';
   }
   function pop(dayTs) {
