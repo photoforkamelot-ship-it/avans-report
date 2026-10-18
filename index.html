@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Авансовый отчёт">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="app-build" content="20261019-16">
+  <meta name="app-build" content="20261019-17">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -1333,6 +1333,7 @@ body.cap-on #docs_modal{padding-top:46px;}
     <div class="t"><div><h3>🏬 Объекты к открытию</h3><small id="ex_upd"></small></div><div style="display:flex; gap:6px;"><button type="button" class="btn btn-secondary" style="width:38px; height:38px;" onclick="loadExt()">🔄</button><button type="button" class="btn btn-secondary" style="width:38px; height:38px;" onclick="closeExt()">✕</button></div></div>
     <div class="ex-seg"><button type="button" id="ex_v_now" class="on" onclick="setExView('now')">🏬 Актуальные</button><button type="button" id="ex_v_arch" onclick="setExView('arch')">📦 Архив</button></div>
     <div class="ex-tools" id="ex_tools" style="display:none;"><span class="lbl">Сортировка:</span><button type="button" data-s="e" onclick="setExSort('e')">✉️ Письма</button><button type="button" data-s="f" onclick="setExSort('f')">🔑 Приёмки</button><button type="button" data-s="g" onclick="setExSort('g')">🏬 Открытия</button><button type="button" id="ex_mine_btn" onclick="toggleExMine()">⭐ Только мои</button><button type="button" onclick="exFoldAll()">⇅ Свернуть/развернуть</button></div>
+    <div id="ex_src" style="font-size:11.5px; line-height:1.4; padding:2px 2px 6px;"></div>
     <label class="ex-notify"><input type="checkbox" id="ex_notify" onchange="setExtNotify(this.checked)"> 🔔 Присылать в Telegram изменения по объектам (кого откуда сняли, кого назначили)</label>
   </div>
   <div class="ex-body" id="ex_body"></div>
@@ -2748,7 +2749,9 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
         exLoading = false;
         if (!res || res.status !== 'ok') { document.getElementById('ex_body').innerHTML = '<div class="jr-empty">Не удалось получить данные.<br>' + escHtml((res && res.message) || '') + '<br><br><button type="button" class="btn btn-primary" onclick="loadExt()">Повторить</button></div>'; return; }
         document.getElementById('ex_notify').checked = !!res.notify;
-        document.getElementById('ex_upd').innerText = 'обновлено ' + res.updated + (res.offline ? ' · таблица недоступна, показана копия' : '');
+        document.getElementById('ex_upd').innerText = 'обновлено ' + res.updated;
+        const sEl = document.getElementById('ex_src');
+        if (sEl) sEl.innerHTML = res.offline ? '<span style="color:#b45309;">🟠 Исходная таблица сейчас недоступна: показаны сохранённые данные из резервной копии' + (res.bk ? ' (' + res.bk + ' записей)' : '') + '. Как только доступ вернётся, свежие объекты подгрузятся сами.</span>' : '<span style="color:#15803d;">🟢 Исходная таблица доступна: свежие и текущие объекты подгружаются при каждом заходе' + (res.bk ? '. В резервной копии: ' + res.bk + ' записей' : '') + '.</span>';
         exLast = res;
         document.getElementById('ex_v_arch').innerText = '📦 Архив (' + (((res.archive || []).length) + (res.stores || []).filter(o => { const t = parseDateToTimestamp(o.x) || 0; const d = new Date(); d.setHours(12,0,0,0); return o.s !== 'sus' && t && t < d.getTime(); }).length) + ')';
         renderExt();
@@ -2964,7 +2967,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     if (dg.home) parts.push('в домашнем городе (на календаре, без командировки): ' + dg.home);
     if (dg.overlap) parts.push('совпали с командировками в приложении: ' + dg.overlap);
     if (dg.ongoing) parts.push('ещё не завершены: ' + dg.ongoing);
-    const srcLine = taSrc === 'live' ? `<div style="font-size:11.5px; color:#15803d; padding:0 2px 4px;">🟢 Исходная таблица доступна: свежие и текущие объекты подгружаются при каждом заходе. В резервной копии: ${taBk} записей.</div>` : (taSrc === 'backup' ? `<div style="font-size:11.5px; color:#b45309; padding:0 2px 4px;">🟠 Исходная таблица сейчас недоступна: показаны сохранённые данные из резервной копии (${taBk} записей). Как только доступ вернётся, свежие объекты подгрузятся сами.</div>` : '');
+    const srcLine = '';
     const diagLine = srcLine + `<div style="font-size:11.5px; color:#94a3b8; line-height:1.4; padding:0 2px 6px;">Объектов в списке: ${dg.total} · показано: ${trips.length}${parts.length ? '. ' + parts.join('; ') + '.' : ''}</div>`;
     box.innerHTML = `<details style="border-top:1px solid #e5e5ea; padding-top:8px;"><summary style="cursor:pointer; font-weight:800; color:#64748b; padding:6px 2px;">📦 Архив командировок (${trips.length})</summary>${diagLine}` +
       years.map((y, i) => `<details class="ta-year"${i === 0 ? ' open' : ''}><summary>${y} (${by[y].length})</summary>` + by[y].map(t => {
