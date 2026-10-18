@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Авансовый отчёт">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="app-build" content="20261018-1">
+  <meta name="app-build" content="20261019-1">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -1196,9 +1196,13 @@ body.cap-on #docs_modal{padding-top:46px;}
         <input type="checkbox" id="chk_ntf_docs" checked>
         <div><b>Добавлены документы</b><br><span style="font-size:11px; color:#64748b;">Чеки и документы, прикреплённые к отчёту</span></div>
       </label>
-      <label class="checkbox-row" style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px;">
+      <label class="checkbox-row" style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px; margin-bottom:8px;">
         <input type="checkbox" id="chk_ntf_account" checked>
-        <div><b>Изменены данные учётной записи</b><br><span style="font-size:11px; color:#64748b;">ФИО, таб. номер, должность, телефон, реквизиты: «было → стало»</span></div>
+        <div><b>Изменены данные учётной записи</b><br><span style="font-size:11px; color:#64748b;">ФИО, таб. номер, должность, телефон, реквизиты: «было → стало» с указанием автора правки. Руководителю приходят и изменения данных его сотрудников</span></div>
+      </label>
+      <label class="checkbox-row" style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px;">
+        <input type="checkbox" id="chk_ntf_change" checked>
+        <div><b>Изменены сроки и суммы</b><br><span style="font-size:11px; color:#64748b;">Смена срока командировки и правки сумм или сроков в заявках на ДС, с указанием автора правки</span></div>
       </label>
     </div>
 
@@ -1407,6 +1411,16 @@ body.cap-on #docs_modal{padding-top:46px;}
       <button type="button" class="btn btn-secondary" onclick="dismissCloudDraftTemporarily()">🕒 Напомнить позже</button>
       <button type="button" class="btn btn-secondary" onclick="confirmDiscardCloudDraft()" style="color:#ff3b30; background:transparent;">🗑 Начать с нуля</button>
     </div>
+  </div>
+</div>
+
+<!-- ПОДСКАЗКА: У КОЛЛЕГИ ИЗМЕНИЛСЯ СРОК КОМАНДИРОВКИ -->
+<div id="period_notice_modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.55); -webkit-backdrop-filter:blur(4px); backdrop-filter:blur(4px); z-index:10100; align-items:center; justify-content:center; padding:16px;">
+  <div style="background:white; padding:20px; border-radius:16px; width:100%; max-width:390px; box-shadow:0 12px 36px rgba(0,0,0,0.3); text-align:center;">
+    <div style="font-size:36px; margin-bottom:6px;">📅</div>
+    <h3 id="pn_title" style="margin:0 0 8px 0; font-size:17px; color:#1c1c1e;">У коллеги изменился срок командировки</h3>
+    <div id="pn_text" style="font-size:13px; color:#495057; margin-bottom:16px; line-height:1.55; text-align:left;"></div>
+    <div id="pn_btns" style="display:flex; flex-direction:column; gap:8px;"></div>
   </div>
 </div>
 
@@ -3172,7 +3186,8 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
 
         TOUR_SEEN = (res.tourSeen !== false);
         if (res.isAdmin) setTimeout(loadTripArchive, 2500);
-        checkCloudDraftPopup(res.reports, userId, res.isAdmin);
+        if (window.PeriodN && (res.periodNotices || []).length && !isViewingRemoteReport) PeriodN.run(res.periodNotices, () => checkCloudDraftPopup(res.reports, userId, res.isAdmin));
+        else checkCloudDraftPopup(res.reports, userId, res.isAdmin);
         try { if (window.WhatsNew) WhatsNew.maybe(res); } catch (e) {}
         try { if (window.A2HS) A2HS.maybe(res); } catch (e) {}
         hideSplash(true);
@@ -3246,7 +3261,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
       if (!mine) return;
       fetch(GOOGLE_SHEET_API, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'notify_prefs', telegram_user: getTelegramUser() }) })
         .then(r => r.json()).then(res => {
-          if (res && res.prefs) ['interim', 'expense', 'docs', 'account'].forEach(k => { document.getElementById('chk_ntf_' + k).checked = res.prefs[k] !== false; });
+          if (res && res.prefs) ['interim', 'expense', 'docs', 'account', 'change'].forEach(k => { document.getElementById('chk_ntf_' + k).checked = res.prefs[k] !== false; });
         }).catch(() => {});
     })();
     const leadSec = document.getElementById('lead_notif_section');
@@ -3280,7 +3295,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     const notifyTeamAo = document.getElementById('chk_lead_notif_ao').checked;
 
     if (document.getElementById('ntf_types_section').style.display !== 'none') {
-      fetch(GOOGLE_SHEET_API, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'notify_prefs', telegram_user: getTelegramUser(), prefs: { interim: document.getElementById('chk_ntf_interim').checked, expense: document.getElementById('chk_ntf_expense').checked, docs: document.getElementById('chk_ntf_docs').checked, account: document.getElementById('chk_ntf_account').checked } }) }).catch(() => {});
+      fetch(GOOGLE_SHEET_API, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'notify_prefs', telegram_user: getTelegramUser(), prefs: { interim: document.getElementById('chk_ntf_interim').checked, expense: document.getElementById('chk_ntf_expense').checked, docs: document.getElementById('chk_ntf_docs').checked, account: document.getElementById('chk_ntf_account').checked, change: document.getElementById('chk_ntf_change').checked } }) }).catch(() => {});
     }
     showToast("Сохранение настроек...");
     fetch(GOOGLE_SHEET_API, {
@@ -3395,25 +3410,62 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
       return;
     }
 
+    // Срок отчёта как в черновике или сданном отчёте (там самые свежие даты)
+    const aoPeriod = (rep) => { try { const pp = (typeof rep.rawJson === 'string' ? JSON.parse(rep.rawJson) : rep.rawJson || {}).passport || {}; return (pp.dStart && pp.dEnd) ? `${pp.dStart} — ${pp.dEnd}` : ''; } catch (e) { return ''; } };
+    // Актуальный срок участника: сначала его черновик, затем сданный отчёт, иначе срок по заявке
+    const memberPeriod = (m) => {
+      const dr = (reports || []).find(r => r.isDraft && r.tripId === m.tripId);
+      const pd = dr ? aoPeriod(dr) : '';
+      if (pd) return pd;
+      const rp = (reports || []).find(r => !r.isDraft && String(r.status).toLowerCase() === 'готов' && r.tripId === m.tripId);
+      return (rp ? aoPeriod(rp) : '') || m.dates || '';
+    };
+    // Закрытая командировка: итоговый PDF готов и нет несданных правок. Такие не объединяются с текущими
+    const isClosedTrip = (m) => {
+      const hasDraft = (reports || []).some(r => r.isDraft && r.tripId === m.tripId);
+      const rp = (reports || []).find(r => !r.isDraft && String(r.status).toLowerCase() === 'готов' && r.tripId === m.tripId);
+      return !!(rp && rp.pdfUrl && !hasDraft);
+    };
+    const perSE = (per) => { const pp = String(per || '').split('—').map(x => x.trim()); return [pp[0] || '', pp[1] || '', parseDateToTimestamp(pp[0]) || 0, parseDateToTimestamp(pp[1]) || 0]; };
+
     const tripGroups = {};
+    const addToGroup = (key, mk, tr) => {
+      if (!tripGroups[key]) tripGroups[key] = Object.assign({ cities: formatUniqueCities(tr.cities) || 'Город', dates: tr.dates || '', members: [] }, mk);
+      tripGroups[key].members.push(tr);
+    };
+    // 1) закрытые и командировки без дат: как раньше, по городу и сроку заявки
+    // 2) текущие: один город и пересекающиеся сроки образуют одну командировку (даты у участников могут отличаться)
+    const openByCity = {};
     trips.forEach(tr => {
       const cleanCities = formatUniqueCities(tr.cities);
-      const dates = (tr.dates || '').split('—').map(s => s.trim());
-      const monthInfo = getDominantMonthYear(dates[0], dates[1]);
-      const groupKey = `${monthInfo.year}_${String(monthInfo.monthIdx).padStart(2,'0')}_${cleanCities}_${tr.dates}`;
-
-      if (!tripGroups[groupKey]) {
-        tripGroups[groupKey] = {
-          monthLabel: monthInfo.label,
-          cities: cleanCities || 'Город',
-          dates: tr.dates || '',
-          members: []
-        };
+      const per = perSE(memberPeriod(tr));
+      if (isClosedTrip(tr) || !per[2] || !per[3]) {
+        const dates = (tr.dates || '').split('—').map(x => x.trim());
+        const monthInfo = getDominantMonthYear(dates[0], dates[1]);
+        addToGroup(`${monthInfo.year}_${String(monthInfo.monthIdx).padStart(2,'0')}_${cleanCities}_${tr.dates}`, { monthLabel: monthInfo.label }, tr);
+      } else {
+        (openByCity[cleanCities] = openByCity[cleanCities] || []).push({ tr, s: per[2], e: per[3], sStr: per[0], eStr: per[1] });
       }
-      tripGroups[groupKey].members.push(tr);
+    });
+    Object.keys(openByCity).forEach(city => {
+      const list = openByCity[city].sort((a, b) => a.s - b.s);
+      const clusters = [];
+      list.forEach(it => {
+        const last = clusters[clusters.length - 1];
+        if (last && it.s <= last.e) { last.items.push(it); if (it.e > last.e) { last.e = it.e; last.eStr = it.eStr; } }
+        else clusters.push({ s: it.s, e: it.e, sStr: it.sStr, eStr: it.eStr, items: [it] });
+      });
+      clusters.forEach((cl, ci) => {
+        const monthInfo = getDominantMonthYear(cl.sStr, cl.eStr);
+        const regS = cl.items.map(x => (x.tr.dates || '').split('—')[0].trim()).filter(Boolean).sort((p, q) => parseDateToTimestamp(p) - parseDateToTimestamp(q))[0] || cl.sStr;
+        const regE = cl.items.map(x => (x.tr.dates || '').split('—')[1]).filter(Boolean).map(x => x.trim()).sort((p, q) => parseDateToTimestamp(q) - parseDateToTimestamp(p))[0] || cl.eStr;
+        const key = `${monthInfo.year}_${String(monthInfo.monthIdx).padStart(2,'0')}_${city}_open${ci}_${cl.s}`;
+        tripGroups[key] = { monthLabel: monthInfo.label, cities: city || 'Город', dates: `${regS} — ${regE}`, members: cl.items.map(x => x.tr) };
+      });
     });
 
     const sortedGroupKeys = Object.keys(tripGroups).sort().reverse();
+    window.__tripGroupsList = sortedGroupKeys.map(k => tripGroups[k]);
     let html = '';
     let currentMonthHeader = '';
 
@@ -3424,16 +3476,6 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
         html += `<div class="month-header">📅 ${currentMonthHeader}</div>`;
       }
 
-      // Сданный отчёт мог скорректировать сроки (дорога заняла больше): показываем фактический период, а срок по заявке — отдельной строкой
-      const aoPeriod = (rep) => { try { const pp = (typeof rep.rawJson === 'string' ? JSON.parse(rep.rawJson) : rep.rawJson || {}).passport || {}; return (pp.dStart && pp.dEnd) ? `${pp.dStart} — ${pp.dEnd}` : ''; } catch (e) { return ''; } };
-      // Актуальный срок участника: сначала его черновик (самые свежие правки), затем сданный отчёт, иначе срок по заявке
-      const memberPeriod = (m) => {
-        const dr = (reports || []).find(r => r.isDraft && r.tripId === m.tripId);
-        const pd = dr ? aoPeriod(dr) : '';
-        if (pd) return pd;
-        const rp = (reports || []).find(r => !r.isDraft && String(r.status).toLowerCase() === 'готов' && r.tripId === m.tripId);
-        return (rp ? aoPeriod(rp) : '') || grp.dates;
-      };
       const periodDays = (per) => {
         const pp = String(per || '').split('—').map(x => x.trim());
         if (pp.length === 2) { const a = parseDateToTimestamp(pp[0]), b = parseDateToTimestamp(pp[1]); if (a > 0 && b >= a) return Math.ceil((b - a) / 86400000) + 1; }
@@ -3478,7 +3520,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
                     : `<span class="badge-status-tag badge-status-progress">✏️ В процессе</span>`)}
               </div>
             </button>
-            ${globalAppData.isAdmin ? `<button type="button" class="btn btn-danger" title="Удалить всю командировку для всех сотрудников" onclick="deleteFullTripGroup('${grp.cities.replace(/'/g, "\\'")}', '${grp.dates.replace(/'/g, "\\'")}')">🗑️️</button>` : ''}
+            ${globalAppData.isAdmin ? `<button type="button" class="btn btn-danger" title="Удалить всю командировку для всех сотрудников" onclick="deleteTripGroupByIdx(${gIdx})">🗑️️</button>` : ''}
           </div>
 
           <div id="box_trip_${gIdx}" style="display:none; padding:6px 0 8px 6px;">
@@ -3636,6 +3678,22 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
       showToast("Командировка удалена!");
       setTimeout(loadAppData, 1200);
     });
+  }
+
+  // Удаление всей командировки по списку её участников (в группу могут входить участники с разными сроками заявок)
+  function deleteTripGroupByIdx(gIdx) {
+    const grp = (window.__tripGroupsList || [])[gIdx];
+    if (!grp || !grp.members.length) return;
+    if (!confirm(`Удалить ВСЮ командировку ${grp.cities} (${grp.dates}) для ВСЕХ сотрудников (${grp.members.length})?`)) return;
+    showToast("Удаление всей командировки...");
+    const ids = grp.members.map(m => m.tripId);
+    (async () => {
+      for (const tripId of ids) {
+        try { await fetch(GOOGLE_SHEET_API, { method: "POST", mode: "no-cors", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "delete_single_member_trip", tripId }) }); } catch (e) {}
+      }
+      showToast("Командировка удалена!");
+      setTimeout(loadAppData, 1000);
+    })();
   }
 
   function deleteSingleMemberTrip(tripId, fio) {
@@ -5868,6 +5926,76 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
   setTimeout(() => DemoCfg.paint(), 400);
 })();
 </script>
+<script id="period-js">
+/* Подсказка: у других участников командировки изменился срок. Предлагаем изменить свой срок или оставить прежний */
+(function () {
+  const esc = (t) => String(t == null ? '' : t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  let queue = [], doneCb = null, cur = null;
+  const el = (id) => document.getElementById(id);
+  const days = (s, e) => { const a = parseDateToTimestamp(s), b = parseDateToTimestamp(e); return (a > 0 && b >= a) ? Math.round((b - a) / 86400000) + 1 : 0; };
+  const post = (body) => fetch(GOOGLE_SHEET_API, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(Object.assign({ telegram_user: getTelegramUser() }, body)) }).then(r => r.json());
+  function what(n) { return n.applyStart && n.applyEnd ? 'начала и окончания' : (n.applyEnd ? 'окончания' : 'начала'); }
+  function close() { el('period_notice_modal').style.display = 'none'; }
+  function next() {
+    cur = queue.shift();
+    if (!cur) { close(); const cb = doneCb; doneCb = null; if (cb) cb(); return; }
+    const n = cur;
+    el('pn_title').innerText = 'У коллег изменился срок ' + what(n);
+    el('pn_text').innerHTML =
+      `<div><b>${esc(n.who)}</b> · ${esc(n.city)}</div>` +
+      `<div style="margin:6px 0;">Было: <b>${esc(n.oS)} — ${esc(n.oE)}</b><br>Стало: <b style="color:#007aff;">${esc(n.nS)} — ${esc(n.nE)}</b> (${days(n.nS, n.nE)} дн.)</div>` +
+      (n.authorName ? `<div style="font-size:12px; color:#64748b;">Автор правки: ${esc(n.authorName)}</div>` : '') +
+      `<div style="margin-top:8px; padding-top:8px; border-top:1px dashed #cbd5e1;">Ваш срок сейчас: <b>${esc(n.myS)} — ${esc(n.myE)}</b></div>` +
+      `<div style="font-size:12px; color:#64748b; margin-top:4px;">Рекомендуем изменить срок ${esc(what(n))} и у вас, чтобы сроки в одной командировке совпадали.</div>`;
+    const b = el('pn_btns');
+    b.innerHTML = '';
+    const mk = (cls, text, fn, style) => { const x = document.createElement('button'); x.type = 'button'; x.className = 'btn ' + cls; x.innerHTML = text; if (style) x.style.cssText = style; x.onclick = fn; b.appendChild(x); };
+    mk('btn-primary', '✅ Изменить мой срок', () => confirmStep());
+    mk('btn-secondary', 'Оставить прежний', () => keep());
+    el('period_notice_modal').style.display = 'flex';
+  }
+  function keep() {
+    const id = cur && cur.id;
+    if (id) post({ action: 'period_ack', id: id }).catch(() => {});
+    next();
+  }
+  function confirmStep() {
+    const n = cur;
+    const parts = [];
+    if (n.applyStart) parts.push(`начало: <b>${esc(n.myS)}</b> → <b style="color:#007aff;">${esc(n.newS)}</b>`);
+    if (n.applyEnd) parts.push(`окончание: <b>${esc(n.myE)}</b> → <b style="color:#007aff;">${esc(n.newE)}</b>`);
+    el('pn_title').innerText = 'Подтвердите изменение срока';
+    el('pn_text').innerHTML = `<div>Срок вашей командировки изменится автоматически (форму открывать не нужно):</div><div style="margin:8px 0;">${parts.join('<br>')}</div><div>Новый срок: <b>${esc(n.newS)} — ${esc(n.newE)}</b> (${days(n.newS, n.newE)} дн.). Количество дней и суточные пересчитаются. Расходы и заявки не изменятся.</div>`;
+    const b = el('pn_btns');
+    b.innerHTML = '';
+    const mk = (cls, text, fn) => { const x = document.createElement('button'); x.type = 'button'; x.className = 'btn ' + cls; x.innerHTML = text; x.onclick = fn; b.appendChild(x); };
+    mk('btn-primary', '✅ Подтвердить', () => apply());
+    mk('btn-secondary', '‹ Назад', () => { queue.unshift(cur); next(); });
+  }
+  function apply() {
+    const n = cur;
+    const b = el('pn_btns');
+    b.innerHTML = '<div style="color:#64748b; font-size:13px;">Сохраняю…</div>';
+    post({ action: 'period_apply', tripId: n.tripId, newS: n.newS, newE: n.newE, id: n.id })
+      .then(res => {
+        if (res && res.status === 'ok') {
+          try { Hap.ok(); } catch (e) {}
+          showToast('Срок изменён: ' + res.period);
+          close();
+          const cb = doneCb; doneCb = null; queue = [];
+          loadAppData();   // заново загрузит данные и покажет «Найден черновик» уже с новыми датами
+        } else {
+          showToast((res && res.message) || 'Не удалось изменить срок');
+          next();
+        }
+      })
+      .catch(() => { showToast('Нет связи. Повторите позже'); next(); });
+  }
+  window.PeriodN = {
+    run(list, cb) { queue = (list || []).slice(); doneCb = cb || null; next(); }
+  };
+})();
+</script>
 <script id="proc-js">
 /* Вибрация, капсула-статус сверху и окно хода долгих процессов */
 (function () {
@@ -6641,9 +6769,14 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
 
 <script id="wn-js">
 (function () {
-  const VER = '20261016';
+  const VER = '20261019';
   // d — дата изменения; a — только для руководителей
   const ITEMS = [
+    { d: '20261019', i: '📅', t: 'Подсказка, если у коллеги изменился срок', p: 'Если в вашей командировке у другого участника поменялись даты, при входе появится окно: изменить свой срок на такой же (приложение само поправит черновик, форму открывать не нужно) или оставить прежний. Бот тоже сообщает об изменении срока.' },
+    { d: '20261019', i: '🧳', t: 'Одна командировка для одного города', p: 'В разделе «Командировки» участники одного города с пересекающимися сроками собраны в одну командировку, у каждого видны его даты и дни. Если сотрудник продлил командировку в другой город, он выделяется отдельно: общий срок и города через запятую.' },
+    { d: '20261019', i: '🗓', t: 'Актуальные даты в списке и в «Найден черновик»', p: 'Даты командировки в таймлайне и в окне «Найден черновик» теперь берутся из самого черновика, а не остаются старыми после редактирования. Конец срока в архиве командировок считается по норме (18 дней).' },
+    { d: '20261019', i: '🔔', a: 1, t: 'Уведомления: одна сводка и авторство правок', p: 'Руководителю вместо двух сообщений о новой заявке приходит одно подробное: по каждому сотруднику суммы и ссылки, автор заявки. Бот сообщает о смене срока, правках сумм и сроков старых заявок и изменении данных сотрудников, всегда с автором правки. Включается в Профиле → «Уведомления Telegram» → «Изменены сроки и суммы».' },
+    { d: '20261019', i: '📳', t: 'Рычажок вибрации', p: 'В Профиле вибрация включается и выключается переключателем, как свайп и кнопка «ДЕМО-расходы».' },
     { d: '20261016', i: '🌐', t: 'Вход из браузера по логину и паролю', p: 'Руководитель может выдать логин и пароль, и работать можно без Telegram. Если вы уже работаете в браузере, а в Telegram система предложит привязать учётку по коду: Профиль → «Привязать веб-учётку». Подробнее: Инструкция → «Вход из браузера и привязка Telegram». В браузере приложение предложит добавить иконку на главный экран (повторно: Профиль → «Добавить на главный экран»).' },
     { d: '20261016', i: '🔑', a: 1, t: 'Веб-доступ, коды привязки и значки', p: 'В «Базе сотрудников» у карточки появились значки Telegram и 🌐 (яркий значит «есть», блёклый «нет»), кнопки «Логин и пароль для веба» и «Код привязки Telegram». В журнале действия помечаются «[веб]» и «[Telegram]». Подробнее: Памятка администратора, раздел 10.' },
     { d: '20261015', i: '🪪', t: 'Надёжнее определение пользователя', p: 'Приложение само повторяет определение вашей учётки при входе. Пустых «ID null» в журнале больше нет. Если имя не появилось, нажмите «Повторить» или откройте приложение заново из чата с ботом.' },
