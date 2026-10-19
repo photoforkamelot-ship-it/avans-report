@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Авансовый отчёт">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="app-build" content="20261019-33">
+  <meta name="app-build" content="20261019-34">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -5403,6 +5403,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
         <div class="pick-list">${rows}</div>
         <div class="pick-chips">${chips}</div>
         <button type="button" class="emp-big-btn" onclick="saveAdminPick()">Дать доступ к выбранным сотрудникам</button>
+        ${adm && !(adm.allowedTabs || []).includes('ALL') && globalAppData.isSuperAdmin ? `<label class="pick-all" onclick="event.stopPropagation();"><input type="checkbox" ${adm.calAll ? 'checked' : ''} onchange="setCalAll(this.checked)"> 📅 Календарь всех команд (без документов чужих командировок)</label>` : ''}
         ${adm ? `<button type="button" class="emp-big-btn emp-big-danger" onclick="removeAdmin()">Снять права руководителя</button>` : ''}
       </div>`;
   }
@@ -5441,6 +5442,16 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
       renderAdminEmployees();
       setTimeout(loadAppData, 1500);
     });
+  }
+
+  function setCalAll(on) {
+    const lead = globalAppData.employees[adminPick.idx]; const id = String(lead.tgId).trim();
+    fetch(GOOGLE_SHEET_API, { method: 'POST', headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'cal_all_set', sender_id: getTelegramUser().id, lead_tgid: id, on: !!on }) })
+      .then(r => r.json()).then(r => {
+        if (r.status !== 'ok') throw new Error(r.message || 'ошибка');
+        globalAppData.adminConfig[id].calAll = !!on; showToast(on ? 'Календарь всех команд включён' : 'Календарь всех команд отключён');
+      }).catch(e => { showToast('Не удалось сохранить: ' + (e.message || e)); pickKeepScroll(renderAdminEmployees); });
   }
 
   function removeAdmin() {
@@ -6436,13 +6447,18 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
 
   // Для главного руководителя и руководителей с доступом ALL: показывать только свою команду или все команды
   const sn = (f) => String(f || '').toLowerCase().replace(/ё/g, 'е').trim().split(/\s+/)[0] || '';
-  function scopeAvail() { const g = (typeof globalAppData !== 'undefined' && globalAppData) || {}; return !!(g.isSuperAdmin || (g.isAdmin && ((g.roleInfo || {}).allowedTabs || []).indexOf('ALL') >= 0)); }
+  function scopeAvail() { const g = (typeof globalAppData !== 'undefined' && globalAppData) || {}; return !!(g.isSuperAdmin || (g.isAdmin && (((g.roleInfo || {}).allowedTabs || []).indexOf('ALL') >= 0 || g.calAllRight))); }
+  function isFullAdmin() { const g = (typeof globalAppData !== 'undefined' && globalAppData) || {}; return !!(g.isSuperAdmin || (g.isAdmin && ((g.roleInfo || {}).allowedTabs || []).indexOf('ALL') >= 0)); }
   function scopeGet() { try { return localStorage.getItem('cal_scope') === 'team' ? 'team' : 'all'; } catch (e) { return 'all'; } }
   function teamFilter() {
     const g = globalAppData || {};
     if (!scopeAvail() || scopeGet() !== 'team') return null;
     const cu = g.currentUser || {};
     const myId = String(cu.tgId || (getTelegramUser() || {}).id || '');
+    if (!isFullAdmin()) {
+      const st = new Set(); (g.employees || []).forEach(e => st.add(sn(e.fio))); if (cu.fio) st.add(sn(cu.fio));
+      return { has: (fio) => st.has(sn(fio)), myId: myId };
+    }
     const ownerId = String((g.myTeam && g.myTeam.id) || (g.isSuperAdmin ? myId : ''));
     const set = new Set();
     (g.employees || []).forEach(e => { if (ownerId && String(e.teamOwner) === ownerId) set.add(sn(e.fio)); });
@@ -6470,6 +6486,15 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
       if (!s || !e || e < s) return;
       out.push({ fio: t.fio, city: formatUniqueCities(t.cities || ''), s, e, closed: !!t.closed, foreign: true });
     });
+    // руководитель с правом «календарь всех команд»: чужие командировки только как даты и город, без документов
+    if (!isFullAdmin() && scopeAvail() && scopeGet() === 'all') {
+      const own = new Set((g.trips || []).map(t => String(t.tripId)));
+      (g.calendarAll || []).forEach(t => {
+        if (own.has(String(t.tripId))) return;
+        const s = ts(t.s), e = ts(t.e); if (!s || !e || e < s) return;
+        out.push({ fio: t.fio, city: formatUniqueCities(t.cities || ''), s, e, closed: !!t.closed, foreign: true });
+      });
+    }
     // одна командировка = один город и пересекающиеся периоды: общий цвет
     const byCity = {};
     out.forEach(it => { (byCity[it.city] = byCity[it.city] || []).push(it); });
@@ -7500,6 +7525,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
   const VER = '20261022';
   // d — дата изменения; a — только для руководителей
   const ITEMS = [
+    { d: '20261022', i: '🌐', a: 1, t: 'Право «Календарь всех команд»', p: 'Главный руководитель может включить руководителю (карточка сотрудника → права руководителя) право на календарь всех команд: он видит переключатель «Моя команда / Все команды» и сроки, города и ФИО чужих командировок. Отчёты, черновики и файлы чужих командировок ему не открываются — только главному руководителю и администраторам с доступом ко всем.' },
     { d: '20261022', i: '🗓', a: 1, t: 'Календарь: моя команда или все команды', p: 'Главному руководителю и руководителям с доступом ко всем сотрудникам в календаре есть переключатель «Моя команда» и «Все команды». «Моя команда» оставляет только командировки вашей команды и ваши, «Все команды» показывает общую картину. Каждый раз при раскрытии календаря приложение спрашивает, что показать; выбор можно сменить кнопками вверху календаря.' },
     { d: '20261022', i: '🗓', t: 'Календарь команды: архивные командировки коллег', p: 'Если руководитель открыл вам видимость команды, на календаре видны не только командировки из приложения, но и архивные периоды (серые) ваших коллег по команде и её руководителя: даты, город и объект, без отчётов и сумм. Руководитель с доступом ко всем сотрудникам видит архивные периоды всех. Свои отметки «Это была командировка» остаются только у вас.' },
     { d: '20261021', i: '👁', a: 1, t: 'Режим наблюдателя', p: 'Профиль → «Режим наблюдателя» (главному руководителю): выберите сотрудника и смотрите приложение его глазами. Вверху мигает «Смотрим UI …», по нажатию можно выйти. Любое изменяющее действие выполняется от его имени только после вашего подтверждения, в журнале записывается ваше имя, а руководители получают пометку. Подпись, личные данные, логин и пароль в этом режиме недоступны. Автосохранение отключено до подтверждения. Обязательные окна сотрудника (домашний город, знакомство и др.) видны, но кнопкой «Пропустить окно» их можно обойти, не меняя ничего у сотрудника.' },
