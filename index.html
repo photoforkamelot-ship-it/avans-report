@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Авансовый отчёт">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="app-build" content="20261019-37">
+  <meta name="app-build" content="20261019-38">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -2104,6 +2104,30 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     } catch (e) {}
     return _origFetch(url, opts);
   };
+
+  // Защита от двойного нажатия: одинаковые запросы к серверу, пока идёт первый (и ещё 1,5 с после него), не отправляются повторно, второй получает тот же ответ
+  (function () {
+    const _prev = window.fetch; const inflight = new Map();
+    const READ = /^(get_|ext_|receipt_(blob|counts|docs)|msg_del_stats|pot_staff_list|log_event)/;
+    window.fetch = function (url, opts) {
+      try {
+        if (String(url).indexOf(GOOGLE_SHEET_API) === 0 && opts && opts.method === 'POST' && typeof opts.body === 'string' && opts.body.length < 200000) {
+          let act = ''; try { act = (JSON.parse(opts.body).action) || ''; } catch (e) {}
+          if (act) {
+            const key = opts.body; const hit = inflight.get(key);
+            if (hit) return hit.then(function (r) { return r.clone(); });
+            const p = _prev.apply(this, arguments);
+            const keep = READ.test(act) ? 0 : 1500;
+            inflight.set(key, p);
+            const done = function () { setTimeout(function () { if (inflight.get(key) === p) inflight.delete(key); }, keep); };
+            p.then(done, done);
+            return p.then(function (r) { return r.clone(); });
+          }
+        }
+      } catch (eDd) {}
+      return _prev.apply(this, arguments);
+    };
+  })();
 
   document.addEventListener('touchstart', function () {}, { passive: true }); // чтобы :active (эффект нажатия) работал на iOS
 
@@ -5489,7 +5513,8 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
         <label class="pick-all" onclick="event.stopPropagation();"><input type="checkbox" ${adminPick.all ? 'checked' : ''} onchange="togglePickAll(this.checked)"> Все сотрудники (ALL)</label>
         <div class="pick-list">${rows}</div>
         <div class="pick-chips">${chips}</div>
-        <button type="button" class="emp-big-btn" onclick="saveAdminPick()">Дать доступ к выбранным сотрудникам</button>
+        <div style="font-size:12px; color:#64748b; margin:2px 2px 8px;">Можно никого не выбирать: руководитель без подчинённых видит всех сотрудников без личных данных и может запросить перевод к себе.</div>
+        <button type="button" class="emp-big-btn" onclick="saveAdminPick()">Сохранить права руководителя</button>
         ${adm && !(adm.allowedTabs || []).includes('ALL') && globalAppData.isSuperAdmin ? `<label class="pick-all" onclick="event.stopPropagation();"><input type="checkbox" ${adm.calAll ? 'checked' : ''} onchange="setCalAll(this.checked)"> 📅 Календарь всех команд (без документов чужих командировок)</label>` : ''}
         ${adm ? `<button type="button" class="emp-big-btn emp-big-danger" onclick="removeAdmin()">Снять права руководителя</button>` : ''}
       </div>`;
@@ -5516,8 +5541,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
 
   function saveAdminPick() {
     const lead = globalAppData.employees[adminPick.idx];
-    const tabs = adminPick.all ? ['ALL'] : Array.from(adminPick.selected);
-    if (tabs.length === 0) { showToast('Выберите хотя бы одного сотрудника или «Все сотрудники»'); return; }
+    const tabs = adminPick.all ? ['ALL'] : (adminPick.selected.size ? Array.from(adminPick.selected) : ['NONE']);   // без выбранных: руководитель без подчинённых
     fetch(GOOGLE_SHEET_API, {
       method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'update_lead_permissions', sender_id: getTelegramUser().id, lead_tgid: lead.tgId, lead_name: lead.fio, allowed_tabs: tabs })
@@ -5615,6 +5639,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
 
   function closeEmpModal() { document.getElementById("emp_modal").style.display = "none"; }
 
+  let empSaveBusy = false;
   function saveModalEmployee() {
     const fio = document.getElementById("modal_fio").value.trim();
     const role = document.getElementById("modal_role").value.trim();
@@ -5623,18 +5648,19 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     const oldTab = document.getElementById("modal_old_tab").value.trim();
     const isEdit = empModalIdx >= 0;
     if (!fio || !role) { showToast("Заполните ФИО и должность"); return; }
+    if (empSaveBusy) return; empSaveBusy = true; setTimeout(function () { empSaveBusy = false; }, 2500);
     const bankPart = {};
     if (!isEdit) {
       const d = (v) => String(v || '').replace(/\D/g, '');
       const inn = normInn(document.getElementById('modal_inn').value), bik = d(document.getElementById('modal_bik').value), acc = d(document.getElementById('modal_acc').value);
       const any = inn || bik || acc;
       if (any) {
-        if (!(inn.length === 10 || inn.length === 12) || bik.length !== 9 || acc.length !== 20) { showToast('Реквизиты: ИНН 10 или 12 цифр, БИК 9, счёт 20 цифр. Либо оставьте все три поля пустыми'); return; }
+        if (!(inn.length === 10 || inn.length === 12) || bik.length !== 9 || acc.length !== 20) { empSaveBusy = false; showToast('Реквизиты: ИНН 10 или 12 цифр, БИК 9, счёт 20 цифр. Либо оставьте все три поля пустыми'); return; }
         bankPart.bankInn = inn; bankPart.bankBik = bik; bankPart.bankAcc = acc;
         bankPart.homeCity = document.getElementById('modal_hcity').value.trim() || 'г. Томск';
       }
     }
-    if (!isEdit) { const ph = (document.getElementById('modal_phone').value || '').replace(/\D/g, ''); if (ph && ph.length !== 10 && ph.length !== 11) { showToast('Телефон: 10–11 цифр или оставьте пустым'); return; } bankPart.phone = ph; if (document.getElementById('modal_lead').checked) { bankPart.asLead = true; } }
+    if (!isEdit) { const ph = (document.getElementById('modal_phone').value || '').replace(/\D/g, ''); if (ph && ph.length !== 10 && ph.length !== 11) { empSaveBusy = false; showToast('Телефон: 10–11 цифр или оставьте пустым'); return; } bankPart.phone = ph; if (document.getElementById('modal_lead').checked) { bankPart.asLead = true; } }
     empApi(Object.assign({ action: isEdit ? "update" : "add", fio, role, tab, tgid, oldTab, oldFio: isEdit ? (document.getElementById("modal_old_tab").dataset.fio || '') : '', sender_id: getTelegramUser().id }, bankPart), (!isEdit && bankPart.asLead && !tgid) ? "Сохранено. Права руководителя включатся, когда вы укажете Telegram ID (Изменить)" : "Сохранено!", function () { closeEmpModal(); if (!isEdit && potAddKey) { potState.list = (potState.list || []).filter(function (x) { return x.key !== potAddKey; }); potAddKey = null; try { renderAdminEmployees(); } catch (e) {} } });
   }
 
@@ -7620,6 +7646,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
   const VER = '20261022';
   // d — дата изменения; a — только для руководителей
   const ITEMS = [
+    { d: '20261025', i: '🛡', a: 1, t: 'Защита от двойного нажатия и дублей сотрудников', p: 'Повторное нажатие «Сохранить» и других кнопок больше не создаёт дубль: второй запрос не уходит, а при добавлении сотрудника сервер проверяет, нет ли такого же ФИО в базе. Главному руководителю приходит оповещение о каждом новом сотруднике. Руководителю можно дать права и без подчинённых.' },
     { d: '20261024', i: '❓', a: 1, t: 'Потенциальные сотрудники', p: 'В базе сотрудников (главному руководителю и руководителям с доступом ко всем) внизу списка: раскрывающийся блок руководителей из столбца «Руководитель» таблицы объектов, которых ещё нет в базе. У каждого видны телефон, число объектов, период и города. «Добавить в базу» открывает карточку с готовыми ФИО, телефоном и должностью, где можно всё поправить (отчество, телефон). Галочка «Сразу назначить руководителем» даёт права без подчинённых: человек видит всех сотрудников без личных данных и может запросить перевод к себе. Телефон теперь сохраняется и при добавлении сотрудника вручную.' },
     { d: '20261023', i: '🔕', a: 1, t: 'Рычаг «Заглушить оповещения»', p: 'Профиль → «Заглушить оповещения» (главному руководителю): на 1, 4, 12 часов или до отключения бот ничего не шлёт никому, кроме вас. Удобно перед техническими работами. Всё, что не отправлено за время паузы, потом не придёт. Рычаг на время выключается сам.' },
     { d: '20261023', i: '🧹', a: 1, t: 'Удаление уведомлений за 4, 6, 12 и 24 часа', p: 'В окне «Удаление уведомлений» добавлены периоды 4, 6, 12 и 24 часа (были 2 и 48), и для «Все за период», и для удаления по типу.' },
