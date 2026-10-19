@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Авансовый отчёт">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="app-build" content="20261019-31">
+  <meta name="app-build" content="20261019-33">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -1002,7 +1002,7 @@ body.cap-on #docs_modal{padding-top:46px;}
         Группировка по месяцам. Нажмите на плашку командировки для раскрытия цепочки.
       </div>
       <div id="cal_wrap">
-      <details id="cal_details" style="margin:0 0 8px; border:1px solid #e6ebf2; border-radius:12px; background:rgba(255,255,255,.4); padding:0 10px 4px;" ontoggle="if(this.open&&window.Cal)Cal.render()">
+      <details id="cal_details" style="margin:0 0 8px; border:1px solid #e6ebf2; border-radius:12px; background:rgba(255,255,255,.4); padding:0 10px 4px;" ontoggle="if(this.open&&window.Cal)Cal.opened()">
         <summary style="cursor:pointer; font-weight:600; font-size:13px; color:#475569; padding:6px 0; list-style:none; display:flex; align-items:center; gap:6px;"><span style="font-size:14px; line-height:1;">📅</span><span>Календарь</span><button type="button" id="cal_mv" aria-label="Переместить календарь" onclick="event.preventDefault(); event.stopPropagation(); Cal.move()" style="margin-left:auto; width:28px; height:24px; border:none; background:none; color:#94a3b8; font-size:15px; line-height:1; padding:0;">⇣</button></summary>
         <div id="cal_body"></div>
       </details>
@@ -6434,11 +6434,30 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
 
   function aoPer(rep) { try { const pp = (typeof rep.rawJson === 'string' ? JSON.parse(rep.rawJson) : rep.rawJson || {}).passport || {}; return (pp.dStart && pp.dEnd) ? [pp.dStart, pp.dEnd] : null; } catch (e) { return null; } }
 
+  // Для главного руководителя и руководителей с доступом ALL: показывать только свою команду или все команды
+  const sn = (f) => String(f || '').toLowerCase().replace(/ё/g, 'е').trim().split(/\s+/)[0] || '';
+  function scopeAvail() { const g = (typeof globalAppData !== 'undefined' && globalAppData) || {}; return !!(g.isSuperAdmin || (g.isAdmin && ((g.roleInfo || {}).allowedTabs || []).indexOf('ALL') >= 0)); }
+  function scopeGet() { try { return localStorage.getItem('cal_scope') === 'team' ? 'team' : 'all'; } catch (e) { return 'all'; } }
+  function teamFilter() {
+    const g = globalAppData || {};
+    if (!scopeAvail() || scopeGet() !== 'team') return null;
+    const cu = g.currentUser || {};
+    const myId = String(cu.tgId || (getTelegramUser() || {}).id || '');
+    const ownerId = String((g.myTeam && g.myTeam.id) || (g.isSuperAdmin ? myId : ''));
+    const set = new Set();
+    (g.employees || []).forEach(e => { if (ownerId && String(e.teamOwner) === ownerId) set.add(sn(e.fio)); });
+    const tn = (g.teams && g.teams[ownerId] && g.teams[ownerId].name) || (g.myTeam && g.myTeam.name) || '';
+    const ln = sn(String(tn).replace(/^КО\s+/i, '')); if (ln && ln !== '—') set.add(ln);
+    if (cu.fio) set.add(sn(cu.fio));
+    return { has: (fio) => set.has(sn(fio)), myId: myId };
+  }
   function build() {
     const g = (typeof globalAppData !== 'undefined' && globalAppData) || {};
     const reports = g.reports || [];
     const out = [];
+    const tf = teamFilter();
     (g.trips || []).forEach(tr => {
+      if (tf && !(String(tr.tgId || '') === tf.myId || String(tr.authorTgId || '') === tf.myId || tf.has(tr.team))) return;
       const draft = reports.find(r => r.isDraft && r.tripId === tr.tripId);
       const ready = reports.find(r => !r.isDraft && String(r.status).toLowerCase() === 'готов' && r.tripId === tr.tripId);
       const per = (draft && aoPer(draft)) || (ready && aoPer(ready)) || String(tr.dates || '').split('—').map(x => x.trim());
@@ -6467,6 +6486,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     clusters.forEach((cl, i) => { cl.color = PAL[i % PAL.length]; cl.items.forEach(it => { it.cl = cl; }); });
     // архив: командировки, оформленные не через приложение (только даты и город)
     ((typeof window !== 'undefined' && window.__archTrips) || []).forEach(t => {
+      if (tf && t.who && !tf.has(t.who)) return;
       const it = { fio: t.who || (g.currentUser && g.currentUser.fio) || 'Сотрудник', team: !!t.team, city: formatUniqueCities(t.city || ''), s: t.s, e: t.e, closed: true, foreign: true, arch: true, est: !!t.est, home: !!t.home, km: t.km || 0, ov: t.ov || '', rawCity: t.city, addr: t.addr || '', code: t.code || '', nf: t.nf || '', af: t.af || '', og: t.og || '' };
       const cl = { city: it.city, s: it.s, e: it.e, items: [it], color: t.home ? '#b08968' : '#94a3b8', arch: true, home: !!t.home }; it.cl = cl; clusters.push(cl); out.push(it);
     });
@@ -6513,7 +6533,8 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     if (homeY.length) sum += (inYear.length ? '; ' : ', ') + hcities.join(', ') + ' (без командировки)';
     let months = '';
     for (let m = 0; m < 12; m++) months += monthHtml(m);
-    box.innerHTML =
+    const scopeBar = scopeAvail() ? ('<div style="display:flex; gap:6px; margin:2px 0 8px;">' + [['team', '👥 Моя команда'], ['all', '🌐 Все команды']].map(function (x) { const on = scopeGet() === x[0]; return '<button type="button" onclick="Cal.setScope(\'' + x[0] + '\')" style="flex:1; height:34px; border-radius:10px; border:1.5px solid ' + (on ? '#1d4ed8' : '#cbd5e1') + '; background:' + (on ? '#e8f0ff' : '#fff') + '; color:' + (on ? '#1d4ed8' : '#475569') + '; font-weight:800; font-size:12.5px;">' + x[1] + '</button>'; }).join('') + '</div>') : '';
+    box.innerHTML = scopeBar +
       '<div class="cal-nav"><button type="button" onclick="Cal.go(-1)">‹</button><div><div class="cal-y">' + year + '</div><div class="cal-sum">' + esc(sum) + '</div></div><button type="button" onclick="Cal.go(1)">›</button></div>' +
       '<div class="cal-grid">' + months + '</div>' +
       '<div class="cal-hint">Нажмите на закрашенный день: появится примечание с командировкой и возможностью открыть отчёт.</div>';
@@ -6555,6 +6576,18 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
   }
   window.Cal = {
     render,
+    opened() {
+      render();
+      if (!scopeAvail()) return;
+      let m = document.getElementById('cal_scope_ask');
+      if (!m) { m = document.createElement('div'); m.id = 'cal_scope_ask'; m.style.cssText = 'position:fixed; inset:0; z-index:10300; background:rgba(15,23,42,.55); display:none; align-items:center; justify-content:center; padding:16px;'; document.body.appendChild(m); }
+      const cur = scopeGet();
+      const btn = (v, t, sub) => '<button type="button" data-v="' + v + '" class="btn ' + (cur === v ? 'btn-primary' : 'btn-secondary') + '" style="width:100%; height:auto; padding:12px 14px; margin-bottom:8px; text-align:left; line-height:1.3;"><b>' + t + '</b><br><span style="font-size:12px; font-weight:500; opacity:.85;">' + sub + '</span></button>';
+      m.innerHTML = '<div style="background:#fff; border-radius:18px; padding:18px; max-width:420px; width:100%; box-shadow:0 20px 50px rgba(0,0,0,.3);"><div style="font-weight:900; font-size:17px; margin-bottom:4px;">📅 Что показать в календаре?</div><div style="font-size:12.5px; color:#64748b; margin-bottom:12px;">Выбор действует, пока календарь открыт. Его можно сменить кнопками вверху календаря.</div>' + btn('team', '👥 Только моя команда', 'командировки вашей команды и ваши') + btn('all', '🌐 Все команды', 'общая картина: все команды и руководители') + '</div>';
+      m.style.display = 'flex';
+      Array.prototype.forEach.call(m.querySelectorAll('button[data-v]'), function (b) { b.onclick = function () { m.style.display = 'none'; Cal.setScope(b.getAttribute('data-v')); }; });
+    },
+    setScope(v) { try { localStorage.setItem('cal_scope', v === 'team' ? 'team' : 'all'); } catch (e) {} render(); try { Hap.tap(); } catch (e) {} },
     refresh() { const d = document.getElementById('cal_details'); if (d && d.open) render(); },
     go(dir) { year += dir; render(); try { Hap.tick(); } catch (e) {} },
     move() {
@@ -7467,6 +7500,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
   const VER = '20261022';
   // d — дата изменения; a — только для руководителей
   const ITEMS = [
+    { d: '20261022', i: '🗓', a: 1, t: 'Календарь: моя команда или все команды', p: 'Главному руководителю и руководителям с доступом ко всем сотрудникам в календаре есть переключатель «Моя команда» и «Все команды». «Моя команда» оставляет только командировки вашей команды и ваши, «Все команды» показывает общую картину. Каждый раз при раскрытии календаря приложение спрашивает, что показать; выбор можно сменить кнопками вверху календаря.' },
     { d: '20261022', i: '🗓', t: 'Календарь команды: архивные командировки коллег', p: 'Если руководитель открыл вам видимость команды, на календаре видны не только командировки из приложения, но и архивные периоды (серые) ваших коллег по команде и её руководителя: даты, город и объект, без отчётов и сумм. Руководитель с доступом ко всем сотрудникам видит архивные периоды всех. Свои отметки «Это была командировка» остаются только у вас.' },
     { d: '20261021', i: '👁', a: 1, t: 'Режим наблюдателя', p: 'Профиль → «Режим наблюдателя» (главному руководителю): выберите сотрудника и смотрите приложение его глазами. Вверху мигает «Смотрим UI …», по нажатию можно выйти. Любое изменяющее действие выполняется от его имени только после вашего подтверждения, в журнале записывается ваше имя, а руководители получают пометку. Подпись, личные данные, логин и пароль в этом режиме недоступны. Автосохранение отключено до подтверждения. Обязательные окна сотрудника (домашний город, знакомство и др.) видны, но кнопкой «Пропустить окно» их можно обойти, не меняя ничего у сотрудника.' },
     { d: '20261020', i: '🧹', a: 1, t: 'Удаление уведомлений бота (главному руководителю)', p: 'Профиль → «Удаление уведомлений»: можно удалить сообщения бота у всех за последние 2 часа, за 48 часов или выбрать типы сообщений (смена срока, расходы, документы, логины и др.). Перед удалением показывается, сколько сообщений и у скольких человек. Ваш чат не затрагивается. Тип записывается только у новых сообщений, прежние попадают в «Прочее».' },
