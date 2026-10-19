@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Авансовый отчёт">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="app-build" content="20261019-29">
+  <meta name="app-build" content="20261019-31">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -2923,7 +2923,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
 
 
   // ===== Архив командировок: восстановленная история (бледные плашки, без перехода в отчёт) =====
-  let taItems = null;
+  let taItems = null, taTeam = [];
   function exCity(addr) {
     let t = String(addr || '').replace(/^\s*[A-Za-zА-Яа-я]\d{3}\s+/, '');
     const parts = t.split(',').map(x => x.trim()).filter(Boolean).filter(x => !/(край|област|обл\.?$|республик|респ\.?$|округ|\bао\b)/i.test(x));
@@ -2935,7 +2935,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     if (!globalAppData || !globalAppData.currentUser) return;
     fetch(GOOGLE_SHEET_API, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'ext_trips_archive', telegram_user: getTelegramUser() }) })
       .then(r => r.json())
-      .then(res => { if (res && res.status === 'ok' && Array.isArray(res.items)) { taItems = res.items; taOver = res.overrides || {}; taSrc = res.src || ''; taBk = res.bk || 0; renderTripArchive(); loadGeo(); } })
+      .then(res => { if (res && res.status === 'ok' && Array.isArray(res.items)) { taItems = res.items; taTeam = Array.isArray(res.team) ? res.team : []; taOver = res.overrides || {}; taSrc = res.src || ''; taBk = res.bk || 0; renderTripArchive(); loadGeo(); } })
       .catch(() => {});
   }
   // ---- проверка «до 100 км от домашнего города» по координатам (дополнительно к названию) ----
@@ -3068,6 +3068,31 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
       if (isHome) { dg.home++; calAll.push(it); return; }   // домашний город: не командировка, только на календаре
       trips.push(it); calAll.push(it);
     });
+    // архивные командировки коллег (для календаря): только даты, город и объект; личные отметки и 100 км к ним не применяются
+    try {
+      const regAll = [];
+      (globalAppData.trips || []).forEach(t => { const p = String(t.dates || '').split('—').map(x => x.trim()); regAll.push({ c: taNormCity(formatUniqueCities(t.cities || '')), s: parseDateToTimestamp(p[0]), e: parseDateToTimestamp(p[1]) }); });
+      (globalAppData.calendarTeam || []).forEach(t => regAll.push({ c: taNormCity(formatUniqueCities(t.cities || '')), s: parseDateToTimestamp(t.s), e: parseDateToTimestamp(t.e) }));
+      (taTeam || []).forEach(o => {
+        const s0 = parseDateToTimestamp(o.f), g0 = parseDateToTimestamp(o.g), n0 = parseDateToTimestamp(o.e), ts0 = parseDateToTimestamp(o.ts), te0 = parseDateToTimestamp(o.te);
+        let s, e, est = false; const st0 = ts0 || s0;
+        if (te0 && st0 && st0 <= te0) { s = st0; e = te0 + day; }
+        else if (te0) { e = te0 + day; s = e - 17 * day; est = true; }
+        else if (s0 && g0) { s = s0; e = Math.max(g0 + day, s0 + 17 * day); }
+        else if (s0) { s = s0; e = s0 + 17 * day; est = true; }
+        else if (g0) { e = g0 + day; s = e - 17 * day; est = true; }
+        else if (n0) { s = n0; e = n0 + 17 * day; est = true; }
+        else return;
+        if (e >= T.getTime()) return;
+        const city = exCity(o.a); if (!city) return;
+        const ck = taNormCity(city);
+        if (regAll.some(r => r.c === ck && r.s && r.e && s <= r.e && e >= r.s)) return;
+        const hw = words(o.hc || ''), cw = words(city);
+        const isHome = !!hw.length && cw.length >= hw.length && hw.every((w, i) => cw[i] === w);
+        const mc = String(o.a || '').match(/^\s*([A-Za-zА-Яа-я]\d{3})\s+/);
+        calAll.push({ who: o.w || '', team: true, addr: String(o.a || '').replace(/^\s*[A-Za-zА-Яа-я]\d{3}\s+/, '').trim(), code: mc ? mc[1].toUpperCase() : '', nf: o.e || '', af: o.f || '', og: o.g || '', city, s, e, est, home: isHome, km: 0, ov: '', days: Math.round((e - s) / day) + 1 });
+      });
+    } catch (eTm) {}
     window.__archDiag = dg;
     trips.sort((a, b) => b.s - a.s);
     window.__archTrips = calAll; try { Cal.refresh(); } catch (e) {}
@@ -6442,7 +6467,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     clusters.forEach((cl, i) => { cl.color = PAL[i % PAL.length]; cl.items.forEach(it => { it.cl = cl; }); });
     // архив: командировки, оформленные не через приложение (только даты и город)
     ((typeof window !== 'undefined' && window.__archTrips) || []).forEach(t => {
-      const it = { fio: (g.currentUser && g.currentUser.fio) || 'Сотрудник', city: formatUniqueCities(t.city || ''), s: t.s, e: t.e, closed: true, foreign: true, arch: true, est: !!t.est, home: !!t.home, km: t.km || 0, ov: t.ov || '', rawCity: t.city, addr: t.addr || '', code: t.code || '', nf: t.nf || '', af: t.af || '', og: t.og || '' };
+      const it = { fio: t.who || (g.currentUser && g.currentUser.fio) || 'Сотрудник', team: !!t.team, city: formatUniqueCities(t.city || ''), s: t.s, e: t.e, closed: true, foreign: true, arch: true, est: !!t.est, home: !!t.home, km: t.km || 0, ov: t.ov || '', rawCity: t.city, addr: t.addr || '', code: t.code || '', nf: t.nf || '', af: t.af || '', og: t.og || '' };
       const cl = { city: it.city, s: it.s, e: it.e, items: [it], color: t.home ? '#b08968' : '#94a3b8', arch: true, home: !!t.home }; it.cl = cl; clusters.push(cl); out.push(it);
     });
     list = out;
@@ -6515,7 +6540,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
       (it.arch && (it.addr || it.code) ? '<div style="font-size:12px; margin-top:3px; line-height:1.35;">🏬 ' + (it.code ? '<b>' + esc(it.code) + '</b> · ' : '') + esc(it.addr || '') + '</div>' : '') +
       (it.arch && (it.af || it.og) ? '<div style="font-size:11.5px; opacity:.85;">' + (it.af ? 'Приёмка: ' + esc(it.af) : '') + (it.af && it.og ? ' · ' : '') + (it.og ? 'Открытие: ' + esc(it.og) : '') + '</div>' : '') +
       (it.arch ? '<div style="font-size:11.5px; opacity:.7; margin-top:2px;">Нажмите ещё раз — подробности</div>' : '') +
-      (it.arch && it.home ? '<button type="button" class="cal-b" style="margin-top:4px;" data-c="' + esc(it.rawCity || '') + '" onclick="event.stopPropagation(); confirmTripMark(this.dataset.c, \'trip\');">Это была командировка</button>' : '') +
+      (it.arch && it.home && !it.team ? '<button type="button" class="cal-b" style="margin-top:4px;" data-c="' + esc(it.rawCity || '') + '" onclick="event.stopPropagation(); confirmTripMark(this.dataset.c, \'trip\');">Это была командировка</button>' : '') +
       (acts ? '<div class="cal-acts">' + acts + '</div>' : '') + '</div>';
   }
   function pop(dayTs) {
@@ -7439,9 +7464,10 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
 
 <script id="wn-js">
 (function () {
-  const VER = '20261021';
+  const VER = '20261022';
   // d — дата изменения; a — только для руководителей
   const ITEMS = [
+    { d: '20261022', i: '🗓', t: 'Календарь команды: архивные командировки коллег', p: 'Если руководитель открыл вам видимость команды, на календаре видны не только командировки из приложения, но и архивные периоды (серые) ваших коллег по команде и её руководителя: даты, город и объект, без отчётов и сумм. Руководитель с доступом ко всем сотрудникам видит архивные периоды всех. Свои отметки «Это была командировка» остаются только у вас.' },
     { d: '20261021', i: '👁', a: 1, t: 'Режим наблюдателя', p: 'Профиль → «Режим наблюдателя» (главному руководителю): выберите сотрудника и смотрите приложение его глазами. Вверху мигает «Смотрим UI …», по нажатию можно выйти. Любое изменяющее действие выполняется от его имени только после вашего подтверждения, в журнале записывается ваше имя, а руководители получают пометку. Подпись, личные данные, логин и пароль в этом режиме недоступны. Автосохранение отключено до подтверждения. Обязательные окна сотрудника (домашний город, знакомство и др.) видны, но кнопкой «Пропустить окно» их можно обойти, не меняя ничего у сотрудника.' },
     { d: '20261020', i: '🧹', a: 1, t: 'Удаление уведомлений бота (главному руководителю)', p: 'Профиль → «Удаление уведомлений»: можно удалить сообщения бота у всех за последние 2 часа, за 48 часов или выбрать типы сообщений (смена срока, расходы, документы, логины и др.). Перед удалением показывается, сколько сообщений и у скольких человек. Ваш чат не затрагивается. Тип записывается только у новых сообщений, прежние попадают в «Прочее».' },
     { d: '20261020', i: '💾', t: 'Сохранение без лишних перезаписей', p: 'Черновик больше не пересохраняется при переходе между шагами, если ничего не менялось. Командировка открывается со сроком из сохранённого черновика, а при смене срока он одинаково обновляется в списке, календаре и таймлайне. Из-за этого срок больше не «прыгает» и не рассылаются повторные уведомления.' },
