@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Авансовый отчёт">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="app-build" content="20261019-28">
+  <meta name="app-build" content="20261019-29">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -606,7 +606,7 @@ body.cap-on #docs_modal{padding-top:46px;}
     #toast {
       position: fixed; bottom: 96px; left: 50%; transform: translateX(-50%);
       background: rgba(0,0,0,0.85); color: white; padding: 8px 16px; border-radius: 18px;
-      font-size: 12px; display: none; z-index: 9999; text-align: center; max-width: 90%;
+      font-size: 12px; display: none; z-index: 10800; text-align: center; max-width: 90%;
     }
   </style>
   <style id="tg-shell-css">
@@ -5278,10 +5278,20 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
 
   // ----- Суперадмин: удаление сообщений бота у всех -----
   let mdSel = { types: new Set(), hours: 24, stats: null };
+  function mdFail(msg) {
+    const b = document.getElementById('mdel_body');
+    if (b && document.getElementById('mdel_modal') && document.getElementById('mdel_modal').style.display !== 'none') b.innerHTML = '<div style="color:#b91c1c; background:#fef2f2; border:1px solid #fecaca; border-radius:10px; padding:10px; margin-bottom:8px;">' + escH(msg) + '</div><button type="button" class="btn btn-secondary" onclick="mdLoad()">Повторить</button>';
+    else showToast(msg);
+  }
   function mdCall(payload, cb) {
     fetch(GOOGLE_SHEET_API, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(Object.assign({ telegram_user: getTelegramUser(), sender_id: getTelegramUser().id }, payload)) })
-      .then(r => r.text()).then(t => { let res = null; try { res = JSON.parse(t); } catch (e) {} if (!res || res.status === 'error') { showToast((res && res.message) || 'Не удалось выполнить'); return; } cb(res); })
-      .catch(() => showToast('Нет связи с сервером, повторите позже'));
+      .then(r => r.text()).then(t => {
+        let res = null; try { res = JSON.parse(t); } catch (e) {}
+        if (!res) { mdFail('Сервер ответил не так, как ожидалось: ' + String(t || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').slice(0, 160) + ' (возможно, в Apps Script не обновлена версия кода)'); return; }
+        if (res.status === 'error') { mdFail(res.message || 'Не удалось выполнить'); return; }
+        cb(res);
+      })
+      .catch(() => mdFail('Нет связи с сервером, повторите позже'));
   }
   function openMsgDel() {
     let m = document.getElementById('mdel_modal');
