@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Авансовый отчёт">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="app-build" content="20261019-36">
+  <meta name="app-build" content="20261019-37">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -1550,6 +1550,7 @@ body.cap-on #docs_modal{padding-top:46px;}
     <div class="field"><label>Табельный номер</label><input type="text" id="modal_tab"></div>
     <div class="field"><label>Telegram ID</label><input type="text" id="modal_tgid"></div>
     <div class="field" id="modal_phone_wrap" style="display:none;"><label>Телефон</label><input type="tel" id="modal_phone" placeholder="8-9XX-XXX-XX-XX"></div>
+    <label id="modal_lead_wrap" style="display:none; margin:6px 0 10px; font-size:13px; line-height:1.4; align-items:flex-start; gap:8px;"><input type="checkbox" id="modal_lead" style="margin-top:3px;"> <span>👑 Сразу назначить руководителем (без подчинённых). Видит всех сотрудников без личных данных, может запросить перевод к себе и создавать своих. Если Telegram ID пока нет, права включатся, когда вы его укажете.</span></label>
 
     <div id="emp_bank_edit" style="display:none; margin-top:6px;">
       <button type="button" id="emp_bank_btn" class="emp-bank-btn" onclick="editEmpBank()">🏦 Банковские реквизиты</button>
@@ -5163,6 +5164,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     document.getElementById('modal_fio').value = x.fio;
     document.getElementById('modal_role').value = 'Руководитель команды открытия';
     document.getElementById('modal_phone').value = x.phone || '';
+    document.getElementById('modal_lead').checked = true;
     potAddKey = x.key;
     showToast('Проверьте ФИО (добавьте отчество) и телефон, затем «Сохранить»');
   }
@@ -5567,6 +5569,8 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     document.getElementById("modal_tgid").value = "";
     document.getElementById("modal_phone").value = "";
     document.getElementById("modal_phone_wrap").style.display = "block";
+    document.getElementById("modal_lead").checked = false;
+    document.getElementById("modal_lead_wrap").style.display = (globalAppData && globalAppData.isSuperAdmin) ? "flex" : "none";
     potAddKey = null;
     document.getElementById("emp_modal").style.display = "flex";
   }
@@ -5604,6 +5608,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     document.getElementById("modal_tab").value = emp.tab;
     document.getElementById("modal_tgid").value = emp.tgId || "";
     document.getElementById("modal_phone_wrap").style.display = "none";
+    document.getElementById("modal_lead_wrap").style.display = "none";
     document.getElementById("emp_modal").style.display = "flex";
     refreshEmpBankStatus();
   }
@@ -5629,8 +5634,8 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
         bankPart.homeCity = document.getElementById('modal_hcity').value.trim() || 'г. Томск';
       }
     }
-    if (!isEdit) { const ph = (document.getElementById('modal_phone').value || '').replace(/\D/g, ''); if (ph && ph.length !== 10 && ph.length !== 11) { showToast('Телефон: 10–11 цифр или оставьте пустым'); return; } bankPart.phone = ph; }
-    empApi(Object.assign({ action: isEdit ? "update" : "add", fio, role, tab, tgid, oldTab, oldFio: isEdit ? (document.getElementById("modal_old_tab").dataset.fio || '') : '', sender_id: getTelegramUser().id }, bankPart), "Сохранено!", function () { closeEmpModal(); if (!isEdit && potAddKey) { potState.list = (potState.list || []).filter(function (x) { return x.key !== potAddKey; }); potAddKey = null; try { renderAdminEmployees(); } catch (e) {} } });
+    if (!isEdit) { const ph = (document.getElementById('modal_phone').value || '').replace(/\D/g, ''); if (ph && ph.length !== 10 && ph.length !== 11) { showToast('Телефон: 10–11 цифр или оставьте пустым'); return; } bankPart.phone = ph; if (document.getElementById('modal_lead').checked) { bankPart.asLead = true; } }
+    empApi(Object.assign({ action: isEdit ? "update" : "add", fio, role, tab, tgid, oldTab, oldFio: isEdit ? (document.getElementById("modal_old_tab").dataset.fio || '') : '', sender_id: getTelegramUser().id }, bankPart), (!isEdit && bankPart.asLead && !tgid) ? "Сохранено. Права руководителя включатся, когда вы укажете Telegram ID (Изменить)" : "Сохранено!", function () { closeEmpModal(); if (!isEdit && potAddKey) { potState.list = (potState.list || []).filter(function (x) { return x.key !== potAddKey; }); potAddKey = null; try { renderAdminEmployees(); } catch (e) {} } });
   }
 
   // Запрос на изменение справочника сотрудников с показом реального результата
@@ -7615,7 +7620,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
   const VER = '20261022';
   // d — дата изменения; a — только для руководителей
   const ITEMS = [
-    { d: '20261024', i: '❓', a: 1, t: 'Потенциальные сотрудники', p: 'В базе сотрудников (главному руководителю и руководителям с доступом ко всем) внизу списка: раскрывающийся блок руководителей из столбца «Руководитель» таблицы объектов, которых ещё нет в базе. У каждого видны телефон, число объектов, период и города. «Добавить в базу» открывает карточку с готовыми ФИО, телефоном и должностью, где можно всё поправить (отчество, телефон). Телефон теперь сохраняется и при добавлении сотрудника вручную.' },
+    { d: '20261024', i: '❓', a: 1, t: 'Потенциальные сотрудники', p: 'В базе сотрудников (главному руководителю и руководителям с доступом ко всем) внизу списка: раскрывающийся блок руководителей из столбца «Руководитель» таблицы объектов, которых ещё нет в базе. У каждого видны телефон, число объектов, период и города. «Добавить в базу» открывает карточку с готовыми ФИО, телефоном и должностью, где можно всё поправить (отчество, телефон). Галочка «Сразу назначить руководителем» даёт права без подчинённых: человек видит всех сотрудников без личных данных и может запросить перевод к себе. Телефон теперь сохраняется и при добавлении сотрудника вручную.' },
     { d: '20261023', i: '🔕', a: 1, t: 'Рычаг «Заглушить оповещения»', p: 'Профиль → «Заглушить оповещения» (главному руководителю): на 1, 4, 12 часов или до отключения бот ничего не шлёт никому, кроме вас. Удобно перед техническими работами. Всё, что не отправлено за время паузы, потом не придёт. Рычаг на время выключается сам.' },
     { d: '20261023', i: '🧹', a: 1, t: 'Удаление уведомлений за 4, 6, 12 и 24 часа', p: 'В окне «Удаление уведомлений» добавлены периоды 4, 6, 12 и 24 часа (были 2 и 48), и для «Все за период», и для удаления по типу.' },
     { d: '20261023', i: '🏬', a: 1, t: 'Объекты без дат больше не считаются новыми', p: 'Если в исходной таблице у объекта нет ни одной даты, приложение берёт даты из «Архива объектов (копия)». Старые объекты остаются в архиве и не приходят оповещением «новый объект» или «пропал из списка».' },
