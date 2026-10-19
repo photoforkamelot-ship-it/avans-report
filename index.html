@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Авансовый отчёт">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="app-build" content="20261019-35">
+  <meta name="app-build" content="20261019-36">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -1549,6 +1549,7 @@ body.cap-on #docs_modal{padding-top:46px;}
     <div class="field"><label>Должность</label><input type="text" id="modal_role"></div>
     <div class="field"><label>Табельный номер</label><input type="text" id="modal_tab"></div>
     <div class="field"><label>Telegram ID</label><input type="text" id="modal_tgid"></div>
+    <div class="field" id="modal_phone_wrap" style="display:none;"><label>Телефон</label><input type="tel" id="modal_phone" placeholder="8-9XX-XXX-XX-XX"></div>
 
     <div id="emp_bank_edit" style="display:none; margin-top:6px;">
       <button type="button" id="emp_bank_btn" class="emp-bank-btn" onclick="editEmpBank()">🏦 Банковские реквизиты</button>
@@ -5119,6 +5120,53 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     renderAdminEmployees();
   }
 
+  // ----- Потенциальные сотрудники: руководители из столбца «Руководитель» таблицы объектов -----
+  let potState = { open: false, loading: false, list: null, err: '' };
+  let potAddKey = null;
+  function potCan() { const g = globalAppData || {}; return !!(g.isSuperAdmin || (g.isAdmin && ((g.roleInfo || {}).allowedTabs || []).indexOf('ALL') >= 0)); }
+  function potHtml() {
+    if (!potCan()) return '';
+    const n = potState.list ? potState.list.length : null;
+    let h = '<div style="grid-column:1/-1; margin-top:12px;"><button type="button" onclick="potToggle()" style="width:100%; text-align:left; border:1.5px dashed #cbd5e1; background:#f8fafc; border-radius:12px; padding:12px; font-weight:800; font-size:14px; color:#334155;">❓ Потенциальные сотрудники' + (n !== null ? ' (' + n + ')' : '') + ' <span style="float:right;">' + (potState.open ? '▴' : '▾') + '</span></button>';
+    if (potState.open) {
+      h += '<div style="font-size:12px; color:#64748b; margin:8px 2px;">Руководители из столбца «Руководитель» таблицы объектов, которых ещё нет в базе. «Добавить в базу» открывает карточку, где можно поправить ФИО (добавьте отчество), телефон и должность.</div>';
+      if (potState.loading) h += '<div style="color:#64748b; padding:8px;">Загрузка…</div>';
+      else if (potState.err) h += '<div style="color:#b91c1c; background:#fef2f2; border:1px solid #fecaca; border-radius:10px; padding:10px;">' + escH(potState.err) + ' <button type="button" class="btn btn-secondary" style="width:auto; height:30px; padding:0 10px; margin-left:6px;" onclick="potLoad()">Повторить</button></div>';
+      else if (potState.list) {
+        if (!potState.list.length) h += '<div style="color:#64748b; padding:8px;">Все руководители из таблицы уже есть в базе.</div>';
+        h += potState.list.map(function (x, i) {
+          const per = x.first ? (x.first === x.last ? x.first : x.first + ' – ' + x.last) : '';
+          return '<div class="emp-card" style="cursor:default; margin-top:8px;"><div class="emp-head"><div class="emp-name">' + escH(x.fio) + '</div><div class="emp-meta"><span style="font-size:11px; font-weight:800; padding:2px 8px; border-radius:999px; ' + (x.active ? 'background:#dcfce7; color:#166534;' : 'background:#f1f5f9; color:#64748b;') + '">' + (x.active ? 'работает' : 'давно не было объектов') + '</span></div></div>' +
+            '<div class="emp-sub">' + (x.phone ? '📞 ' + escH(x.phone) : '<span style="color:#b45309;">📞 телефона нет: добавьте вручную</span>') + ' · объектов: ' + x.objects + (per ? ' · ' + escH(per) : '') + '</div>' +
+            (x.cities && x.cities.length ? '<div class="emp-sub">🏙 ' + escH(x.cities.join(', ')) + '</div>' : '') +
+            (x.multi ? '<div class="emp-sub" style="color:#b45309;">В таблице указаны две фамилии сразу: добавьте каждого отдельно кнопкой добавления сотрудника</div>' : '<div style="margin-top:8px;"><button type="button" class="btn btn-primary" style="height:38px;" onclick="potAdd(' + i + ')">➕ Добавить в базу</button></div>') + '</div>';
+        }).join('');
+      }
+    }
+    return h + '</div>';
+  }
+  function potToggle() { potState.open = !potState.open; if (potState.open && !potState.list && !potState.loading) potLoad(); else renderAdminEmployees(); }
+  function potLoad() {
+    potState.loading = true; potState.err = ''; renderAdminEmployees();
+    fetch(GOOGLE_SHEET_API, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ action: 'pot_staff_list', telegram_user: getTelegramUser(), sender_id: getTelegramUser().id }) })
+      .then(function (r) { return r.text(); }).then(function (t) {
+        let r = null; try { r = JSON.parse(t); } catch (e) {}
+        potState.loading = false;
+        if (!r || r.status !== 'ok') { potState.err = (r && r.message) || 'Сервер ответил не так, как ожидалось (возможно, не обновлена версия кода в Apps Script)'; }
+        else potState.list = r.list || [];
+        renderAdminEmployees();
+      }).catch(function () { potState.loading = false; potState.err = 'Нет связи с сервером'; renderAdminEmployees(); });
+  }
+  function potAdd(i) {
+    const x = (potState.list || [])[i]; if (!x) return;
+    openAddEmployeeModal();
+    document.getElementById('modal_fio').value = x.fio;
+    document.getElementById('modal_role').value = 'Руководитель команды открытия';
+    document.getElementById('modal_phone').value = x.phone || '';
+    potAddKey = x.key;
+    showToast('Проверьте ФИО (добавьте отчество) и телефон, затем «Сохранить»');
+  }
+
   function renderAdminEmployees() {
     const c = document.getElementById("admin_employees_container");
     const list = globalAppData.employees || [];
@@ -5168,7 +5216,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
           <div class="emp-sub">${escH(emp.role)}${emp.tab ? ' · ' + escH(emp.tab) : ''}</div>
           ${body}
         </div>`;
-    }).join('') + dirHtml;
+    }).join('') + dirHtml + potHtml();
   }
 
   // ----- Команды: теги, «Моя команда», запросы на согласование -----
@@ -5517,6 +5565,9 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     document.getElementById("modal_role").value = "";
     document.getElementById("modal_tab").value = "";
     document.getElementById("modal_tgid").value = "";
+    document.getElementById("modal_phone").value = "";
+    document.getElementById("modal_phone_wrap").style.display = "block";
+    potAddKey = null;
     document.getElementById("emp_modal").style.display = "flex";
   }
 
@@ -5552,6 +5603,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     document.getElementById("modal_role").value = emp.role;
     document.getElementById("modal_tab").value = emp.tab;
     document.getElementById("modal_tgid").value = emp.tgId || "";
+    document.getElementById("modal_phone_wrap").style.display = "none";
     document.getElementById("emp_modal").style.display = "flex";
     refreshEmpBankStatus();
   }
@@ -5577,7 +5629,8 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
         bankPart.homeCity = document.getElementById('modal_hcity').value.trim() || 'г. Томск';
       }
     }
-    empApi(Object.assign({ action: isEdit ? "update" : "add", fio, role, tab, tgid, oldTab, oldFio: isEdit ? (document.getElementById("modal_old_tab").dataset.fio || '') : '', sender_id: getTelegramUser().id }, bankPart), "Сохранено!", closeEmpModal);
+    if (!isEdit) { const ph = (document.getElementById('modal_phone').value || '').replace(/\D/g, ''); if (ph && ph.length !== 10 && ph.length !== 11) { showToast('Телефон: 10–11 цифр или оставьте пустым'); return; } bankPart.phone = ph; }
+    empApi(Object.assign({ action: isEdit ? "update" : "add", fio, role, tab, tgid, oldTab, oldFio: isEdit ? (document.getElementById("modal_old_tab").dataset.fio || '') : '', sender_id: getTelegramUser().id }, bankPart), "Сохранено!", function () { closeEmpModal(); if (!isEdit && potAddKey) { potState.list = (potState.list || []).filter(function (x) { return x.key !== potAddKey; }); potAddKey = null; try { renderAdminEmployees(); } catch (e) {} } });
   }
 
   // Запрос на изменение справочника сотрудников с показом реального результата
@@ -7562,6 +7615,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
   const VER = '20261022';
   // d — дата изменения; a — только для руководителей
   const ITEMS = [
+    { d: '20261024', i: '❓', a: 1, t: 'Потенциальные сотрудники', p: 'В базе сотрудников (главному руководителю и руководителям с доступом ко всем) внизу списка: раскрывающийся блок руководителей из столбца «Руководитель» таблицы объектов, которых ещё нет в базе. У каждого видны телефон, число объектов, период и города. «Добавить в базу» открывает карточку с готовыми ФИО, телефоном и должностью, где можно всё поправить (отчество, телефон). Телефон теперь сохраняется и при добавлении сотрудника вручную.' },
     { d: '20261023', i: '🔕', a: 1, t: 'Рычаг «Заглушить оповещения»', p: 'Профиль → «Заглушить оповещения» (главному руководителю): на 1, 4, 12 часов или до отключения бот ничего не шлёт никому, кроме вас. Удобно перед техническими работами. Всё, что не отправлено за время паузы, потом не придёт. Рычаг на время выключается сам.' },
     { d: '20261023', i: '🧹', a: 1, t: 'Удаление уведомлений за 4, 6, 12 и 24 часа', p: 'В окне «Удаление уведомлений» добавлены периоды 4, 6, 12 и 24 часа (были 2 и 48), и для «Все за период», и для удаления по типу.' },
     { d: '20261023', i: '🏬', a: 1, t: 'Объекты без дат больше не считаются новыми', p: 'Если в исходной таблице у объекта нет ни одной даты, приложение берёт даты из «Архива объектов (копия)». Старые объекты остаются в архиве и не приходят оповещением «новый объект» или «пропал из списка».' },
