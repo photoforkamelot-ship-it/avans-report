@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Авансовый отчёт">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="app-build" content="20261020-39">
+  <meta name="app-build" content="20261020-40">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -6952,6 +6952,31 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     active() { return !!st; }
   };
 
+  // ----- Капсула «Сохраняю…» для правок профиля, базы сотрудников, оповещений и настроек (не командировки и не АО-1) -----
+  (function () {
+    const SET = /^(add|update|delete|home_set|update_my_profile|save_signature|delete_signature|update_notification_settings|notify_prefs|notify_mute_set|cal_vis_set|cal_all_set|ext_set_notify|update_lead_permissions|remove_lead|web_set_credentials|web_remove_credentials|update_bank_details|team_set_mine)$/;
+    const _f = window.fetch;
+    window.fetch = function (url, opts) {
+      let act = '';
+      try {
+        if (String(url).indexOf(GOOGLE_SHEET_API) === 0 && opts && opts.method === 'POST' && typeof opts.body === 'string' && opts.body.length < 400000) act = (JSON.parse(opts.body).action) || '';
+      } catch (e) {}
+      if (!act || !SET.test(act) || !window.Cap || (window.Proc && Proc.active())) return _f.apply(this, arguments);
+      const own = (Cap.kind !== 'progress');
+      if (own) Cap.save('Сохраняю…');
+      const p = _f.apply(this, arguments);
+      p.then(function (r) {
+        if (!own) return;
+        r.clone().text().then(function (t) {
+          let res = null; try { res = JSON.parse(t); } catch (e) {}
+          if (res && (res.status === 'error' || res.error)) Cap.err('Не сохранилось', 3500);
+          else if (Cap.kind === 'save') Cap.done('Сохранено', 1500);
+        }).catch(function () { if (Cap.kind === 'save') Cap.done('Сохранено', 1500); });
+      }, function () { if (own) Cap.err('Нет связи, не сохранилось', 4000); });
+      return p;
+    };
+  })();
+
   // ----- Тестовый режим (только суперадмин) -----
   window.__testMode = false;
   window.syncTestUi = function () {
@@ -7650,9 +7675,10 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
 
 <script id="wn-js">
 (function () {
-  const VER = '20261026';
+  const VER = '20261027';
   // d — дата изменения; a — только для руководителей
   const ITEMS = [
+    { d: '20261027', i: '💾', a: 0, t: 'Капсула сохранения', p: 'При любой правке профиля, базы сотрудников, оповещений и настроек сверху выезжает чёрная капсула: «Сохраняю…», затем «Сохранено», а при сбое «Не сохранилось».' },
     { d: '20261026', i: '🏷', a: 1, t: 'База сотрудников: короткие карточки', p: 'Отчество скрыто, плашка команды «КО Фамилия» стоит под именем. Список идёт по порядку команд, сотрудники без команды в конце. У главного руководителя при раскрытии плашка уходит в данные, у остальных остаётся.' },
     { d: '20261025', i: '🛡', a: 1, t: 'Защита от двойного нажатия и дублей сотрудников', p: 'Повторное нажатие «Сохранить» и других кнопок больше не создаёт дубль: второй запрос не уходит, а при добавлении сотрудника сервер проверяет, нет ли такого же ФИО в базе. Главному руководителю приходит оповещение о каждом новом сотруднике. Руководителю можно дать права и без подчинённых.' },
     { d: '20261024', i: '❓', a: 1, t: 'Потенциальные сотрудники', p: 'В базе сотрудников (главному руководителю и руководителям с доступом ко всем) внизу списка: раскрывающийся блок руководителей из столбца «Руководитель» таблицы объектов, которых ещё нет в базе. У каждого видны телефон, число объектов, период и города. «Добавить в базу» открывает карточку с готовыми ФИО, телефоном и должностью, где можно всё поправить (отчество, телефон). Галочка «Сразу назначить руководителем» даёт права без подчинённых: человек видит всех сотрудников без личных данных и может запросить перевод к себе. Телефон теперь сохраняется и при добавлении сотрудника вручную.' },
