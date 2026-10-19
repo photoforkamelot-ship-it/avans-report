@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Авансовый отчёт">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="app-build" content="20261019-38">
+  <meta name="app-build" content="20261020-39">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -5203,9 +5203,13 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     const isSuper = !!globalAppData.isSuperAdmin;
     const dirHtml = dirList.length ? '<div style="grid-column:1/-1; font-weight:800; color:#64748b; margin:10px 2px 6px; font-size:13px;">Остальные сотрудники: доступ по запросу</div>' + dirList.map(d => {
       const tm = (globalAppData.teams || {})[d.owner];
-      return '<div class="emp-card" style="cursor:default; ' + (tm ? 'border-left:5px solid ' + tm.color + ';' : '') + '"><div class="emp-head"><div class="emp-name">' + escH(d.fio) + teamTag(d.owner) + '</div><div class="emp-meta">' + (d.pending ? '<span title="Ожидает решения" style="font-size:18px;">⏳</span>' : '<button type="button" class="btn btn-secondary" style="height:28px; width:auto; padding:0 10px; font-size:12px;" data-t="' + escH(d.token) + '" onclick="askTeamRequest(this.dataset.t)">Запросить</button>') + '</div></div><div class="emp-sub">' + escH(d.role) + (d.tab ? ' · ' + escH(d.tab) : '') + '</div></div>';
+      return '<div class="emp-card" style="cursor:default; ' + (tm ? 'border-left:5px solid ' + tm.color + ';' : '') + '"><div class="emp-head"><div class="emp-name">' + escH(shortFio(d.fio)) + '</div><div class="emp-meta">' + (d.pending ? '<span title="Ожидает решения" style="font-size:18px;">⏳</span>' : '<button type="button" class="btn btn-secondary" style="height:28px; width:auto; padding:0 10px; font-size:12px;" data-t="' + escH(d.token) + '" onclick="askTeamRequest(this.dataset.t)">Запросить</button>') + '</div></div><div class="emp-sub">' + (teamTag(d.owner) ? teamTag(d.owner).replace('margin-left:6px', 'margin-left:0') + ' ' : '') + escH(d.role) + (d.tab ? ' · ' + escH(d.tab) : '') + '</div></div>';
     }).join('') : '';
-    c.innerHTML = list.map((emp, idx) => {
+    const tOrd = Object.keys(globalAppData.teams || {});
+    const ordOf = (e) => { const k = tOrd.indexOf(String(e.teamOwner)); return k < 0 ? 9999 : k; };
+    const sortedIdx = list.map((e, i) => i).sort((a, b) => (ordOf(list[a]) - ordOf(list[b])) || (a - b));
+    c.innerHTML = sortedIdx.map((idx) => {
+      const emp = list[idx];
       const open = (idx === empExpanded);
       const adm = adminCfgOf(emp);
       const crown = adm ? ' <span title="Руководитель" style="font-size:13px;">👑</span>' : '';
@@ -5216,7 +5220,8 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
         const rights = adm ? (adm.allowedTabs && adm.allowedTabs.indexOf('ALL') >= 0 ? 'все сотрудники' : ((adm.allowedTabs || []).filter(t => t !== 'NONE').length + ' сотр.')) : '';
         body = `
           <div class="emp-details">
-            ${escH(emp.role)} · Таб: ${escH(emp.tab || '—')} · TG: ${escH(emp.tgId || '—')}
+            ${isSuper ? 'ФИО: <b>' + escH(emp.fio) + '</b><br>' : ''}${escH(emp.role)} · Таб: ${escH(emp.tab || '—')} · TG: ${escH(emp.tgId || '—')}
+            ${(isSuper && teamTag(emp.teamOwner)) ? '<br>Команда: ' + teamTag(emp.teamOwner).replace('margin-left:6px', 'margin-left:0') : ''}
             ${adm ? `<br>👑 Руководитель, доступ: <b>${rights}</b>` : ''}
             <div style="margin-top:6px; line-height:1.7;">✈️ Telegram: ${emp.hasTg ? '<b>привязан</b>' : '<b style="color:#8e8e93">не привязан</b>'}<br>🌐 Веб-вход: ${emp.hasWeb ? '<b>логин ' + escH(emp.webLogin) + '</b>' : '<b style="color:#8e8e93">не задан</b>'}</div>
           </div>
@@ -5236,16 +5241,18 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
       return `
         <div class="emp-card ${open ? 'open' : ''}" style="${((globalAppData.teams || {})[emp.teamOwner] ? 'border-left:5px solid ' + globalAppData.teams[emp.teamOwner].color + ';' : '')}" onclick="toggleEmpCard(${idx})">
           <div class="emp-head">
-            <div class="emp-name">${escH(emp.fio)}${crown}${teamTag(emp.teamOwner)}</div>
+            <div class="emp-name">${escH(shortFio(emp.fio))}${crown}</div>
             <div class="emp-meta">${sig} <span class="emp-chev">${open ? '▴' : '▾'}</span></div>
           </div>
-          <div class="emp-sub">${escH(emp.role)}${emp.tab ? ' · ' + escH(emp.tab) : ''}</div>
+          <div class="emp-sub">${teamTag(emp.teamOwner).replace('margin-left:6px', 'margin-left:0')} ${escH(emp.role)}${emp.tab ? ' · ' + escH(emp.tab) : ''}</div>
+          ${(open && !isSuper && teamTag(emp.teamOwner)) ? '<div style="margin-top:4px;">' + teamTag(emp.teamOwner).replace('margin-left:6px', 'margin-left:0') + '</div>' : ''}
           ${body}
         </div>`;
     }).join('') + dirHtml + potHtml();
   }
 
   // ----- Команды: теги, «Моя команда», запросы на согласование -----
+  function shortFio(f) { return String(f || '').trim().split(/\s+/).slice(0, 2).join(' '); }
   function teamTag(id) { const t = (globalAppData.teams || {})[id]; if (!t) return ''; return '<span class="team-tag" style="color:' + t.color + '; background:' + t.color + '1a; border-color:' + t.color + '66;">' + escH(t.name) + '</span>'; }
   function uiConfirm2(id, title, html, yes, onYes) {
     let m = document.getElementById(id);
@@ -7643,9 +7650,10 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
 
 <script id="wn-js">
 (function () {
-  const VER = '20261022';
+  const VER = '20261026';
   // d — дата изменения; a — только для руководителей
   const ITEMS = [
+    { d: '20261026', i: '🏷', a: 1, t: 'База сотрудников: короткие карточки', p: 'Отчество скрыто, плашка команды «КО Фамилия» стоит под именем. Список идёт по порядку команд, сотрудники без команды в конце. У главного руководителя при раскрытии плашка уходит в данные, у остальных остаётся.' },
     { d: '20261025', i: '🛡', a: 1, t: 'Защита от двойного нажатия и дублей сотрудников', p: 'Повторное нажатие «Сохранить» и других кнопок больше не создаёт дубль: второй запрос не уходит, а при добавлении сотрудника сервер проверяет, нет ли такого же ФИО в базе. Главному руководителю приходит оповещение о каждом новом сотруднике. Руководителю можно дать права и без подчинённых.' },
     { d: '20261024', i: '❓', a: 1, t: 'Потенциальные сотрудники', p: 'В базе сотрудников (главному руководителю и руководителям с доступом ко всем) внизу списка: раскрывающийся блок руководителей из столбца «Руководитель» таблицы объектов, которых ещё нет в базе. У каждого видны телефон, число объектов, период и города. «Добавить в базу» открывает карточку с готовыми ФИО, телефоном и должностью, где можно всё поправить (отчество, телефон). Галочка «Сразу назначить руководителем» даёт права без подчинённых: человек видит всех сотрудников без личных данных и может запросить перевод к себе. Телефон теперь сохраняется и при добавлении сотрудника вручную.' },
     { d: '20261023', i: '🔕', a: 1, t: 'Рычаг «Заглушить оповещения»', p: 'Профиль → «Заглушить оповещения» (главному руководителю): на 1, 4, 12 часов или до отключения бот ничего не шлёт никому, кроме вас. Удобно перед техническими работами. Всё, что не отправлено за время паузы, потом не придёт. Рычаг на время выключается сам.' },
