@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Авансовый отчёт">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="app-build" content="20261021-43">
+  <meta name="app-build" content="20261021-44">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -7837,7 +7837,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     return a.slice(5, 7) === b.slice(5, 7) ? (+a.slice(8)) + '–' + (+b.slice(8)) + ' ' + MG[+b.slice(5, 7) - 1] : (+a.slice(8)) + ' ' + MS[+a.slice(5, 7) - 1].toLowerCase() + ' – ' + (+b.slice(8)) + ' ' + MS[+b.slice(5, 7) - 1].toLowerCase();
   }
   function shiftName() { return S.me.s ? ((S.sc.find((x) => x.key === S.me.s) || {}).title ? KEYNAME[S.me.s] : KEYNAME[S.me.s]) : 'Выберите смену'; }
-  function segBtn(v, t) { return '<button type="button" data-a="v:' + v + '" style="min-height:36px; border:0; border-radius:8px; font-size:13px; font-weight:' + (view === v ? '800' : '600') + '; background:' + (view === v ? '#fff' : 'transparent') + '; color:' + (view === v ? '#111827' : '#475569') + '; font-family:inherit;">' + t + '</button>'; }
+  function segBtn(v, t) { return '<button type="button" data-a="v:' + v + '" style="min-height:28px; border:0; border-radius:8px; font-size:13px; font-weight:' + (view === v ? '800' : '600') + '; background:' + (view === v ? '#fff' : 'transparent') + '; color:' + (view === v ? '#111827' : '#475569') + '; font-family:inherit;">' + t + '</button>'; }
   function cell(k, big) {
     const s = st(k), c = colorOf(s), tk = todayK() === k;
     const icons = (s.vac ? '🌴' : '') + (s.otg ? '☕' : '') + (s.mark && s.mark.e ? s.mark.e : '');
@@ -7855,11 +7855,11 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     return h + '</div>';
   }
   function miniMonth(y, m) {
-    let h = '<div><div data-a="go:' + K(y, m, 1) + '" style="font-size:11px; font-weight:800; margin-bottom:3px; cursor:pointer;">' + MS[m - 1] + '</div><div style="display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:1.5px;">';
+    let h = '<div><div data-a="go:' + K(y, m, 1) + '" style="font-size:11px; font-weight:800; margin-bottom:1px; cursor:pointer;">' + MN[m - 1] + '</div><div style="display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:1px; text-align:center; font-size:7.5px; font-weight:800; color:#64748b; line-height:9px;">' + ['П', 'В', 'С', 'Ч', 'П', 'С', 'В'].map((x, i) => '<span' + (i > 4 ? ' style="color:#94a3b8"' : '') + '>' + x + '</span>').join('') + '</div><div style="display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:1px;">';
     const lead = dow(K(y, m, 1)); for (let i = 0; i < lead; i++) h += '<span></span>';
     monthKeys(y, m).forEach((k) => {
       const s = st(k), c = colorOf(s), tk = todayK() === k;
-      h += '<span style="aspect-ratio:1/1; border-radius:2px; background:' + ((s.vac && s.ext && !s.mark) ? 'linear-gradient(135deg,' + COL.vac[0] + ' 50%,' + COL.ext[0] + ' 50%)' : c[0]) + ';' + (s.otg ? 'box-shadow:inset 0 0 0 1.5px #111827;' : '') + (tk ? 'outline:1.5px solid #2563eb;' : '') + '"></span>';
+      h += '<span style="aspect-ratio:1/1; border-radius:2px; display:flex; align-items:center; justify-content:center; font-size:8px; font-weight:' + (tk ? '900' : '600') + '; line-height:1; color:' + c[1] + '; background:' + ((s.vac && s.ext && !s.mark) ? 'linear-gradient(135deg,' + COL.vac[0] + ' 50%,' + COL.ext[0] + ' 50%)' : c[0]) + ';' + (s.otg ? 'box-shadow:inset 0 0 0 1.5px #111827;' : '') + (tk ? 'outline:1.5px solid #2563eb; text-decoration:underline;' : '') + (s.vac && s.ext && !s.mark ? 'text-shadow:0 0 2px #fff;' : '') + '">' + (+k.slice(8)) + '</span>';
     });
     return h + '</div></div>';
   }
@@ -7906,13 +7906,13 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
       const miss = !hasY(y);
       const hint = (!S.me.s && S.keys.length) ? '<div style="background:#eef2ff; border-radius:12px; padding:12px; font-size:13px; margin-bottom:10px;">Выберите вашу смену, чтобы увидеть официальный график.<button type="button" class="btn btn-primary" style="margin-top:8px;" data-a="shift">Выбрать смену</button></div>' : '';
       const warn = hint + (miss ? '<div style="background:#fff4d6; color:#7c4a00; border-radius:12px; padding:12px; font-size:13px; font-weight:600; margin-bottom:10px;">' + (y >= nextY ? 'На следующий год (' + y + ') графика нет' : 'График на ' + y + ' год не загружен') + '. Смены можно нанести вручную кнопкой «Смены»: когда загрузят официальный график, он заменит ручные.</div>' : (!official(y) ? '<div style="background:#ecfeff; color:#155e75; border-radius:12px; padding:10px; font-size:12px; margin-bottom:10px;">Смены этого года нанесены вручную. Официальный график, когда его загрузят, заменит их.</div>' : ''));
-      const inner = view === 'month' ? monthGrid(y, +cur.slice(5, 7)) : view === 'week' ? '<div style="display:flex; flex-direction:column; gap:6px;">' + weekRows() + '</div>' : '<div style="display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px 8px;">' + Array.from({ length: 12 }, (_, i) => miniMonth(y, i + 1)).join('') + '</div>';
+      const inner = view === 'month' ? monthGrid(y, +cur.slice(5, 7)) : view === 'week' ? '<div style="display:flex; flex-direction:column; gap:6px;">' + weekRows() + '</div>' : '<div style="display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px 6px;">' + Array.from({ length: 12 }, (_, i) => miniMonth(y, i + 1)).join('') + '</div>';
       body = warn + inner + legend() + summaryHtml() + btns();
     }
     const bd = bounds();
-    m.innerHTML = '<div style="padding:12px 14px; background:#fff; border-bottom:1px solid #e5e7eb; display:flex; align-items:center; gap:10px; padding-top:calc(12px + env(safe-area-inset-top));"><button type="button" data-a="close" style="border:0; background:#eef2f7; border-radius:10px; width:40px; height:40px; font-size:18px;">‹</button><div style="font-weight:900; font-size:17px; flex:1;">📅 Мой график</div><button type="button" data-a="shift" style="border:0; background:#111827; color:#fff; border-radius:999px; padding:7px 13px; font-size:12px; font-weight:700; font-family:inherit;">' + E(shiftName()) + '</button></div>' +
-      '<div style="flex:1; overflow:auto; padding:12px 14px calc(24px + env(safe-area-inset-bottom));"><div style="display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); background:#e2e8f0; border-radius:10px; padding:3px; gap:3px;">' + segBtn('week', 'Неделя') + segBtn('month', 'Месяц') + segBtn('year', 'Год') + '</div>' +
-      '<div style="display:flex; justify-content:space-between; align-items:center; margin:12px 0 8px;"><button type="button" data-a="nav:-1" style="border:0; background:transparent; font-size:24px; padding:4px 12px; color:#475569;">‹</button><div style="font-size:16px; font-weight:800;">' + E(titleOf()) + '</div><button type="button" data-a="nav:1" style="border:0; background:transparent; font-size:24px; padding:4px 12px; color:#475569;">›</button></div>' + body + '</div>';
+    m.innerHTML = '<div style="padding:6px 10px; background:#fff; border-bottom:1px solid #e5e7eb; display:flex; align-items:center; gap:8px; padding-top:calc(6px + env(safe-area-inset-top));"><button type="button" data-a="close" style="border:0; background:#eef2f7; border-radius:10px; width:34px; height:34px; font-size:18px;">‹</button><div style="font-weight:900; font-size:15px; flex:1;">📅 Мой график</div><button type="button" data-a="shift" style="border:0; background:#111827; color:#fff; border-radius:999px; padding:7px 13px; font-size:12px; font-weight:700; font-family:inherit;">' + E(shiftName()) + '</button></div>' +
+      '<div style="flex:1; overflow:auto; padding:8px 10px calc(24px + env(safe-area-inset-bottom));"><div style="display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); background:#e2e8f0; border-radius:9px; padding:2px; gap:2px;">' + segBtn('week', 'Неделя') + segBtn('month', 'Месяц') + segBtn('year', 'Год') + '</div>' +
+      '<div style="display:flex; justify-content:space-between; align-items:center; margin:4px 0 4px;"><button type="button" data-a="nav:-1" style="border:0; background:transparent; font-size:22px; padding:0 12px; color:#475569; line-height:1;">‹</button><div style="font-size:15px; font-weight:800;">' + E(titleOf()) + '</div><button type="button" data-a="nav:1" style="border:0; background:transparent; font-size:22px; padding:0 12px; color:#475569; line-height:1;">›</button></div>' + body + '</div>';
   }
   function btns() {
     const b = (a, t) => '<button type="button" data-a="' + a + '" style="min-height:46px; border:1.5px solid #cbd5e1; border-radius:10px; background:#fff; font-size:12.5px; font-weight:700; color:#111827; font-family:inherit;">' + t + '</button>';
