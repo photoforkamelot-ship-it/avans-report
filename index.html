@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Авансовый отчёт">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="app-build" content="20261021-41">
+  <meta name="app-build" content="20261021-42">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -7814,6 +7814,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     const s = st(k), c = colorOf(s), tk = todayK() === k;
     const icons = (s.vac ? '🌴' : '') + (s.otg ? '☕' : '') + (s.mark && s.mark.e ? s.mark.e : '');
     let sty = 'background:' + c[0] + '; color:' + c[1] + '; border:0; border-radius:8px; font-family:inherit; position:relative; padding:0;';
+    if (s.vac && s.ext && !s.mark) sty += 'background:linear-gradient(135deg,' + COL.vac[0] + ' 50%,' + COL.ext[0] + ' 50%); color:#111827; text-shadow:0 0 3px #fff,0 0 3px #fff;';
     if (big) sty += 'min-height:46px; font-size:15px; font-weight:' + (tk ? '900' : '600') + ';';
     if (s.otg) sty += 'box-shadow:inset 0 0 0 2px #111827;';
     if (tk) sty += 'outline:2.5px solid #2563eb; outline-offset:1px; text-decoration:underline;';
@@ -7830,15 +7831,15 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     const lead = dow(K(y, m, 1)); for (let i = 0; i < lead; i++) h += '<span></span>';
     monthKeys(y, m).forEach((k) => {
       const s = st(k), c = colorOf(s), tk = todayK() === k;
-      h += '<span style="aspect-ratio:1/1; border-radius:2px; background:' + c[0] + ';' + (s.otg ? 'box-shadow:inset 0 0 0 1.5px #111827;' : '') + (tk ? 'outline:1.5px solid #2563eb;' : '') + '"></span>';
+      h += '<span style="aspect-ratio:1/1; border-radius:2px; background:' + ((s.vac && s.ext && !s.mark) ? 'linear-gradient(135deg,' + COL.vac[0] + ' 50%,' + COL.ext[0] + ' 50%)' : c[0]) + ';' + (s.otg ? 'box-shadow:inset 0 0 0 1.5px #111827;' : '') + (tk ? 'outline:1.5px solid #2563eb;' : '') + '"></span>';
     });
     return h + '</div></div>';
   }
   function weekRows() {
     return weekKeys(cur).map((k, i) => {
       const s = st(k), c = colorOf(s), tk = todayK() === k;
-      const txt = !s.has ? 'График не загружен' : s.mark ? ('Пометка: ' + (s.mark.n || '')) : s.vac ? 'Отпуск' : s.ext ? 'Подработка' : s.base ? ('Смена · ' + s.h + ' ч') : 'Выходной';
-      return '<button type="button" data-k="' + k + '" style="display:flex; align-items:center; gap:8px; min-height:48px; padding:6px 12px; border:0; border-radius:10px; background:' + c[0] + '; color:' + c[1] + '; font-family:inherit; text-align:left; width:100%; ' + (s.otg ? 'box-shadow:inset 0 0 0 2px #111827;' : '') + (tk ? 'outline:2.5px solid #2563eb; outline-offset:1px;' : '') + '"><span style="font-size:13px; font-weight:700; width:28px;">' + DW[i] + '</span><span style="font-size:18px; font-weight:800; width:32px;">' + (+k.slice(8)) + '</span><span style="font-size:13px; flex:1;">' + txt + (tk ? ' · сегодня' : '') + (s.otg ? ' · отгул' : '') + '</span><span style="font-size:15px;">' + (s.vac ? '🌴' : '') + (s.otg ? '☕' : '') + (s.mark && s.mark.e ? s.mark.e : '') + '</span></button>';
+      const txt = !s.has ? 'График не загружен' : s.mark ? ('Пометка: ' + (s.mark.n || '')) : s.vac ? (s.ext ? 'Отпуск + подработка' : 'Отпуск') : s.ext ? 'Подработка' : s.base ? ('Смена · ' + s.h + ' ч') : 'Выходной';
+      return '<button type="button" data-k="' + k + '" style="display:flex; align-items:center; gap:8px; min-height:48px; padding:6px 12px; border:0; border-radius:10px; background:' + ((s.vac && s.ext && !s.mark) ? 'linear-gradient(135deg,' + COL.vac[0] + ' 50%,' + COL.ext[0] + ' 50%)' : c[0]) + '; color:' + c[1] + '; font-family:inherit; text-align:left; width:100%; ' + (s.otg ? 'box-shadow:inset 0 0 0 2px #111827;' : '') + (tk ? 'outline:2.5px solid #2563eb; outline-offset:1px;' : '') + '"><span style="font-size:13px; font-weight:700; width:28px;">' + DW[i] + '</span><span style="font-size:18px; font-weight:800; width:32px;">' + (+k.slice(8)) + '</span><span style="font-size:13px; flex:1;">' + txt + (tk ? ' · сегодня' : '') + (s.otg ? ' · отгул' : '') + '</span><span style="font-size:15px;">' + (s.vac ? '🌴' : '') + (s.otg ? '☕' : '') + (s.mark && s.mark.e ? s.mark.e : '') + '</span></button>';
     }).join('');
   }
   function summaryHtml() {
@@ -7866,7 +7867,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
   function byMonth(keys) { const c = {}; keys.forEach((k) => { c[+k.slice(5, 7)] = (c[+k.slice(5, 7)] || 0) + 1; }); return Object.keys(c).map((m) => c[m] + ' ' + MS[m - 1].toLowerCase()).join(', '); }
   function legend() {
     const i = (bg, t, ex) => '<span style="display:inline-flex; align-items:center; gap:5px;"><i style="width:12px; height:12px; border-radius:4px; background:' + bg + ';display:inline-block;' + (ex || '') + '"></i>' + t + '</span>';
-    return '<div style="display:flex; flex-wrap:wrap; gap:6px 12px; font-size:11px; color:#334155; margin-top:10px;">' + i(COL.work[0], 'Смена') + i(COL.ext[0], 'Подработка') + i(COL.vac[0], '🌴 Отпуск') + i('#fff', '☕ Отгул', 'box-shadow:inset 0 0 0 2px #111827;') + i('#bfdbfe', 'Пометка') + '</div>';
+    return '<div style="display:flex; flex-wrap:wrap; gap:6px 12px; font-size:11px; color:#334155; margin-top:10px;">' + i(COL.work[0], 'Смена') + i(COL.ext[0], 'Подработка') + i(COL.vac[0], '🌴 Отпуск') + i('linear-gradient(135deg,' + COL.vac[0] + ' 50%,' + COL.ext[0] + ' 50%)', 'Отпуск + подработка') + i('#fff', '☕ Отгул', 'box-shadow:inset 0 0 0 2px #111827;') + i('#bfdbfe', 'Пометка') + '</div>';
   }
   function render() {
     const m = root(); const y = +cur.slice(0, 4);
@@ -7928,7 +7929,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
   function uiAsk(title, sub, yes, fn) { try { uiConfirm2('tt_ask', title, E(sub), yes, fn); } catch (e) { if (confirm(title + ' ' + sub)) fn(); } }
   function daySheet(k) {
     const s = st(k), items = [];
-    if (!official(+k.slice(0, 4))) items.push({ text: s.base ? '🟩 Убрать смену' : '🟩 Поставить смену (11 ч)', fn: () => { S.me.w = S.me.w || {}; if (s.base) delete S.me.w[k]; else S.me.w[k] = 11; reindex(); if (!MY[k.slice(0, 4)]) S.me.w[k.slice(0, 4) + '-01-00'] = 0; persist(); render(); } });
+    if (!official(+k.slice(0, 4))) items.push({ text: s.base ? '🟩 Убрать смену' : '🟩 Поставить смену (11 ч)', fn: () => { S.me.w = S.me.w || {}; if (s.base) delete S.me.w[k]; else S.me.w[k] = 11; reindex(); if (!MY[k.slice(0, 4)]) S.me.w[k.slice(0, 4) + '-01-00'] = 0; persist(); render(); if (!s.base) setTimeout(() => suggest(+k.slice(0, 4)), 400); } });
     if (!s.has || !s.base) items.push({ text: s.ext ? '💼 Снять подработку' : '💼 Поставить подработку', cls: 'btn-primary', fn: () => { if (s.ext) S.me.x = S.me.x.filter((z) => z !== k); else S.me.x.push(k); persist(); render(); } });
     items.push({ text: s.otg ? '☕ Убрать отгул' : '☕ Отгул на этот день', fn: () => { if (s.otg) S.me.o = S.me.o.filter((z) => z !== k); else S.me.o.push(k); persist(); render(); } });
     if (s.mark) { items.push({ text: '✏️ Изменить пометку', fn: () => rangeDlg('mark', k) }); items.push({ text: '🗑 Убрать пометку', danger: true, fn: () => { delete S.me.m[k]; persist(); render(); } }); }
@@ -7937,6 +7938,26 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     if (pv && !pv.off) items.push({ text: '🗑 Убрать этот отпуск (' + pRange(pv.a, pv.b) + ')', danger: true, fn: () => { S.me.v.splice(pv.i, 1); persist(); render(); } });
     else if (!pv) items.push({ text: '🌴 Отпуск с этого дня', fn: () => rangeDlg('vac', k) });
     openSheet(pRu(k) + (s.has ? (s.base ? ' · смена ' + s.h + ' ч' : ' · выходной') : ''), items);
+  }
+  function suggest(y) {
+    if (S.me.s === 'LEAD' || official(y)) return;
+    const ks = Object.keys(S.me.w || {}).filter((k) => k.slice(0, 4) === String(y) && S.me.w[k] > 0 && k.slice(8) !== '00').sort();
+    if (ks.length < 4) return;
+    const runs = []; ks.forEach((k) => { const l = runs[runs.length - 1]; if (l && T(k) - T(l.e) === DAY) { l.e = k; l.n++; } else runs.push({ s: k, e: k, n: 1 }); });
+    if (runs.length < 2) return;
+    const N = runs[0].n, M = Math.round((T(runs[1].s) - T(runs[0].e)) / DAY) - 1;
+    if (M < 1 || N < 1) return;
+    for (let i = 0; i < runs.length; i++) {
+      const last = i === runs.length - 1;
+      if (last ? runs[i].n > N : runs[i].n !== N) return;
+      if (i > 0 && Math.round((T(runs[i].s) - T(runs[i - 1].e)) / DAY) - 1 !== M) return;
+    }
+    const L = runs[runs.length - 1], hh = S.me.w[L.e], end = K(y, 12, 31);
+    if (Math.round((T(end) - T(L.e)) / DAY) < 2) return;
+    uiAsk('Заметил схему «' + N + ' через ' + M + '»', 'Продолжить смены по этой схеме до конца ' + y + ' года?', 'Продолжить', () => {
+      for (let t = T(L.s), i = 0; t <= T(end); t += DAY, i++) { const k = KT(t); if (i % (N + M) < N) S.me.w[k] = hh; else delete S.me.w[k]; }
+      persist(); render(); try { Hap.ok(); } catch (e) {}
+    });
   }
   function dlg(html) {
     let m = document.getElementById('tt_dlg');
@@ -7988,7 +8009,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
           // чтобы год считался нанесённым, даже если в нём пока нет рабочих дней
           const yk = a.slice(0, 4) + '-01-00'; if (!Object.keys(S.me.w).some((z) => z.slice(0, 4) === a.slice(0, 4))) S.me.w[yk] = 0;
         }
-        reindex();
+        reindex(); if (!document.getElementById('tt_sd').checked) setTimeout(() => suggest(+a.slice(0, 4)), 500);
       } else if (kind === 'ext') {
         let skip = 0; days.forEach((k) => { const s = st(k); if (s.has && s.base) skip++; else if (!SX[k]) { S.me.x.push(k); SX[k] = 1; } });
         if (skip) toast('Рабочие дни по графику пропущены: ' + skip);
@@ -8047,7 +8068,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     return L.join('\n');
   }
   function pdfHtml(y) {
-    const cellH = (k) => { const s = st(k), c = colorOf(s); return '<td style="width:14%; height:19px; text-align:center; font-size:10px; background:' + c[0] + '; color:' + c[1] + ';' + (s.otg ? 'border:2px solid #111; font-weight:bold;' : 'border:1px solid #fff;') + '">' + (+k.slice(8)) + '</td>'; };
+    const cellH = (k) => { const s = st(k), c = colorOf(s); return '<td style="width:14%; height:19px; text-align:center; font-size:10px; background:' + c[0] + '; color:' + c[1] + ';' + (s.vac && s.ext && !s.mark ? 'border-bottom:7px solid #7f1d3a;' : '') + (s.otg ? 'border:2px solid #111; font-weight:bold;' : 'border:1px solid #fff;') + '">' + (+k.slice(8)) + '</td>'; };
     const mon = (m) => { let h = '<table style="width:100%; border-collapse:collapse;"><tr><td colspan="7" style="font-size:11px; font-weight:bold; padding:3px 0;">' + MN[m - 1] + '</td></tr><tr>' + DW.map((x) => '<td style="font-size:8px; color:#666; text-align:center;">' + x + '</td>').join('') + '</tr><tr>'; const lead = dow(K(y, m, 1)); for (let i = 0; i < lead; i++) h += '<td></td>'; let n = lead; monthKeys(y, m).forEach((k) => { if (n % 7 === 0 && n) h += '</tr><tr>'; h += cellH(k); n++; }); return h + '</tr></table>'; };
     let grid = '<table style="width:100%; border-collapse:separate; border-spacing:8px 6px;">'; for (let r = 0; r < 4; r++) { grid += '<tr>'; for (let c = 0; c < 3; c++) grid += '<td style="vertical-align:top; width:33%;">' + mon(r * 3 + c + 1) + '</td>'; grid += '</tr>'; } grid += '</table>';
     const r = stat(yearKeys(y)), yp = periods().filter((p) => p.a.slice(0, 4) === String(y) || p.b.slice(0, 4) === String(y));
@@ -8117,6 +8138,13 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
       const own = row.filter((t) => t.x + t.w / 2 >= lastRight && /^\d+$/.test(t.s)).sort((a, b) => a.x - b.x || a.y - b.y).filter((t) => t.x < 667);
       const chk = { month: mi + 1, days: cnt, hours: sh, ok: false };
       if (own.length >= 2) { chk.needDays = +own[0].s; chk.needHours = +own[1].s; chk.ok = chk.needDays === cnt && chk.needHours === sh; }
+      if (chk.needDays != null && !chk.ok && cnt > chk.needDays) {
+        const CAND = { 1: [1, 2, 3, 4, 5, 6, 7, 8], 2: [22, 23, 24], 3: [7, 8, 9], 5: [1, 2, 3, 4, 8, 9, 10, 11], 6: [12, 13, 14, 15], 11: [3, 4, 5], 12: [31] };
+        const cand = (CAND[mi + 1] || []).filter((d) => days[d]).sort((x, y) => x - y), kk = cnt - chk.needDays, need = chk.hours - chk.needHours; let found = null;
+        const rec = (i, pick, hs) => { if (found) return; if (pick.length === kk) { if (hs === need) found = pick.slice(); return; } for (let j = i; j < cand.length; j++) { pick.push(cand[j]); rec(j + 1, pick, hs + days[cand[j]]); pick.pop(); } };
+        if (kk > 0 && cand.length >= kk) rec(0, [], 0);
+        if (found) { found.forEach((d) => { delete days[d]; }); chk.excl = found; chk.days = chk.needDays; chk.hours = chk.needHours; chk.ok = true; }
+      }
       hours[mi + 1] = days; checks.push(chk);
     });
     return { title: title, year: year, key: key, hours: hours, checks: checks, months: Object.keys(hours).length };
@@ -8149,9 +8177,9 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     const L = document.getElementById('tt_up_list'); if (!L) return;
     L.innerHTML = UP.map((r, i) => {
       if (r.error) return '<div style="background:#fee2e2; border-radius:10px; padding:10px; font-size:13px; margin-bottom:8px;"><b>' + E(r.file.name) + '</b><br>' + E(r.error) + '</div>';
-      const bad = r.checks.filter((c) => !c.ok);
+      const bad = r.checks.filter((c) => !c.ok), hol = r.checks.filter((c) => c.excl);
       const okAll = r.months === 12 && !bad.length;
-      return '<div style="background:' + (okAll ? '#ecfdf5' : '#fffbeb') + '; border-radius:10px; padding:10px; font-size:13px; margin-bottom:8px;"><b>' + E(r.title) + '</b><br>Год: <input data-y="' + i + '" type="number" value="' + (r.year || '') + '" style="width:80px; height:32px; border:1px solid #cbd5e1; border-radius:8px;"> График: <select data-k="' + i + '" style="height:32px; border:1px solid #cbd5e1; border-radius:8px;"><option value="">выберите</option>' + ['S1', 'S2', 'LEAD'].map((k) => '<option value="' + k + '"' + (r.key === k ? ' selected' : '') + '>' + KEYNAME[k] + '</option>').join('') + '</select><br>Месяцев: ' + r.months + ' · проверка итогов: ' + (okAll ? 'сошлась' : 'не совпало в ' + bad.length + ' мес.' ) + (bad.length ? '<div style="font-size:12px; color:#92400e; margin-top:4px;">' + bad.slice(0, 4).map((c) => MS[c.month - 1] + ': по клеткам ' + c.days + ' дн., в итоге ' + (c.needDays == null ? '?' : c.needDays)).join('; ') + '. Часть дней (например праздничные) может не входить в итог: график можно сохранить.</div>' : '') + '</div>';
+      return '<div style="background:' + (okAll ? '#ecfdf5' : '#fffbeb') + '; border-radius:10px; padding:10px; font-size:13px; margin-bottom:8px;"><b>' + E(r.title) + '</b><br>Год: <input data-y="' + i + '" type="number" value="' + (r.year || '') + '" style="width:80px; height:32px; border:1px solid #cbd5e1; border-radius:8px;"> График: <select data-k="' + i + '" style="height:32px; border:1px solid #cbd5e1; border-radius:8px;"><option value="">выберите</option>' + ['S1', 'S2', 'LEAD'].map((k) => '<option value="' + k + '"' + (r.key === k ? ' selected' : '') + '>' + KEYNAME[k] + '</option>').join('') + '</select><br>Месяцев: ' + r.months + ' · проверка итогов: ' + (okAll ? 'сошлась' : 'не совпало в ' + bad.length + ' мес.' ) + (hol.length ? '<div style="font-size:12px; color:#155e75; margin-top:4px;">Праздничные дни не считаются сменами: ' + hol.map((c) => MS[c.month - 1].toLowerCase() + ' ' + c.excl.join(', ')).join('; ') + '. Если выходили, отметьте подработкой.</div>' : '') + (bad.length ? '<div style="font-size:12px; color:#92400e; margin-top:4px;">' + bad.slice(0, 4).map((c) => MS[c.month - 1] + ': по клеткам ' + c.days + ' дн., в итоге ' + (c.needDays == null ? '?' : c.needDays)).join('; ') + '. Часть дней (например праздничные) может не входить в итог: график можно сохранить.</div>' : '') + '</div>';
     }).join('') + (UP.some((r) => !r.error) ? '<button type="button" class="btn btn-primary" id="tt_up_save">Сохранить загруженные графики</button>' : '');
     const sv = document.getElementById('tt_up_save');
     if (sv) sv.onclick = async () => {
@@ -8204,7 +8232,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
   const VER = '20261028';
   // d — дата изменения; a — только для руководителей
   const ITEMS = [
-    { d: '20261028', i: '📅', a: 0, t: 'Мой график: умное табелирование', p: 'Профиль → «Мой график»: смены месяцем, неделей и годом, подработки (зажмите выходной), отгулы ☕, отпуск 🌴, свои пометки с цветом и значком, отчёты по месяцам и годам и отправка отчёта в Telegram. Смены можно нанести вручную, пока нет официального графика. Главный руководитель загружает PDF-графики и Excel отпусков в «Загрузка графиков».' },
+    { d: '20261028', i: '📅', a: 0, t: 'Мой график: умное табелирование', p: 'Профиль → «Мой график»: смены месяцем, неделей и годом, подработки (зажмите выходной), отгулы ☕, отпуск 🌴, свои пометки с цветом и значком, отчёты по месяцам и годам и отправка отчёта в Telegram. Смены можно нанести вручную (приложение предложит продолжить схему до конца года), пока нет официального графика. День отпуска с подработкой закрашен пополам. Главный руководитель загружает PDF-графики и Excel отпусков в «Загрузка графиков».' },
     { d: '20261027', i: '💾', a: 0, t: 'Капсула сохранения', p: 'При любой правке профиля, базы сотрудников, оповещений и настроек сверху выезжает чёрная капсула: «Сохраняю…», затем «Сохранено», а при сбое «Не сохранилось».' },
     { d: '20261026', i: '🏷', a: 1, t: 'База сотрудников: короткие карточки', p: 'Отчество скрыто, плашка команды «КО Фамилия» стоит под именем. Список идёт по порядку команд, сотрудники без команды в конце. У главного руководителя при раскрытии плашка уходит в данные, у остальных остаётся.' },
     { d: '20261025', i: '🛡', a: 1, t: 'Защита от двойного нажатия и дублей сотрудников', p: 'Повторное нажатие «Сохранить» и других кнопок больше не создаёт дубль: второй запрос не уходит, а при добавлении сотрудника сервер проверяет, нет ли такого же ФИО в базе. Главному руководителю приходит оповещение о каждом новом сотруднике. Руководителю можно дать права и без подчинённых.' },
