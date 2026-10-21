@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Авансовый отчёт">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="app-build" content="20261021-42">
+  <meta name="app-build" content="20261021-43">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -3755,13 +3755,21 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
       });
     });
 
-    const sortedGroupKeys = Object.keys(tripGroups).sort().reverse();
+    // Автоархив: все участники сдали отчёт, черновиков нет и командировка уже закончилась
+    const todayT = new Date(); todayT.setHours(0, 0, 0, 0);
+    const isDoneTrip = (m) => { const hasDraft = (reports || []).some(r => r.isDraft && r.tripId === m.tripId); const rp = (reports || []).find(r => !r.isDraft && String(r.status).toLowerCase() === 'готов' && r.tripId === m.tripId); return !!(rp && !hasDraft); };
+    const gEnd = (g) => { let mx = 0; g.members.forEach(m => { const b = parseDateToTimestamp(memberPeriod(m).split('—').map(x => x.trim())[1]); if (b > mx) mx = b; }); return mx; };
+    const isArchG = (g) => g.members.length > 0 && g.members.every(isDoneTrip) && gEnd(g) > 0 && gEnd(g) < todayT.getTime();
+    let sortedGroupKeys = Object.keys(tripGroups).sort().reverse();
+    const actK = sortedGroupKeys.filter(k => !isArchG(tripGroups[k])), arK = sortedGroupKeys.filter(k => isArchG(tripGroups[k]));
+    sortedGroupKeys = actK.concat(arK); const archStart = actK.length;
     window.__tripGroupsList = sortedGroupKeys.map(k => tripGroups[k]);
     let html = '';
     let currentMonthHeader = '';
 
     sortedGroupKeys.forEach((gKey, gIdx) => {
       const grp = tripGroups[gKey];
+      if (arK.length && gIdx === archStart) { html += `<details id="trip_arch_det" ${window.__tripArchOpen ? 'open' : ''} ontoggle="window.__tripArchOpen=this.open" style="margin-top:12px; border:1px solid #e2e8f0; border-radius:12px; padding:6px 10px; background:rgba(255,255,255,.5);"><summary style="font-weight:800; font-size:14px; padding:8px 0; cursor:pointer;">📦 Архив командировок: ${arK.length}<span style="font-weight:600; font-size:12px; color:#64748b;"> · сданы отчёты, документы доступны</span></summary>`; currentMonthHeader = ''; }
       if (grp.monthLabel !== currentMonthHeader) {
         currentMonthHeader = grp.monthLabel;
         html += `<div class="month-header">📅 ${currentMonthHeader}</div>`;
@@ -3949,6 +3957,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
       html += `</div></div>`;
     });
 
+    if (arK.length) html += '</details>';
     container.innerHTML = html;
   }
 
@@ -6562,6 +6571,9 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
 <script id="cal-js">
 /* Годовой календарь командировок: 12 месяцев (3 в строке), периоды закрашены, по нажатию примечание и переход к отчёту */
 (function () {
+  const PALE = [['#fecdd3', '#9f1239'], ['#bae6fd', '#075985'], ['#fef08a', '#854d0e'], ['#ddd6fe', '#5b21b6'], ['#bbf7d0', '#166534'], ['#fbcfe8', '#9d174d'], ['#e5e7eb', '#374151'], ['#fed7aa', '#9a3412'], ['#c7d2fe', '#3730a3'], ['#fecaca', '#991b1b']];
+  const HOMEPAL = ['#e7d5c0', '#6b4423'];
+  let more = false, CL = [], yMin = 0, yMax = 0;
   const PAL = ['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#84cc16', '#6366f1', '#0ea5e9', '#d946ef'];
   const MN = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
   const DAY = 86400000;
@@ -6640,12 +6652,18 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     clusters.sort((a, b) => a.s - b.s);
     clusters.forEach((cl, i) => { cl.color = PAL[i % PAL.length]; cl.items.forEach(it => { it.cl = cl; }); });
     // архив: командировки, оформленные не через приложение (только даты и город)
+    let aIdx = 0;
     ((typeof window !== 'undefined' && window.__archTrips) || []).forEach(t => {
       if (tf && t.who && !tf.has(t.who)) return;
       const it = { fio: t.who || (g.currentUser && g.currentUser.fio) || 'Сотрудник', team: !!t.team, city: formatUniqueCities(t.city || ''), s: t.s, e: t.e, closed: true, foreign: true, arch: true, est: !!t.est, home: !!t.home, km: t.km || 0, ov: t.ov || '', rawCity: t.city, addr: t.addr || '', code: t.code || '', nf: t.nf || '', af: t.af || '', og: t.og || '' };
-      const cl = { city: it.city, s: it.s, e: it.e, items: [it], color: t.home ? '#b08968' : '#94a3b8', arch: true, home: !!t.home }; it.cl = cl; clusters.push(cl); out.push(it);
+      const pl = t.home ? HOMEPAL : PALE[(aIdx++) % PALE.length];
+      const cl = { city: it.city, s: it.s, e: it.e, items: [it], color: pl[0], ink: pl[1], pale: true, arch: true, home: !!t.home }; it.cl = cl; clusters.push(cl); out.push(it);
     });
     list = out;
+    CL = clusters;
+    const cy = new Date().getFullYear(); let mn = cy, mx = cy;
+    clusters.forEach((c) => { mn = Math.min(mn, new Date(c.s).getFullYear()); mx = Math.max(mx, new Date(c.e).getFullYear()); });
+    yMin = Math.max(2021, mn); yMax = mx;
     return clusters;
   }
 
@@ -6665,40 +6683,49 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
       if (cov.length) {
         const cols = []; cov.forEach(it => { if (cols.indexOf(it.cl.color) < 0) cols.push(it.cl.color); });
         cls += ' has';
-        if (cols.length === 1) st = 'background:' + cols[0] + ';color:#fff;';
-        else { const step = 100 / Math.min(cols.length, 3); st = 'background:linear-gradient(135deg,' + cols.slice(0, 3).map((c, i) => c + ' ' + Math.round(i * step) + '%,' + c + ' ' + Math.round((i + 1) * step) + '%').join(',') + ');color:#fff;'; }
+        const paleAny = cov.some(it => it.cl.pale), ink = paleAny ? (cov.length === 1 ? cov[0].cl.ink : '#1f2937') : '#fff';
+        if (cols.length === 1) st = 'background:' + cols[0] + ';color:' + ink + ';';
+        else { const step = 100 / Math.min(cols.length, 3); st = 'background:linear-gradient(135deg,' + cols.slice(0, 3).map((c, i) => c + ' ' + Math.round(i * step) + '%,' + c + ' ' + Math.round((i + 1) * step) + '%').join(',') + ');color:' + ink + ';'; }
       }
       if (dt === today.getTime()) cls += ' today';
       if ((new Date(dt).getDay() + 6) % 7 >= 5 && !cov.length) cls += ' we';
       cells += '<b class="' + cls + '" data-t="' + dt + '" style="' + st + '">' + d + '</b>';
     }
-    return '<div class="cal-m"><div class="cal-mt">' + MN[m] + '</div><div class="cal-wd"><i>п</i><i>в</i><i>с</i><i>ч</i><i>п</i><i>с</i><i>в</i></div><div class="cal-g">' + cells + '</div></div>';
+    const ms = new Date(year, m, 1).getTime(), me = new Date(year, m + 1, 0).getTime() + DAY - 1;
+    let ico = '', sOpen = false, sDone = false, sArch = false;
+    CL.filter(c => c.e >= ms && c.s <= me && !c.home).forEach(c => c.items.forEach(it => { if (it.arch) sArch = true; else if (it.closed) sDone = true; else sOpen = true; }));
+    ico = sOpen ? ' ⏳' : sDone ? ' ✅' : sArch ? ' 📦' : '';
+    return '<div class="cal-m"><div class="cal-mt">' + MN[m] + ico + '</div><div class="cal-wd"><i>п</i><i>в</i><i>с</i><i>ч</i><i>п</i><i>с</i><i>в</i></div><div class="cal-g">' + cells + '</div></div>';
   }
 
   function render() {
     const box = document.getElementById('cal_body');
     if (!box) return;
     const clusters = build();
+    if (year > yMax) year = yMax; if (year < yMin) year = yMin;
     const y0 = new Date(year, 0, 1).getTime(), y1 = new Date(year, 11, 31).getTime();
     const inYearAll = clusters.filter(c => c.e >= y0 && c.s <= y1);
     const inYear = inYearAll.filter(c => !c.home), homeY = inYearAll.filter(c => c.home);
     const cities = []; inYear.forEach(c => cityShort(c.city).forEach(x => { if (cities.indexOf(x) < 0) cities.push(x); }));
     const hcities = []; homeY.forEach(c => cityShort(c.city).forEach(x => { if (hcities.indexOf(x) < 0) hcities.push(x); }));
-    let sum = inYear.length ? plural(inYear.length, 'командировка', 'командировки', 'командировок') + ': ' + cities.join(', ') : 'командировок в этом году нет';
-    if (homeY.length) sum += (inYear.length ? '; ' : ', ') + hcities.join(', ') + ' (без командировки)';
+    let sum = inYear.length ? plural(inYear.length, 'командировка', 'командировки', 'командировок') : 'командировок в этом году нет';
+    if (homeY.length) sum += (inYear.length ? ', ' : '; ') + homeY.length + ' в домашнем городе (без командировки)';
+    const dd = (t) => { const d = new Date(t); return String(d.getDate()).padStart(2, '0') + '.' + String(d.getMonth() + 1).padStart(2, '0'); };
+    const lst = inYearAll.slice().sort((a, b) => a.s - b.s).map(c => '<div style="display:flex; align-items:center; gap:6px; margin:3px 0; padding:3px 9px; border-radius:999px; font-size:12px; font-weight:700; background:' + (c.pale ? c.color : c.color + '22') + '; color:' + (c.ink || c.color) + ';"><span>' + (c.home ? '🏠' : '📍') + '</span><span style="flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">' + esc(cityShort(c.city).join(', ')) + '</span><span style="white-space:nowrap;">' + dd(c.s) + '–' + dd(c.e) + '</span></div>').join('');
+    const moreBtn = inYearAll.length ? '<button type="button" onclick="Cal.toggleMore()" style="border:0; background:transparent; color:#2563eb; font-weight:800; font-size:12px; padding:2px 0; font-family:inherit;">' + (more ? 'Свернуть ▴' : 'Ещё ▾') + '</button>' : '';
     let months = '';
     for (let m = 0; m < 12; m++) months += monthHtml(m);
     const scopeBar = scopeAvail() ? ('<div style="display:flex; gap:6px; margin:2px 0 8px;">' + [['team', '👥 Моя команда'], ['all', '🌐 Все команды']].map(function (x) { const on = scopeGet() === x[0]; return '<button type="button" onclick="Cal.setScope(\'' + x[0] + '\')" style="flex:1; height:34px; border-radius:10px; border:1.5px solid ' + (on ? '#1d4ed8' : '#cbd5e1') + '; background:' + (on ? '#e8f0ff' : '#fff') + '; color:' + (on ? '#1d4ed8' : '#475569') + '; font-weight:800; font-size:12.5px;">' + x[1] + '</button>'; }).join('') + '</div>') : '';
     box.innerHTML = scopeBar +
-      '<div class="cal-nav"><button type="button" onclick="Cal.go(-1)">‹</button><div><div class="cal-y">' + year + '</div><div class="cal-sum">' + esc(sum) + '</div></div><button type="button" onclick="Cal.go(1)">›</button></div>' +
+      '<div class="cal-nav"><button type="button" onclick="Cal.go(-1)" style="' + (year <= yMin ? 'visibility:hidden;' : '') + '">‹</button><div><div class="cal-y">' + year + '</div><div class="cal-sum">' + esc(sum) + ' ' + moreBtn + '</div>' + (more ? '<div style="margin-top:6px; text-align:left; max-width:340px;">' + lst + '</div>' : '') + '</div><button type="button" onclick="Cal.go(1)" style="' + (year >= yMax ? 'visibility:hidden;' : '') + '">›</button></div>' +
       '<div class="cal-grid">' + months + '</div>' +
-      '<div class="cal-hint">Нажмите на закрашенный день: появится примечание с командировкой и возможностью открыть отчёт.</div>';
+      '<div class="cal-hint">Нажмите на закрашенный день: появится примечание с командировкой и возможностью открыть отчёт.<br>Рядом с месяцем: ⏳ в процессе · ✅ отчёты сданы · 📦 в архиве.</div>';
     box.querySelectorAll('.cal-d.has').forEach(el => { el.onclick = () => pop(Number(el.dataset.t)); });
   }
 
   function itemHtml(it) {
     const days = Math.round((it.e - it.s) / DAY) + 1;
-    const c = it.cl.color;
+    const c = it.cl.ink || it.cl.color;
     let acts = '';
     if (!it.foreign) {
       const dr = it.draft, rd = it.ready;
@@ -6708,7 +6735,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
       if (!acts) acts = '<div style="font-size:12px; opacity:.8;">Отчёт ещё не начат</div>';
     }
     const st = it.home ? ('🏠 НЕ КОМАНДИРОВКА · домашний город' + (it.km ? ' · ≈' + it.km + ' км от дома (до 100 км)' : '') + (it.ov === 'home' ? ' · отмечено вручную' : '') + (it.est ? ' · срок по среднему' : '')) : it.arch ? ('📦 архив · закрыта не в этом приложении' + (it.est ? ' · срок по среднему (18 дн.)' : '')) : it.closed ? '✅ сдан' : (it.draft ? '✏️ в процессе' : (it.ready ? '⏳ отчёт сформирован' : '🧳 командировка'));
-    return '<div class="cal-note"' + (it.arch ? ' data-arch="1"' : '') + ' style="border-left:5px solid ' + c + '; background:linear-gradient(' + c + '22,' + c + '22),#fff; color:' + c + ';">' +
+    return '<div class="cal-note"' + (it.arch ? ' data-arch="1"' : '') + ' style="border-left:5px solid ' + c + '; background:' + (it.cl.pale ? it.cl.color + 'aa' : 'linear-gradient(' + c + '22,' + c + '22),#fff') + '; color:' + c + ';">' +
       '<div style="font-weight:800; font-size:14px;">👤 ' + esc(it.fio) + '</div>' +
       '<div>📍 ' + esc(it.city) + (it.home ? ' <b>(НЕ КОМАНДИРОВКА)</b>' : '') + '</div>' +
       '<div>🗓 ' + fmt(it.s) + ' — ' + fmt(it.e) + ' · ' + plural(days, 'день', 'дня', 'дней') + '</div>' +
@@ -6744,7 +6771,8 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     },
     setScope(v) { try { localStorage.setItem('cal_scope', v === 'team' ? 'team' : 'all'); } catch (e) {} render(); try { Hap.tap(); } catch (e) {} },
     refresh() { const d = document.getElementById('cal_details'); if (d && d.open) render(); },
-    go(dir) { year += dir; render(); try { Hap.tick(); } catch (e) {} },
+    toggleMore() { more = !more; render(); },
+    go(dir) { const ny = year + dir; if (yMax && (ny < yMin || ny > yMax)) return; year = ny; render(); try { Hap.tick(); } catch (e) {} },
     move() {
       const w = document.getElementById('cal_wrap'), a = document.getElementById('trip_archive_box'); if (!w || !a) return;
       const bottom = !(w.dataset.pos === 'bottom');
@@ -8229,9 +8257,10 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
 
 <script id="wn-js">
 (function () {
-  const VER = '20261028';
+  const VER = '20261029';
   // d — дата изменения; a — только для руководителей
   const ITEMS = [
+    { d: '20261029', i: '🗂', a: 0, t: 'Календарь командировок: компактнее и цветнее', p: 'Под годом теперь одна строка с количеством командировок, а список открывается кнопкой «Ещё». Архивные командировки разноцветные (бледные цвета), у месяцев значки: ⏳ в процессе, ✅ сданы, 📦 в архиве. Годы без командировок (до 2021 и будущие) не показываются. В списке командировок сданные и закончившиеся уходят в «Архив командировок» (документы остаются доступными).' },
     { d: '20261028', i: '📅', a: 0, t: 'Мой график: умное табелирование', p: 'Профиль → «Мой график»: смены месяцем, неделей и годом, подработки (зажмите выходной), отгулы ☕, отпуск 🌴, свои пометки с цветом и значком, отчёты по месяцам и годам и отправка отчёта в Telegram. Смены можно нанести вручную (приложение предложит продолжить схему до конца года), пока нет официального графика. День отпуска с подработкой закрашен пополам. Главный руководитель загружает PDF-графики и Excel отпусков в «Загрузка графиков».' },
     { d: '20261027', i: '💾', a: 0, t: 'Капсула сохранения', p: 'При любой правке профиля, базы сотрудников, оповещений и настроек сверху выезжает чёрная капсула: «Сохраняю…», затем «Сохранено», а при сбое «Не сохранилось».' },
     { d: '20261026', i: '🏷', a: 1, t: 'База сотрудников: короткие карточки', p: 'Отчество скрыто, плашка команды «КО Фамилия» стоит под именем. Список идёт по порядку команд, сотрудники без команды в конце. У главного руководителя при раскрытии плашка уходит в данные, у остальных остаётся.' },
