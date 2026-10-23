@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Авансовый отчёт">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="app-build" content="20261021-48">
+  <meta name="app-build" content="20261021-49">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -7895,7 +7895,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
   const dim = (y, m) => new Date(Date.UTC(y, m, 0)).getUTCDate();
   const dow = (k) => (new Date(T(k)).getUTCDay() + 6) % 7;
   const KEYNAME = { S1: 'Смена 1', S2: 'Смена 2', LEAD: 'Руководители 5/2' };
-  const COL = { work: ['#d5f0dc', '#14532d'], off: ['#f3f1ec', '#44403c'], ext: ['#7f1d3a', '#ffffff'], vac: ['#fde68a', '#78350f'], none: ['#f5f5f4', '#a8a29e'] };
+  const COL = { work: ['#7dd69a', '#0b3d1e'], off: ['#ece9e2', '#6b665e'], ext: ['#8b1d3f', '#ffffff'], vac: ['#fbbf24', '#5a3300'], none: ['#faf9f7', '#b8b3aa'] };
   const PAL = ['#bfdbfe', '#fbcfe8', '#ddd6fe', '#fed7aa', '#a7f3d0', '#fecaca', '#e5e7eb', '#bae6fd'];
   const EMO = ['🩺', '👮', '🏛', '🎓', '✈️', '🚗', '💼', '🏥', '🎂', '🏠', '📌', '⚽'];
   const blank = () => ({ s: '', x: [], o: [], v: [], m: {}, p: [], w: {} });
@@ -7959,7 +7959,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     return parts.join(', ');
   }
   const pDate = (k) => k.slice(8) + '.' + k.slice(5, 7);
-  const pRange = (a, b) => MS[+a.slice(5, 7) - 1] + ' ' + pDate(a) + '-' + pDate(b);
+  const pRange = (a, b) => MN[+a.slice(5, 7) - 1] + ' ' + pDate(a) + '-' + pDate(b);
   const pLen = (p) => Math.round((T(p.b) - T(p.a)) / DAY) + 1;
   function vacLine(r0, r1, label) {
     const ps = periods(), tk = todayK(), out = [];
@@ -8007,7 +8007,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     if (view === 'year') return String(y);
     if (view === 'month') return MN[m - 1] + ' ' + y;
     const w = weekKeys(cur), a = w[0], b = w[6];
-    return a.slice(5, 7) === b.slice(5, 7) ? (+a.slice(8)) + '–' + (+b.slice(8)) + ' ' + MG[+b.slice(5, 7) - 1] : (+a.slice(8)) + ' ' + MS[+a.slice(5, 7) - 1].toLowerCase() + ' – ' + (+b.slice(8)) + ' ' + MS[+b.slice(5, 7) - 1].toLowerCase();
+    return a.slice(5, 7) === b.slice(5, 7) ? (+a.slice(8)) + '–' + (+b.slice(8)) + ' ' + MG[+b.slice(5, 7) - 1] : (+a.slice(8)) + ' ' + MG[+a.slice(5, 7) - 1] + ' – ' + (+b.slice(8)) + ' ' + MG[+b.slice(5, 7) - 1];
   }
   function shiftName() { return S.me.s ? ((S.sc.find((x) => x.key === S.me.s) || {}).title ? KEYNAME[S.me.s] : KEYNAME[S.me.s]) : 'Выберите смену'; }
   function segBtn(v, t) { return '<button type="button" data-a="v:' + v + '" style="min-height:28px; border:0; border-radius:8px; font-size:13px; font-weight:' + (view === v ? '800' : '600') + '; background:' + (view === v ? '#fff' : 'transparent') + '; color:' + (view === v ? '#111827' : '#475569') + '; font-family:inherit;">' + t + '</button>'; }
@@ -8056,6 +8056,12 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     L.push(r.off + ' ' + pl(r.off, ['выходной', 'выходных', 'выходных']) + (view === 'week' && r.off ? ' (' + fmtList(r.ol) + ')' : ''));
     if (r.otg) L.push(r.otg + ' ' + pl(r.otg, ['отгул', 'отгула', 'отгулов']) + (view === 'year' ? '' : ' (' + fmtList(r.gl) + ')'));
     if (r.mark) L.push(r.mark + ' ' + pl(r.mark, ['пометка', 'пометки', 'пометок']) + (view === 'year' ? '' : ' (' + fmtList(r.ml) + ')'));
+    if ((view === 'year' || view === 'month') && hasY(y)) {
+      const past = stat(keys.filter((k) => k <= tk)), fut = stat(keys.filter((k) => k > tk));
+      const wd = past.work + past.extra, hh = Math.round(fut.hours * 10) / 10;
+      L.push('Отработано: ' + wd + ' ' + pl(wd, ['день', 'дня', 'дней']) + (past.extra ? ' (осн. ' + past.work + ' + подработок ' + past.extra + ')' : ''));
+      L.push('Осталось отработать: ' + fut.work + ' ' + pl(fut.work, ['день', 'дня', 'дней']) + (fut.work ? ' (' + hh + ' ч по графику)' : ''));
+    }
     let h = '<div style="background:#fff; border-radius:12px; padding:12px; display:flex; flex-direction:column; gap:4px; margin-top:12px;"><div style="font-weight:800; font-size:13px;">' + E(label) + '</div>' + L.map((x) => '<div style="font-size:13px; color:#1f2937;">' + E(x) + '</div>').join('');
     if (view === 'year') {
       const yp = periods().filter((p) => p.a.slice(0, 4) === String(y) || p.b.slice(0, 4) === String(y));
@@ -8063,9 +8069,27 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
       else h += '<div style="font-size:13px; color:#64748b;">Отпуск в этом году не запланирован</div>';
     } else vl.forEach((x) => { h += '<div style="font-size:13px; color:#92400e; font-weight:700;">' + E(x.t) + '</div>'; });
     unsched().forEach((v) => { h += '<div style="font-size:12px; color:#64748b;">По графику отпусков: ' + v.days + ' ' + pl(v.days, ['день', 'дня', 'дней']) + ' без даты</div>'; });
+    if (view === 'week' && keys.indexOf(tk) >= 0) h = restBanner() + h;
     return h + '</div>';
   }
-  function byMonth(keys) { const c = {}; keys.forEach((k) => { c[+k.slice(5, 7)] = (c[+k.slice(5, 7)] || 0) + 1; }); return Object.keys(c).map((m) => c[m] + ' ' + MS[m - 1].toLowerCase()).join(', '); }
+  // Выходной: сегодня или сколько дней до ближайшего
+  function isRest(k) { const s = st(k); return s.has && !s.ext && (!s.base || s.vac || s.otg); }
+  function restBanner() {
+    const tk = todayK();
+    const sty = '<style>@keyframes ttBob{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-7px) rotate(4deg)}}@keyframes ttFloat{0%{transform:translateY(8px);opacity:0}30%{opacity:1}100%{transform:translateY(-26px);opacity:0}}.tt-rest-e{display:inline-block;animation:ttBob 1.4s ease-in-out infinite}.tt-fl{position:absolute;bottom:6px;font-size:16px;animation:ttFloat 2.6s ease-in infinite}</style>';
+    const dn = (n) => n + ' ' + pl(n, ['день', 'дня', 'дней']);
+    if (isRest(tk)) {
+      let n = 0; for (let t = T(tk) + DAY; n < 60; t += DAY) { if (isRest(KT(t))) n++; else break; }
+      return sty + '<div style="position:relative; overflow:hidden; background:linear-gradient(135deg,#fef3c7,#fde68a); border-radius:12px; padding:12px 14px; margin-bottom:6px;"><span class="tt-fl" style="left:72%;animation-delay:0s">✨</span><span class="tt-fl" style="left:84%;animation-delay:.9s">🎈</span><span class="tt-fl" style="left:93%;animation-delay:1.7s">☀️</span>' +
+        '<div style="font-size:16px; font-weight:800; color:#78350f;"><span class="tt-rest-e">🎉</span> У вас сегодня выходной!</div>' +
+        (n ? '<div style="font-size:13px; font-weight:700; color:#92400e; margin-top:3px;">Вам осталось отдыхать ещё ' + dn(n) + ' подряд</div>' : '') + '</div>';
+    }
+    let n = 0, nx = '';
+    for (let t = T(tk) + DAY; n < 60; t += DAY) { n++; const k = KT(t); if (!st(k).has) break; if (isRest(k)) { nx = k; break; } }
+    if (!nx) return '';
+    return '<div style="background:#ecfdf5; border-radius:12px; padding:10px 14px; margin-bottom:6px; font-size:13px; font-weight:700; color:#065f46;">⏳ До ближайшего выходного: ' + dn(n) + ' (' + pDate(nx) + ')</div>';
+  }
+  function byMonth(keys) { const c = {}; keys.forEach((k) => { c[+k.slice(5, 7)] = (c[+k.slice(5, 7)] || 0) + 1; }); return Object.keys(c).map((m) => c[m] + ' ' + MG[m - 1]).join(', '); }
   function legend() {
     const i = (bg, t, ex) => '<span style="display:inline-flex; align-items:center; gap:5px;"><i style="width:12px; height:12px; border-radius:4px; background:' + bg + ';display:inline-block;' + (ex || '') + '"></i>' + t + '</span>';
     return '<div style="display:flex; flex-wrap:wrap; gap:6px 12px; font-size:11px; color:#334155; margin-top:10px;">' + i(COL.work[0], 'Смена') + i(COL.ext[0], 'Подработка') + i(COL.vac[0], '🌴 Отпуск') + i('linear-gradient(135deg,' + COL.vac[0] + ' 50%,' + COL.ext[0] + ' 50%)', 'Отпуск + подработка') + i('#fff', '☕ Отгул', 'box-shadow:inset 0 0 0 2px #111827;') + i('#bfdbfe', 'Пометка') + '</div>';
@@ -8272,7 +8296,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
   function calCanvas(y) {
     const W = 1485, H = 2100, c = document.createElement('canvas'); c.width = W; c.height = H;
     const g = c.getContext('2d'), F = (sz, w) => (w || 'normal') + ' ' + sz + 'px Arial, Helvetica, sans-serif';
-    const RC = { work: ['#7dd69a', '#0b3d1e'], off: ['#ece9e2', '#6b665e'], ext: ['#8b1d3f', '#ffffff'], vac: ['#fbbf24', '#5a3300'], none: ['#faf9f7', '#b8b3aa'] };
+    const RC = COL;
     const rr = (x, yy, w, h, r) => { g.beginPath(); g.moveTo(x + r, yy); g.arcTo(x + w, yy, x + w, yy + h, r); g.arcTo(x + w, yy + h, x, yy + h, r); g.arcTo(x, yy + h, x, yy, r); g.arcTo(x, yy, x + w, yy, r); g.closePath(); };
     g.fillStyle = '#ffffff'; g.fillRect(0, 0, W, H);
     // шапка
@@ -8343,7 +8367,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     let dy = lyy + 100;
     const wrap = (txt, x, w) => { const words = txt.split(' '); let line = ''; const out = []; words.forEach((wd) => { const t = line ? line + ' ' + wd : wd; if (g.measureText(t).width > w && line) { out.push(line); line = wd; } else line = t; }); if (line) out.push(line); return out; };
     const rowTxt = (label, body) => { g.font = F(21, 'bold'); const lw2 = g.measureText(label + ' ').width; g.fillStyle = '#111827'; g.fillText(label, 42, dy); g.font = F(21); g.fillStyle = '#374151'; const lines = wrap(body, 42 + lw2, W - 84 - lw2); lines.forEach((ln, i) => { g.fillText(ln, 42 + lw2, dy + i * 28); }); dy += Math.max(1, lines.length) * 28 + 6; };
-    rowTxt('Подработки:', byMonth(r.el) ? (r.extra + ': ' + MS.map((mn, i) => { const L = r.el.filter((k) => +k.slice(5, 7) === i + 1); return L.length ? mn + ' ' + fmtList(L) : ''; }).filter(Boolean).join(' · ')) : '—');
+    rowTxt('Подработки:', byMonth(r.el) ? (r.extra + ': ' + MN.map((mn, i) => { const L = r.el.filter((k) => +k.slice(5, 7) === i + 1); return L.length ? mn + ' ' + fmtList(L) : ''; }).filter(Boolean).join(' · ')) : '—');
     rowTxt('Отгулы:', r.gl.length ? r.gl.map((k) => pDate(k)).join(', ') : '—');
     rowTxt('Отпуск:', yp.length ? yp.map((p) => pLen(p) + ' дн. (' + pRange(p.a, p.b) + ')').join(' · ') : '—');
     Object.keys(mkNames).forEach((n) => rowTxt((mkNames[n].e || '') + ' ' + n + ':', mkNames[n].d.map((k) => pDate(k)).join(', ')));
@@ -8524,9 +8548,10 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
 
 <script id="wn-js">
 (function () {
-  const VER = '20261033';
+  const VER = '20261034';
   // d — дата изменения; a — только для руководителей
   const ITEMS = [
+    { d: '20261034', i: '🌿', a: 0, t: 'График: яркие цвета и статистика', p: 'Цвета в календаре графика теперь яркие, как в отчёте. В месяце и году появились «Отработано» и «Осталось отработать». В неделе: сколько дней до выходного, а в выходной анимация и сколько ещё отдыхать.' },
     { d: '20261033', i: '🎨', a: 0, t: 'Цветной календарь в Telegram', p: 'Табель из бота теперь настоящий цветной календарь: ячейки закрашены как в приложении, легенда с количеством дней и подробные списки. В календаре командировок рядом с городом указан «КО Фамилия».' },
     { d: '20261032', i: '🟠', a: 0, t: 'Заявка: подсказки по полям', p: 'Незаполненные поля заявки подсвечены, следующее нужное пульсирует. После города сам открывается выбор дат, поле не прячется за клавиатурой.' },
     { d: '20261031', i: '✉️', a: 0, t: 'Продление в разные города', p: 'В продлении у каждого сотрудника можно указать свой город и сроки. Письмо общее, с блоками по городам. Тема письма теперь «RE:» к теме первичной заявки.' },
