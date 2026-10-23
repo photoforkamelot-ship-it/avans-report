@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Авансовый отчёт">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="app-build" content="20261024-58">
+  <meta name="app-build" content="20261024-59">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -8017,6 +8017,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
   const monthKeys = (y, m) => { const a = []; for (let d = 1; d <= dim(y, m); d++) a.push(K(y, m, d)); return a; };
   const yearKeys = (y) => { let a = []; for (let m = 1; m <= 12; m++) a = a.concat(monthKeys(y, m)); return a; };
   function weekKeys(k) { const s = T(k) - dow(k) * DAY, a = []; for (let i = 0; i < 7; i++) a.push(KT(s + i * DAY)); return a; }
+  function fmtDates(keys) { const by = {}; keys.forEach((k) => { (by[k.slice(0, 7)] = by[k.slice(0, 7)] || []).push(k); }); return Object.keys(by).sort().map((ym) => fmtList(by[ym]) + ' ' + MG[+ym.slice(5, 7) - 1]).join(' · '); }
   function fmtList(keys) {
     if (!keys.length) return '';
     const parts = []; let i = 0;
@@ -8119,11 +8120,11 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     else { keys = yearKeys(y); r0 = y + '-01-01'; r1 = y + '-12-31'; label = (tk.slice(0, 4) === String(y)) ? 'Текущий год:' : y + ' год:'; vl = []; }
     const r = stat(keys), L = [];
     if (!hasY(y) && view !== 'week') return '';
-    if (r.extra) L.push(r.extra + ' ' + pl(r.extra, ['подработка', 'подработки', 'подработок']) + (view === 'year' ? ' (' + byMonth(r.el) + ')' : ' (' + fmtList(r.el) + ')'));
-    L.push(r.work + ' осн. ' + pl(r.work, ['день', 'дня', 'дней']) + (view === 'year' ? '' : r.work ? ' (' + fmtList(r.wl) + ')' : ''));
-    L.push(r.off + ' ' + pl(r.off, ['выходной', 'выходных', 'выходных']) + (view === 'week' && r.off ? ' (' + fmtList(r.ol) + ')' : ''));
-    if (r.otg) L.push(r.otg + ' ' + pl(r.otg, ['отгул', 'отгула', 'отгулов']) + (view === 'year' ? '' : ' (' + fmtList(r.gl) + ')'));
-    if (r.mark) L.push(r.mark + ' ' + pl(r.mark, ['пометка', 'пометки', 'пометок']) + (view === 'year' ? '' : ' (' + fmtList(r.ml) + ')'));
+    if (r.extra) L.push(r.extra + ' ' + pl(r.extra, ['подработка', 'подработки', 'подработок']) + (view === 'year' ? ' (' + byMonth(r.el) + ')' : ' (' + fmtDates(r.el) + ')'));
+    L.push(r.work + ' осн. ' + pl(r.work, ['день', 'дня', 'дней']) + (view === 'year' ? '' : r.work ? ' (' + fmtDates(r.wl) + ')' : ''));
+    L.push(r.off + ' ' + pl(r.off, ['выходной', 'выходных', 'выходных']) + (view === 'week' && r.off ? ' (' + fmtDates(r.ol) + ')' : ''));
+    if (r.otg) L.push(r.otg + ' ' + pl(r.otg, ['отгул', 'отгула', 'отгулов']) + (view === 'year' ? '' : ' (' + fmtDates(r.gl) + ')'));
+    if (r.mark) L.push(r.mark + ' ' + pl(r.mark, ['пометка', 'пометки', 'пометок']) + (view === 'year' ? '' : ' (' + fmtDates(r.ml) + ')'));
     if ((view === 'year' || view === 'month') && hasY(y)) {
       const past = stat(keys.filter((k) => k <= tk)), fut = stat(keys.filter((k) => k > tk));
       const wd = past.work + past.extra, hh = Math.round(fut.hours * 10) / 10;
