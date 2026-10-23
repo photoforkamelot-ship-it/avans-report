@@ -8556,7 +8556,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     R.forEach((x, i) => L.push(pad(MS[i], 5) + [x.r.work, x.r.extra, x.r.off, x.r.vac, x.r.otg, x.r.mark, x.r.hours].map((v) => pad(String(v), 4)).join('')));
     L.push(pad('Итого', 5) + [t.work, t.extra, t.off, t.vac, t.otg, t.mark, t.hours].map((v) => pad(String(v), 4)).join(''));
     const ky = yearKeys(y), r = stat(ky);
-    L.push('', 'Подработки (' + r.extra + '): ' + (byMonth(r.el) || '-'));
+    L.push('', 'Подработки (' + r.extra + '): ' + (fmtDates(r.el) || '-'));
     L.push('Отгулы (' + r.otg + '): ' + (r.gl.map((k) => pDate(k)).join(', ') || '-'));
     const yp = periods().filter((p) => p.a.slice(0, 4) === String(y) || p.b.slice(0, 4) === String(y));
     L.push('Отпуск: ' + (yp.map((p) => pLen(p) + ' дн. ' + pRange(p.a, p.b)).join('; ') || '-'));
