@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Авансовый отчёт">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="app-build" content="20261024-57">
+  <meta name="app-build" content="20261024-58">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -390,6 +390,10 @@
     #tab-new-req .req-next > input:not([type=hidden]), #tab-new-req .req-next > select, #tab-new-req .req-next > textarea,
     #tab-new-req .req-next #team_search_input { border-color: #ef4444 !important; animation: reqPulse 1.6s ease-in-out infinite; }
     #tab-new-req .req-next > label::after { color: #dc2626; content: ' · сейчас это'; }
+
+    /* Общая подсветка незаполненных обязательных полей (расходы, АО-1, реквизиты, личные данные) */
+    .hl-miss { border-color: #f59e0b !important; background-color: #fffbeb !important; }
+    .hl-next { border-color: #ef4444 !important; animation: reqPulse 1.6s ease-in-out infinite; }
     @keyframes reqPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.45); } 50% { box-shadow: 0 0 0 6px rgba(239,68,68,0); } }
     body.kb #tab-new-req { padding-bottom: 46vh; }
 
@@ -2621,7 +2625,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
   }
 
   window.addEventListener('DOMContentLoaded', () => {
-    try { const _keep = {}; ['last_tg_user','home_ok_v1','swipe_off','hap_off','demo_off','whatsnew_seen','a2hs_seen','a2hs_later','web_token','web_uid','web_fio'].forEach(k => { const v = localStorage.getItem(k); if (v !== null) _keep[k] = v; }); localStorage.clear(); Object.keys(_keep).forEach(k => localStorage.setItem(k, _keep[k])); } catch(e){}
+    try { const _keep = {}; ['last_tg_user','home_ok_v1','swipe_off','hap_off','demo_off','whatsnew_seen','a2hs_seen','a2hs_later','web_token','web_uid','web_fio','tt_cache_v1','tt_hide'].forEach(k => { const v = localStorage.getItem(k); if (v !== null) _keep[k] = v; }); localStorage.clear(); Object.keys(_keep).forEach(k => localStorage.setItem(k, _keep[k])); } catch(e){}
 
     datePickerRange = flatpickr("#p_date_range", {
       mode: "range", locale: "ru", dateFormat: "d.m.Y", showMonths: 1,
@@ -3400,6 +3404,42 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     document.addEventListener(ev, function (e) { if (e.target && e.target.closest && e.target.closest('#tab-new-req')) setTimeout(reqMarkMissing, 60); });
   });
   setInterval(reqMarkMissing, 700);
+
+  // ===== Общая подсветка незаполненных полей: расходы, АО-1, реквизиты, данные сотрудника, домашний город, подпись =====
+  (function () {
+    const vis = (el) => !!el && el.getClientRects().length > 0 && getComputedStyle(el).visibility !== 'hidden';
+    const ctl = (box) => box.querySelector('input:not([type=hidden]):not([type=checkbox]):not([type=radio]):not([type=file]), select, textarea');
+    const SC = [
+      { sel: '#step-1', star: true }, { sel: '#add-box', star: true }, { sel: '#bank_details_modal', star: true },
+      { sel: '#emp_modal', ids: ['modal_fio', 'modal_role', 'modal_tab'] },
+      { sel: '#hg_city', self: true }
+    ];
+    function missing(sc) {
+      const root = document.querySelector(sc.sel); if (!root || !vis(root)) return [];
+      if (sc.self) { const v = (root.value || '').trim(); return v ? [] : [root]; }
+      const out = [];
+      if (sc.ids) { sc.ids.forEach(id => { const e = document.getElementById(id); if (e && vis(e) && !String(e.value || '').trim()) out.push(e); }); return out; }
+      root.querySelectorAll('.field').forEach(f => {
+        if (!f.querySelector(':scope > label .req-star')) return;
+        const c = ctl(f); if (!c || !vis(c)) return;
+        if (!String(c.value || '').trim()) out.push(c);
+      });
+      return out;
+    }
+    function sigMissing() {
+      const m = document.getElementById('signature_modal'); if (!m || !vis(m)) return [];
+      const img = document.getElementById('sig_current_img');
+      if (img && img.style.display !== 'none' && img.getAttribute('src')) return [];
+      const c = document.getElementById('sig_canvas'); return c && vis(c) ? [c] : [];
+    }
+    function tick() {
+      document.querySelectorAll('.hl-miss, .hl-next').forEach(e => e.classList.remove('hl-miss', 'hl-next'));
+      SC.forEach(sc => { const l = missing(sc); l.forEach((e, i) => { e.classList.add('hl-miss'); if (i === 0) e.classList.add('hl-next'); }); });
+      sigMissing().forEach(e => e.classList.add('hl-next'));
+    }
+    setInterval(tick, 600);
+    ['input', 'change', 'click'].forEach(ev => document.addEventListener(ev, () => setTimeout(tick, 60)));
+  })();
   // после выбора города — к срокам; клавиатура не должна закрывать поле
   document.addEventListener('focusin', function (e) {
     const t = e.target;
@@ -8240,8 +8280,8 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     document.getElementById('tt_cl_ok').onclick = () => { const w = { o: document.getElementById('tt_cl_o').checked, m: document.getElementById('tt_cl_m').checked, v: document.getElementById('tt_cl_v').checked }, sc = document.getElementById('tt_cl_s').value; if (!w.o && !w.m && !w.v) { toast('Отметьте, что очистить'); return; } closeDlg(); uiAsk('Очистить события?', 'Это нельзя отменить.', 'Очистить', () => clearEvents(w, sc)); };
   }
   async function persist(quiet) {
-    reindex();
-    try { await api({ action: 'tt_save_me', me: JSON.stringify(S.me), quiet: quiet === true }); } catch (e) { toast('Не сохранилось: ' + (e.message || e)); }
+    reindex(); if (quiet !== true) S.dirty = true;
+    try { await api({ action: 'tt_save_me', me: JSON.stringify(S.me), quiet: quiet === true }); try { const cc = ttCacheRead(); if (cc) { cc.me = JSON.stringify(S.me); ttCacheWrite(cc); } } catch (e2) {} } catch (e) { toast('Не сохранилось: ' + (e.message || e)); }
   }
   function quickExtra(k) {
     const s = st(k);
@@ -8825,19 +8865,30 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
   }
 
   // ---------- открытие ----------
-  async function load() {
-    try {
-      const j = await api({ action: 'tt_get' });
-      S.sc = j.schedules || []; S.keys = j.keys || []; S.vac = j.vac || []; S.team = j.team || null; S.myPos = j.myPos || ''; S.leader = j.leader || null; S.assigned = j.assigned || null; S.teamVac = j.teamVac || [];
+  const TT_CK = 'tt_cache_v1';
+  const ttUid = () => String((globalAppData && globalAppData.currentUser && globalAppData.currentUser.tgId) || '');
+  function ttCacheRead() { try { const o = JSON.parse(localStorage.getItem(TT_CK) || 'null'); if (o && o.u && o.u === ttUid()) return o.j; } catch (e) {} return null; }
+  function ttCacheWrite(j) { try { if (ttUid()) localStorage.setItem(TT_CK, JSON.stringify({ u: ttUid(), j: j })); } catch (e) {} }
+  function applyTT(j, fresh) {
+    S.sc = j.schedules || []; S.keys = j.keys || []; S.vac = j.vac || []; S.team = j.team || null; S.myPos = j.myPos || ''; S.leader = j.leader || null; S.assigned = j.assigned || null; S.teamVac = j.teamVac || [];
+    if (!(fresh && S.dirty)) {
       let me = blank(); try { const o = JSON.parse(j.me || '{}'); me = Object.assign(blank(), o); } catch (e) {}
       S.me = me; if (S.me.s && S.keys.indexOf(S.me.s) < 0) S.me.s = '';
-      if (S.assigned && S.assigned.key && S.keys.indexOf(S.assigned.key) >= 0 && S.me.s !== S.assigned.key) { S.me.s = S.assigned.key; setTimeout(() => persist(true), 200); }
-      S.loaded = true; reindex();
-    } catch (e) { toast('Не удалось загрузить график: ' + (e.message || e)); S.loaded = true; }
+      if (fresh && S.assigned && S.assigned.key && S.keys.indexOf(S.assigned.key) >= 0 && S.me.s !== S.assigned.key) { S.me.s = S.assigned.key; setTimeout(() => persist(true), 200); }
+    }
+    S.loaded = true; reindex();
+  }
+  async function load() {
+    const c = ttCacheRead();
+    if (c) { applyTT(c, false); render(); }
+    try {
+      const j = await api({ action: 'tt_get' });
+      ttCacheWrite(j); applyTT(j, true);
+    } catch (e) { if (!c) toast('Не удалось загрузить график: ' + (e.message || e)); S.loaded = true; }
     render();
   }
   window.TT = {
-    open() { const m = root(); m.style.display = 'flex'; cur = todayK(); S.loaded = false; render(); load(); try { Hap.tap(); } catch (e) {} },
+    open() { const m = root(); m.style.display = 'flex'; cur = todayK(); S.loaded = false; S.dirty = false; render(); load(); try { Hap.tap(); } catch (e) {} },
     rows() { const r = document.getElementById('prof_row_ttup'); if (r) r.style.display = (globalAppData && globalAppData.isSuperAdmin && !(typeof ACT_AS !== 'undefined' && ACT_AS)) ? '' : 'none'; }
   };
 
@@ -8984,9 +9035,10 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
 
 <script id="wn-js">
 (function () {
-  const VER = '20261040';
+  const VER = '20261041';
   // d — дата изменения; a — только для руководителей
   const ITEMS = [
+    { go: 'prof', d: '20261041', i: '⚡', a: 0, t: 'Быстрее открывается «Мой график»', p: 'График теперь открывается сразу из сохранённых данных, а свежие подгружаются в фоне. Сервер тоже стал быстрее. Незаполненные поля в расходах, АО-1, реквизитах, домашнем городе и подписи подсвечены, следующее пульсирует. Руководитель получает подтверждение, когда назначает сотруднику график.' },
     { go: 'trips', d: '20261040', i: '✉️', a: 0, t: 'Письма к заявкам под каждым сотрудником', p: 'В цепочке каждого сотрудника под первичной заявкой и под каждым продлением теперь своя карточка письма. Письмо одно на всех участников, в нём все их суммы и все заявки в PDF. Тема продления начинается с RE.' },
     { go: 'tt', d: '20261039', i: '📝', a: 0, t: 'Два вида отгула и новый вид PDF табеля', p: 'Отгул теперь бывает двух видов: простой (за отработанные выходные, в табель не вносится) и официальный ДО (с заявлением, вносится в табель с кодом ДО). Вид выбирается при постановке отгула. PDF табеля теперь точно как ваш шаблон.' },
     { go: 'tt', d: '20261038', i: '📗', a: 0, t: 'Табель команды, PDF и график сотрудникам', p: 'Табель Т-12 теперь и в PDF. Руководитель формирует общий табель команды или выбранных сотрудников (месяц или год) и назначает сотрудникам смену: они получат сообщение и смогут изменить её с проверкой своих событий. Кнопка «Очистка / вид» очищает события или оставляет только основные смены. Главный руководитель выгружает отпуска в Excel в формате загрузки.' },
