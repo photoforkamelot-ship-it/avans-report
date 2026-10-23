@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Авансовый отчёт">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="app-build" content="20261021-46">
+  <meta name="app-build" content="20261021-47">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -382,6 +382,16 @@
     input:focus, select:focus, textarea:focus { outline: none; border-color: var(--primary) !important; box-shadow: 0 0 0 3px rgba(0,122,255,0.18); transition: box-shadow 0.15s, border-color 0.15s; }
     @keyframes afFlash { 0% { box-shadow: 0 0 0 0 rgba(0,122,255,0.55); } 100% { box-shadow: 0 0 0 10px rgba(0,122,255,0); } }
     .af-flash { animation: afFlash 0.7s ease-out; }
+
+    /* Заявка: подсветка незаполненных полей и следующий шаг */
+    #tab-new-req .req-missing > input:not([type=hidden]), #tab-new-req .req-missing > select, #tab-new-req .req-missing > textarea,
+    #tab-new-req .req-missing #selected_team_chips { border-color: #f59e0b !important; background: #fffbeb !important; }
+    #tab-new-req .req-missing > label::after { content: ' · заполните'; color: #d97706; font-weight: 600; font-size: 11px; }
+    #tab-new-req .req-next > input:not([type=hidden]), #tab-new-req .req-next > select, #tab-new-req .req-next > textarea,
+    #tab-new-req .req-next #selected_team_chips { border-color: #ef4444 !important; animation: reqPulse 1.6s ease-in-out infinite; }
+    #tab-new-req .req-next > label::after { color: #dc2626; content: ' · сейчас это'; }
+    @keyframes reqPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.45); } 50% { box-shadow: 0 0 0 6px rgba(239,68,68,0); } }
+    body.kb #tab-new-req { padding-bottom: 46vh; }
 
     /* Окно результата заявки */
     .rs-box { background: #f8fafc; border: 1px solid #e5e5ea; border-radius: 10px; padding: 8px 12px; margin-bottom: 10px; font-size: 13px; line-height: 1.5; }
@@ -3309,6 +3319,57 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     t.enterKeyHint = (list.indexOf(t) < list.length - 1) ? 'next' : 'done';
   });
 
+
+  // ===== Заявка: подсветка незаполненного, переход к следующему полю, клавиатура =====
+  function reqMissingList() {
+    const g = (id) => document.getElementById(id);
+    const out = [];
+    if (!(g('req_city').value || '').trim()) out.push({ k: 'city', t: 'город', el: g('req_city'), box: g('req_city').closest('.field') });
+    const sel = g('req_purpose_select');
+    if (sel && sel.value === 'custom' && !(g('req_purpose_custom').value || '').trim()) out.push({ k: 'purpose', t: 'цель', el: g('req_purpose_custom'), box: sel.closest('.field') });
+    if (!g('req_date_start').value || !g('req_date_end').value) out.push({ k: 'dates', t: 'сроки', el: g('req_date_range'), box: g('req_date_range').closest('.field') });
+    if (!Object.keys(currentReqTeamData || {}).length) out.push({ k: 'team', t: 'участники', el: g('team_search_input'), box: g('team_search_input').closest('.field') });
+    return out;
+  }
+  function reqMarkMissing() {
+    const tab = document.getElementById('tab-new-req');
+    if (!tab || tab.style.display === 'none') return [];
+    tab.querySelectorAll('.req-missing, .req-next').forEach(e => e.classList.remove('req-missing', 'req-next'));
+    const list = reqMissingList();
+    list.forEach((m, i) => { if (m.box) { m.box.classList.add('req-missing'); if (i === 0) m.box.classList.add('req-next'); } });
+    return list;
+  }
+  function reqFocusMissing() {
+    const list = reqMarkMissing();
+    if (!list.length) return false;
+    const m = list[0];
+    showToast('Заполните: ' + list.map(x => x.t).join(', '));
+    try { Hap.err && Hap.err(); } catch (e) {}
+    if (m.box) { try { m.box.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) {} }
+    if (m.el) setTimeout(function () { afFocus(m.el); }, 300);
+    return true;
+  }
+  ['input', 'change', 'click'].forEach(function (ev) {
+    document.addEventListener(ev, function (e) { if (e.target && e.target.closest && e.target.closest('#tab-new-req')) setTimeout(reqMarkMissing, 60); });
+  });
+  setInterval(reqMarkMissing, 700);
+  // после выбора города — к срокам; клавиатура не должна закрывать поле
+  document.addEventListener('focusin', function (e) {
+    const t = e.target;
+    if (!t || !t.closest || !t.closest('#tab-new-req') || !t.matches('input, textarea, select')) return;
+    setTimeout(function () { try { t.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (x) {} }, 350);
+  });
+  document.addEventListener('focusout', function (e) {
+    if (e.target && e.target.id === 'req_city' && (e.target.value || '').trim()) {
+      setTimeout(function () {
+        const a = document.activeElement;
+        if (a && a !== document.body && a.closest && a.closest('#tab-new-req')) return; // пользователь сам перешёл
+        const l = reqMissingList().filter(x => x.k !== 'city');
+        if (l.length && l[0].k === 'dates') afFocus(document.getElementById('req_date_range'));
+      }, 200);
+    }
+  });
+
   function promptStayDaysDifference(days) {
     document.getElementById('stay_prompt_desc').innerText = `Дни нахождения в командировке (${days} дн.) и количество суток проживания совпадают?`;
     document.getElementById('custom_stay_box').style.display = 'none';
@@ -4717,6 +4778,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
 
     renderSelectedTeamChips();
     renderTeamEstimateCards();
+    setTimeout(function () { const c = document.getElementById('req_team_estimates'); if (c) { try { c.scrollIntoView({ block: 'start', behavior: 'smooth' }); } catch (e) {} } }, 200);
   }
 
   function removeTeamMemberFromEstimate(fio) {
@@ -4879,6 +4941,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     const targetTripId = document.getElementById('req_target_trip_id').value;
     const teamArr = Object.values(currentReqTeamData);
 
+    if (reqFocusMissing()) return;
     if (!city || !dStart || !dEnd) { showToast("Укажите город и период"); return; }
     if (teamArr.length === 0) { showToast("Выберите сотрудников"); return; }
     const noBank = teamArr.filter(m => !bankComplete(m));
@@ -8355,9 +8418,10 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
 
 <script id="wn-js">
 (function () {
-  const VER = '20261031';
+  const VER = '20261032';
   // d — дата изменения; a — только для руководителей
   const ITEMS = [
+    { d: '20261032', i: '🟠', a: 0, t: 'Заявка: подсказки по полям', p: 'Незаполненные поля заявки подсвечены, следующее нужное пульсирует. После города сам открывается выбор дат, поле не прячется за клавиатурой.' },
     { d: '20261031', i: '✉️', a: 0, t: 'Продление в разные города', p: 'В продлении у каждого сотрудника можно указать свой город и сроки. Письмо общее, с блоками по городам. Тема письма теперь «RE:» к теме первичной заявки.' },
     { d: '20261030', i: '🧳', a: 0, t: 'Продление командировок: исправлено', p: 'Продление нескольких сотрудников больше не затирает командировку руководителя: у каждого своя цепочка, расходы и АО-1 не теряются. Руководитель видит в командировке «Письмо по продлению» со ссылками на заявки.' },
     { d: '20261029', i: '🗂', a: 0, t: 'Календарь командировок: компактнее и цветнее', p: 'Под годом теперь одна строка с количеством командировок, а список открывается кнопкой «Ещё». Архивные командировки разноцветные (бледные цвета), у месяцев значки: ⏳ в процессе, ✅ сданы, 📦 в архиве. Годы без командировок (до 2021 и будущие) не показываются. В списке командировок сданные и закончившиеся уходят в «Архив командировок» (документы остаются доступными).' },
