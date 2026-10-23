@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Авансовый отчёт">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="app-build" content="20261024-55">
+  <meta name="app-build" content="20261024-56">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -2550,6 +2550,53 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     triggerMailApp(href);
   }
 
+
+  // ---------- письма к заявкам: одно общее письмо на всех участников, карточка под каждым сотрудником ----------
+  const LETTER_SCOPE = {};
+  function letterEsc(x) { return String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;'); }
+  function letterSiblings(rq, tripIds) {
+    const all = (globalAppData.requestsArchive || []).filter(x => (tripIds || []).indexOf(x.tripId) >= 0);
+    const key = x => String(x.seqNumber || 1) + '|' + String(x.dates || '').replace(/\s+/g, '') + '|' + String(x.city || '');
+    const sib = all.filter(x => key(x) === key(rq));
+    if (!sib.some(x => x.reqId === rq.reqId)) sib.push(rq);
+    return sib;
+  }
+  // Склеивает тексты писем разных сотрудников с одинаковой «шапкой» в одно письмо
+  function mergeLetterTexts(texts) {
+    const uniq = []; texts.forEach(t => { if (t && uniq.indexOf(t) < 0) uniq.push(t); });
+    if (uniq.length <= 1) return uniq[0] || '';
+    const MARK = 'согласно заявкам (во вложении)';
+    const parts = uniq.map(t => {
+      const i = t.indexOf(MARK), j = t.lastIndexOf('С уважением');
+      if (i < 0 || j < 0 || j < i) return null;
+      return { head: t.slice(0, i + MARK.length), blocks: t.slice(i + MARK.length, j).split(/\n\s*\n/).map(x => x.trim()).filter(Boolean), tail: t.slice(j) };
+    });
+    if (parts.some(x => !x) || parts.some(x => x.head !== parts[0].head)) return uniq[0];
+    const blocks = []; parts.forEach(pt => pt.blocks.forEach(bk => { if (blocks.indexOf(bk) < 0) blocks.push(bk); }));
+    return parts[0].head + '\n\n' + blocks.join('\n\n') + '\n\n' + parts[0].tail;
+  }
+  function letterInfo(rq, tripIds) {
+    const sib = letterSiblings(rq, tripIds), body = mergeLetterTexts(sib.map(x => x.savedEmailText));
+    const seq = Number(rq.seqNumber || 1), all = globalAppData.requestsArchive || [];
+    const prim = all.find(x => x.tripId === rq.tripId && Number(x.seqNumber || 1) === 1) || rq;
+    const base = seq > 1 ? prim : rq, pd = String(base.dates || '').split('—').map(x => x.trim());
+    const subject = (seq > 1 ? 'RE: ' : '') + 'Заявка на ДС. Командировка в ' + formatUniqueCities(base.city) + ' ' + pd[0] + '-' + (pd[1] || pd[0]) + 'гг';
+    return { sib: sib, body: body, subject: subject, seq: seq };
+  }
+  function letterCardHtml(rq, tripIds) {
+    if (!rq || !rq.savedEmailText) return '';
+    LETTER_SCOPE[rq.reqId] = tripIds;
+    const inf = letterInfo(rq, tripIds), seq = inf.seq;
+    const nm = (r) => letterEsc(String(r.fio || '').split(' ').slice(0, 2).join(' '));
+    const links = inf.sib.map(r => '<div style="margin-top:3px;"><b>' + nm(r) + '</b>: ' + (r.pdfFileUrl ? '<a href="' + r.pdfFileUrl + '" target="_blank" rel="noopener" style="color:var(--success);" onclick="event.stopPropagation();">PDF</a> ' : '') + (r.fileUrl ? '<a href="' + r.fileUrl + '" target="_blank" rel="noopener" style="color:var(--primary);" onclick="event.stopPropagation();">Excel</a>' : '') + '</div>').join('');
+    return '<div class="timeline-node-field" style="border-color:#6366f1; background:#eef2ff;"><b>✉️ ' + (seq > 1 ? 'Письмо по продлению ' + (seq - 1) : 'Письмо по первичной заявке') + '</b><br><small>В письме: ' + inf.sib.map(nm).join(', ') + ' · заявок во вложении: ' + inf.sib.length + '</small>' + links +
+      '<button type="button" class="btn btn-primary" style="height:30px; font-size:11px; margin-top:6px;" onclick="event.stopPropagation(); openReqLetter(\'' + rq.reqId + '\')">✉️ Открыть письмо</button></div>';
+  }
+  function openReqLetter(reqId) {
+    const rq = findReq(reqId); if (!rq) return;
+    const inf = letterInfo(rq, LETTER_SCOPE[reqId] || [rq.tripId]);
+    openMailBridge({ subject: inf.subject, body: inf.body, reqIds: inf.sib.map(x => x.reqId) });
+  }
   // Заявки одного письма: те же текст и тип (при создании на нескольких сотрудников у каждого своя запись)
   function findReq(id) { return (globalAppData.requestsArchive || []).find(x => x.reqId === id) || null; }
   function findSiblingText(id) { const r = findReq(id); return r ? r.savedEmailText : ''; }
@@ -3968,6 +4015,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
                 <small>Даты: ${rq.dates} (${rq.days} дн.) | ${cityReq} | Цель: ${rq.purpose}</small>
               </div>
             `;
+            html += letterCardHtml(rq, grp.members.map(m => m.tripId));
           });
         }
 
@@ -4044,31 +4092,6 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
           </div>
         `;
       });
-
-      // Письма по продлениям: руководитель видит текст письма и ссылки на заявки каждого продлённого сотрудника
-      (function () {
-        const ids = {}; grp.members.forEach(m => { ids[m.tripId] = 1; });
-        const pr = (reqsArchive || []).filter(rq => ids[rq.tripId] && Number(rq.seqNumber || 1) > 1);
-        if (!pr.length) return;
-        const letters = {};
-        pr.forEach(rq => { const k = (rq.savedEmailText || rq.reqId) + '|' + rq.seqNumber; (letters[k] = letters[k] || []).push(rq); });
-        const esc = (x) => String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;');
-        Object.keys(letters).forEach(k => {
-          const arr = letters[k];
-          const names = arr.map(r => String(r.fio).split(' ').slice(0, 2).join(' ')).join(', ');
-          const links = arr.map(r => '<div style="margin-top:3px;"><b>' + esc(String(r.fio).split(' ').slice(0, 2).join(' ')) + '</b>: ' +
-            (r.pdfFileUrl ? '<a href="' + r.pdfFileUrl + '" target="_blank" rel="noopener" style="color:var(--success);">PDF</a> ' : '') +
-            (r.fileUrl ? '<a href="' + r.fileUrl + '" target="_blank" rel="noopener" style="color:var(--primary);">Excel</a>' : '') + '</div>').join('');
-          const first = arr[0];
-          const prim = (reqsArchive || []).find(x => x.tripId === first.tripId && Number(x.seqNumber || 1) === 1) || first;
-          const pd = String(prim.dates || '').split('—').map(x => x.trim());
-          const reSubj = 'RE: Заявка на ДС. Командировка в ' + formatUniqueCities(prim.city) + ' ' + pd[0] + '-' + (pd[1] || pd[0]) + 'гг';
-          html += '<div class="timeline-node-field" style="border-color:#6366f1; background:#eef2ff; margin-top:6px;">' +
-            '<b>✉️ Письмо по продлению:</b> ' + esc(names) + '<br><small>Срок продления: ' + esc(first.dates) + ' | ' + esc(formatUniqueCities(first.city)) + '</small>' + links +
-            (first.savedEmailText ? '<button type="button" class="btn btn-primary" style="height:30px; font-size:11px; margin-top:6px;" onclick="openMailBridge({subject:\'' + esc(reSubj) + '\', body: findSiblingText(\'' + first.reqId + '\'), reqIds: findSiblingReqIds(findReq(\'' + first.reqId + '\'))})">✉️ Открыть письмо</button>' : '') +
-            '</div>';
-        });
-      })();
 
       html += `</div></div>`;
     });
@@ -8961,9 +8984,10 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
 
 <script id="wn-js">
 (function () {
-  const VER = '20261039';
+  const VER = '20261040';
   // d — дата изменения; a — только для руководителей
   const ITEMS = [
+    { go: 'trips', d: '20261040', i: '✉️', a: 0, t: 'Письма к заявкам под каждым сотрудником', p: 'В цепочке каждого сотрудника под первичной заявкой и под каждым продлением теперь своя карточка письма. Письмо одно на всех участников, в нём все их суммы и все заявки в PDF. Тема продления начинается с RE.' },
     { go: 'tt', d: '20261039', i: '📝', a: 0, t: 'Два вида отгула и новый вид PDF табеля', p: 'Отгул теперь бывает двух видов: простой (за отработанные выходные, в табель не вносится) и официальный ДО (с заявлением, вносится в табель с кодом ДО). Вид выбирается при постановке отгула. PDF табеля теперь точно как ваш шаблон.' },
     { go: 'tt', d: '20261038', i: '📗', a: 0, t: 'Табель команды, PDF и график сотрудникам', p: 'Табель Т-12 теперь и в PDF. Руководитель формирует общий табель команды или выбранных сотрудников (месяц или год) и назначает сотрудникам смену: они получат сообщение и смогут изменить её с проверкой своих событий. Кнопка «Очистка / вид» очищает события или оставляет только основные смены. Главный руководитель выгружает отпуска в Excel в формате загрузки.' },
     { go: 'tt', d: '20261037', i: '🔔', a: 0, t: 'Оповещения о правках календаря', p: 'Любая правка в календаре графика (подработки, отгулы, отпуска, пометки, смена графика) теперь отправляется сообщением в Telegram руководителю и главному руководителю. Руководитель видит правки всех сотрудников своей команды.' },
