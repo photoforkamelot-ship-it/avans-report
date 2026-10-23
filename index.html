@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Авансовый отчёт">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="app-build" content="20261023-51">
+  <meta name="app-build" content="20261023-52">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -8113,7 +8113,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
   }
   function btns() {
     const b = (a, t) => '<button type="button" data-a="' + a + '" style="min-height:46px; border:1.5px solid #cbd5e1; border-radius:10px; background:#fff; font-size:12.5px; font-weight:700; color:#111827; font-family:inherit;">' + t + '</button>';
-    return '<div style="display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-top:12px;">' + b('dlg:shift', '🟩 Смены (вручную)') + b('dlg:ext', '💼 Подработка') + b('dlg:otg', '☕ Отгул') + b('dlg:vac', '🌴 Отпуск') + b('dlg:mark', '📌 Пометка') + '</div><button type="button" data-a="report" style="margin-top:8px; width:100%; min-height:48px; border:0; border-radius:10px; background:#111827; color:#fff; font-size:14px; font-weight:800; font-family:inherit;">📊 Сформировать отчёт</button>';
+    return '<div style="display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-top:12px;">' + b('dlg:shift', '🟩 Смены (вручную)') + b('dlg:ext', '💼 Подработка') + b('dlg:otg', '☕ Отгул') + b('dlg:vac', '🌴 Отпуск') + b('dlg:mark', '📌 Пометка') + (S.team ? b('teamvac', '👥 Отпуска команды') : '') + '</div><button type="button" data-a="report" style="margin-top:8px; width:100%; min-height:48px; border:0; border-radius:10px; background:#111827; color:#fff; font-size:14px; font-weight:800; font-family:inherit;">📊 Сформировать отчёт</button>';
   }
 
   // ---------- действия ----------
@@ -8134,6 +8134,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     if (c === 'shift') { pickShift(); return; }
     if (c === 'dlg') { rangeDlg(p[1], cur === todayK() ? cur : (view === 'month' ? cur.slice(0, 7) + '-01' : cur)); return; }
     if (c === 'report') { reportDlg(); return; }
+    if (c === 'teamvac') { teamVacDlg(); return; }
   }
   function pickShift() {
     const items = S.keys.map((k) => ({ text: (S.me.s === k ? '✓ ' : '') + KEYNAME[k], cls: S.me.s === k ? 'btn-primary' : 'btn-secondary', fn: () => { S.me.s = k; persist(); render(); } }));
@@ -8167,10 +8168,61 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     if (s.otg) items.push({ text: '↪️ Перенести отгул на другую дату', fn: () => otgMoveDlg(k) });
     openSheet(pRu(k) + (s.has ? (s.base ? ' · смена ' + s.h + ' ч' : ' · выходной') : ''), items);
   }
+
+  // ---------- отпуска команды (руководитель) ----------
+  const shortFio = (f) => { const p = String(f || '').trim().split(/\s+/); return p[0] + (p[1] ? ' ' + p[1][0] + '.' : '') + (p[2] ? p[2][0] + '.' : ''); };
+  const teamKey = (x) => (x.tab || '') + '|' + x.fio;
+  const vacRange = (v) => pDate(v.start) + '–' + pDate(KT(T(v.start) + (v.days - 1) * DAY)) + ' (' + v.days + ' дн.)';
+  // после изменения своего отпуска: предложить сдвинуть отпуска коллег на столько же дней
+  function teamShiftOffer(pv, delta, who) {
+    const mine = S.team.filter((x) => x.me)[0], mk = mine ? teamKey(mine) : '';
+    const list = (S.teamVac || []).filter((v) => teamKey(v) !== mk && v.start.slice(0, 4) >= String(+pv.a.slice(0, 4) - 1) && v.start >= todayK().slice(0, 4) + '-01-01');
+    if (!list.length) return;
+    const sg = delta > 0 ? '+' + delta : String(delta);
+    dlg('<div style="font-weight:900; font-size:17px; margin-bottom:6px;">Сдвинуть отпуска команды?</div><div style="font-size:13px; color:#475569; margin-bottom:8px;">Ваш отпуск сдвинут на ' + sg + ' дн. Отметьте коллег, чьи отпуска сдвинуть на столько же. Им и главному руководителю придёт сообщение.</div><div id="tt_tl" style="max-height:44vh; overflow:auto; border:1px solid #e5e7eb; border-radius:10px; padding:4px 8px;">' +
+      list.map((v, i) => '<label style="display:flex; gap:8px; align-items:center; padding:7px 0; border-bottom:1px solid #f1f5f9; font-size:13px;"><input type="checkbox" data-i="' + i + '" checked style="width:20px; height:20px;"><span><b>' + E(shortFio(v.fio)) + '</b><br><span style="color:#64748b;">' + vacRange(v) + '</span></span></label>').join('') + '</div>' +
+      '<div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px;"><button type="button" class="btn btn-secondary" id="tt_so_no">Не сдвигать</button><button type="button" class="btn btn-primary" id="tt_so_ok">Сдвинуть</button></div>');
+    document.getElementById('tt_so_no').onclick = closeDlg;
+    document.getElementById('tt_so_ok').onclick = async () => {
+      const it = [...document.querySelectorAll('#tt_tl input:checked')].map((c) => list[+c.getAttribute('data-i')]).map((v) => ({ tab: v.tab, fio: v.fio, start: v.start }));
+      if (!it.length) { closeDlg(); return; }
+      try { const r = await api({ action: 'tt_vac_bulk', op: 'shift', delta: delta, items: it }); closeDlg(); toast('Сдвинуто отпусков: ' + r.done + (r.skipped && r.skipped.length ? ', пропущено: ' + r.skipped.length : '')); load(); } catch (e) { toast(String(e.message || e).slice(0, 80)); }
+    };
+  }
+  function teamVacDlg() {
+    const y0 = +todayK().slice(0, 4), team = S.team || [];
+    const vac = (S.teamVac || []).filter((v) => +v.start.slice(0, 4) >= y0 - 1).sort((a, b) => (a.start < b.start ? -1 : 1));
+    const head = (t) => '<div style="font-weight:800; font-size:13px; margin:12px 0 6px;">' + t + '</div>';
+    let h = '<div style="font-weight:900; font-size:17px;">👥 Отпуска команды</div><div style="font-size:12px; color:#64748b;">Все изменения сохраняются в графике отпусков. Сотрудники и главный руководитель получат сообщения.</div>';
+    h += head('Добавить отпуск');
+    h += '<div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;"><label style="font-size:12px; color:#475569;">С<input id="tt_tf" type="date" style="width:100%; height:42px; border:1px solid #cbd5e1; border-radius:10px; padding:0 8px; font-size:15px;"></label><label style="font-size:12px; color:#475569;">По<input id="tt_tt" type="date" style="width:100%; height:42px; border:1px solid #cbd5e1; border-radius:10px; padding:0 8px; font-size:15px;"></label></div>';
+    h += '<div id="tt_tm" style="max-height:22vh; overflow:auto; border:1px solid #e5e7eb; border-radius:10px; padding:4px 8px; margin-top:8px;">' + team.map((x, i) => '<label style="display:flex; gap:8px; align-items:center; padding:6px 0; font-size:13px;"><input type="checkbox" data-i="' + i + '" style="width:20px; height:20px;"><span>' + E(shortFio(x.fio)) + (x.me ? ' (я)' : '') + '</span></label>').join('') + '</div>';
+    h += '<button type="button" class="btn btn-primary" id="tt_tadd" style="margin-top:8px; width:100%;">Добавить выбранным</button>';
+    h += head('Уже внесённые отпуска') + (vac.length ? '<div id="tt_tv" style="max-height:30vh; overflow:auto; border:1px solid #e5e7eb; border-radius:10px; padding:4px 8px;">' + vac.map((v, i) => '<div style="display:flex; gap:8px; align-items:center; padding:6px 0; border-bottom:1px solid #f1f5f9; font-size:13px;"><input type="checkbox" data-i="' + i + '" style="width:20px; height:20px;"><span style="flex:1;"><b>' + E(shortFio(v.fio)) + '</b><br><span style="color:#64748b;">' + vacRange(v) + '</span></span><button type="button" data-ed="' + i + '" style="border:0; background:#eef2f7; border-radius:8px; width:36px; height:36px; font-size:16px;">✏️</button></div>').join('') + '</div>' +
+      '<div style="display:grid; grid-template-columns:1fr auto; gap:8px; margin-top:8px; align-items:end;"><label style="font-size:12px; color:#475569;">Сдвинуть выбранные на (дней, можно со знаком −)<input id="tt_td" type="number" value="7" style="width:100%; height:42px; border:1px solid #cbd5e1; border-radius:10px; padding:0 8px; font-size:15px;"></label><button type="button" class="btn btn-secondary" id="tt_tsh" style="height:42px;">Сдвинуть</button></div><button type="button" class="btn btn-secondary" id="tt_tdel" style="margin-top:8px; width:100%; color:#b91c1c;">🗑 Удалить выбранные</button>' : '<div style="font-size:13px; color:#64748b;">Пока нет.</div>');
+    h += '<button type="button" class="btn btn-secondary" id="tt_tcl" style="margin-top:12px; width:100%;">Закрыть</button>';
+    dlg(h);
+    const sel = (box) => [...document.querySelectorAll(box + ' input:checked')].map((c) => +c.getAttribute('data-i'));
+    const run = async (payload, okMsg) => { try { const r = await api(payload); toast(okMsg + ': ' + r.done + (r.skipped && r.skipped.length ? '. Пропущено: ' + r.skipped.join('; ').slice(0, 90) : '')); await load(); teamVacDlg(); try { Hap.ok(); } catch (e) {} } catch (e) { toast(String(e.message || e).slice(0, 90)); } };
+    document.getElementById('tt_tcl').onclick = closeDlg;
+    document.getElementById('tt_tadd').onclick = () => {
+      const a = document.getElementById('tt_tf').value, b = document.getElementById('tt_tt').value, ix = sel('#tt_tm');
+      if (!a || !b || b < a || (T(b) - T(a)) / DAY > 120) { toast('Проверьте даты'); return; }
+      if (!ix.length) { toast('Отметьте сотрудников'); return; }
+      const days = Math.round((T(b) - T(a)) / DAY) + 1;
+      uiAsk('Добавить отпуск?', ix.length + ' чел.: ' + pDate(a) + '–' + pDate(b) + ' (' + days + ' дн.). Каждому придёт сообщение.', 'Добавить', () => run({ action: 'tt_vac_bulk', op: 'add', items: ix.map((i) => ({ tab: team[i].tab, fio: team[i].fio, start: a, days: days })) }, 'Добавлено'));
+    };
+    if (vac.length) {
+      const items = () => sel('#tt_tv').map((i) => ({ tab: vac[i].tab, fio: vac[i].fio, start: vac[i].start }));
+      document.getElementById('tt_tsh').onclick = () => { const d = Math.round(+document.getElementById('tt_td').value); const it = items(); if (!it.length || !d) { toast('Отметьте отпуска и укажите дни'); return; } uiAsk('Сдвинуть отпуска?', it.length + ' шт. на ' + (d > 0 ? '+' : '') + d + ' дн.', 'Сдвинуть', () => run({ action: 'tt_vac_bulk', op: 'shift', delta: d, items: it }, 'Сдвинуто')); };
+      document.getElementById('tt_tdel').onclick = () => { const it = items(); if (!it.length) { toast('Отметьте отпуска'); return; } uiAsk('Удалить отпуска?', it.length + ' шт. Они удалятся из графика отпусков, всем придёт сообщение.', 'Удалить', () => run({ action: 'tt_vac_bulk', op: 'del', items: it }, 'Удалено')); };
+      document.querySelectorAll('#tt_tv [data-ed]').forEach((b) => { b.onclick = () => { const v = vac[+b.getAttribute('data-ed')]; vacEditDlg({ a: v.start, b: KT(T(v.start) + (v.days - 1) * DAY), off: true, days: v.days, tab: v.tab, fio: v.fio }); }; });
+    }
+  }
   // ---------- правка отпуска и отгула ----------
   function vacDelete(pv) {
     if (!pv.off) { S.me.v.splice(pv.i, 1); persist(); render(); return; }
-    api({ action: 'tt_vac_edit', del: true, oldStart: pv.a }).then(() => { toast('Отпуск удалён'); load(); }).catch((e) => toast(String(e.message || e).slice(0, 80)));
+    api(Object.assign({ action: 'tt_vac_edit', del: true, oldStart: pv.a }, pv.tab || pv.fio ? { tab: pv.tab, fio: pv.fio } : {})).then(() => { toast('Отпуск удалён'); load(); }).catch((e) => toast(String(e.message || e).slice(0, 80)));
   }
   function vacEditDlg(pv) {
     const h = '<div style="font-weight:900; font-size:17px; margin-bottom:6px;">🌴 Отпуск: изменить даты</div>' +
@@ -8184,15 +8236,16 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
       if (!pv.off) { S.me.v[pv.i] = { a: a, b: b }; closeDlg(); persist(); render(); try { Hap.ok(); } catch (e) {} return; }
       const days = Math.round((T(b) - T(a)) / DAY) + 1;
       try {
-        const c = await api({ action: 'tt_vac_edit', check: true, oldStart: pv.a, newStart: a, days: days });
+        const who = pv.tab || pv.fio ? { tab: pv.tab, fio: pv.fio } : {}, delta = Math.round((T(a) - T(pv.a)) / DAY);
+        const c = await api(Object.assign({ action: 'tt_vac_edit', check: true, oldStart: pv.a, newStart: a, days: days }, who));
         const cf = c.conflicts || [];
-        if (!cf.length) { await api({ action: 'tt_vac_edit', oldStart: pv.a, newStart: a, days: days }); closeDlg(); toast('Отпуск изменён'); load(); try { Hap.ok(); } catch (e) {} return; }
+        if (!cf.length) { await api(Object.assign({ action: 'tt_vac_edit', oldStart: pv.a, newStart: a, days: days }, who)); closeDlg(); toast('Отпуск изменён'); try { Hap.ok(); } catch (e) {} await load(); if (S.team && delta) teamShiftOffer(pv, delta, who); return; }
         const nextDay = KT(T(b) + DAY);
         const L = cf.map((x) => '• ' + E(x.fio) + ': ' + pDate(x.start) + '–' + pDate(KT(T(x.start) + (x.days - 1) * DAY)) + ' (' + x.days + ' дн.)').join('<br>');
         dlg('<div style="font-weight:900; font-size:17px; margin-bottom:6px;">В эти даты у других тоже отпуск</div><div style="font-size:13px; margin-bottom:10px;">' + L + '</div>' +
           '<div style="display:flex; flex-direction:column; gap:8px;"><button type="button" class="btn btn-primary" id="tt_c1">Сдвинуть их отпуска после моего (с ' + pDate(nextDay) + ')</button><button type="button" class="btn btn-secondary" id="tt_c2">Оставить их как есть</button><button type="button" class="btn btn-secondary" id="tt_c3">Отмена</button></div>');
         document.getElementById('tt_c3').onclick = closeDlg;
-        const go = async (shift) => { try { await api({ action: 'tt_vac_edit', oldStart: pv.a, newStart: a, days: days, shift: shift }); closeDlg(); toast('Отпуск изменён'); load(); } catch (e) { toast(String(e.message || e).slice(0, 80)); } };
+        const go = async (shift) => { try { await api(Object.assign({ action: 'tt_vac_edit', oldStart: pv.a, newStart: a, days: days, shift: shift }, who)); closeDlg(); toast('Отпуск изменён'); await load(); if (S.team && delta) teamShiftOffer(pv, delta, who); } catch (e) { toast(String(e.message || e).slice(0, 80)); } };
         document.getElementById('tt_c2').onclick = () => go([]);
         document.getElementById('tt_c1').onclick = () => { let t = T(nextDay); go(cf.map((x) => { const r = { tab: x.tab, fio: x.fio, start: x.start, to: KT(t) }; t += x.days * DAY; return r; })); };
       } catch (e) { toast(String(e.message || e).slice(0, 80)); }
@@ -8257,7 +8310,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
       };
     } else m.onclick = null;
     document.getElementById('tt_no').onclick = closeDlg;
-    document.getElementById('tt_ok').onclick = () => {
+    document.getElementById('tt_ok').onclick = async () => {
       const a = document.getElementById('tt_f').value, b = document.getElementById('tt_t').value || a;
       if (!a || b < a) { toast('Проверьте даты'); return; }
       if ((T(b) - T(a)) / DAY > 400) { toast('Слишком длинный период'); return; }
@@ -8278,7 +8331,17 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
         let skip = 0; days.forEach((k) => { const s = st(k); if (s.has && s.base) skip++; else if (!SX[k]) { S.me.x.push(k); SX[k] = 1; } });
         if (skip) toast('Рабочие дни по графику пропущены: ' + skip);
       } else if (kind === 'otg') { days.forEach((k) => { if (!SO[k]) { S.me.o.push(k); SO[k] = 1; } }); }
-      else if (kind === 'vac') { S.me.v.push({ a: a, b: b }); }
+      else if (kind === 'vac') {
+        const u = (globalAppData && (globalAppData.currentUser || globalAppData.me)) || {};
+        if (u.tab && u.fio) {
+          try {
+            const r = await api({ action: 'tt_vac_bulk', op: 'add', items: [{ tab: u.tab, fio: u.fio, start: a, days: days.length }] });
+            if (r.done) { closeDlg(); toast('Отпуск добавлен, руководитель уведомлён'); try { Hap.ok(); } catch (e) {} load(); return; }
+            toast(String((r.skipped || [])[0] || 'Не удалось добавить отпуск').slice(0, 90)); return;
+          } catch (e) { toast(String(e.message || e).slice(0, 80)); return; }
+        }
+        S.me.v.push({ a: a, b: b });
+      }
       else {
         const n = document.getElementById('tt_n').value.trim();
         if (!n) { toast('Введите название'); return; }
@@ -8495,7 +8558,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
   async function load() {
     try {
       const j = await api({ action: 'tt_get' });
-      S.sc = j.schedules || []; S.keys = j.keys || []; S.vac = j.vac || [];
+      S.sc = j.schedules || []; S.keys = j.keys || []; S.vac = j.vac || []; S.team = j.team || null; S.teamVac = j.teamVac || [];
       let me = blank(); try { const o = JSON.parse(j.me || '{}'); me = Object.assign(blank(), o); } catch (e) {}
       S.me = me; if (S.me.s && S.keys.indexOf(S.me.s) < 0) S.me.s = '';
       S.loaded = true; reindex();
@@ -8629,9 +8692,10 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
 
 <script id="wn-js">
 (function () {
-  const VER = '20261035';
+  const VER = '20261036';
   // d — дата изменения; a — только для руководителей
   const ITEMS = [
+    { go: 'tt', d: '20261036', i: '👥', a: 0, t: 'Отпуска команды', p: 'Руководитель: после переноса своего отпуска приложение предложит сдвинуть отпуска коллег на столько же дней. Кнопка «Отпуска команды» в «Моём графике»: добавить отпуск себе и выбранным сотрудникам, изменить, сдвинуть, удалить. Сотрудник может сам добавить свой отпуск. Обо всём приходят сообщения в Telegram.' },
     { go: 'tt', d: '20261035', i: '🌴', a: 0, t: 'Отпуск и отгул: правка и перенос', p: 'В «Моём графике» нажмите на день отпуска: можно изменить даты, передвинуть или убрать. Отгул можно перенести. Изменения отпусков из графика приходят сообщением в Telegram вам, руководителю команды и главному руководителю. Руководитель при пересечении отпусков видит, у кого ещё отпуск, и может сдвинуть их или оставить.' },
     { go: 'prof', d: '20261035', i: '👆', a: 0, t: 'Новости открывают нужный раздел', p: 'В «Что нового» нажмите на новость со стрелкой: приложение спросит подтверждение и откроет раздел, где появилась функция.' },
     { go: 'tt', d: '20261034', i: '🌿', a: 0, t: 'График: яркие цвета и статистика', p: 'Цвета в календаре графика теперь яркие, как в отчёте. В месяце и году появились «Отработано» и «Осталось отработать». В неделе: сколько дней до выходного, а в выходной анимация и сколько ещё отдыхать.' },
