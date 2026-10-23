@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Авансовый отчёт">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="app-build" content="20261024-54">
+  <meta name="app-build" content="20261024-55">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -7898,9 +7898,9 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
   const COL = { work: ['#7dd69a', '#0b3d1e'], off: ['#ece9e2', '#6b665e'], ext: ['#8b1d3f', '#ffffff'], vac: ['#fbbf24', '#5a3300'], none: ['#faf9f7', '#b8b3aa'], short: ['#67e8f9', '#083344'] };
   const PAL = ['#bfdbfe', '#fbcfe8', '#ddd6fe', '#fed7aa', '#a7f3d0', '#fecaca', '#e5e7eb', '#bae6fd'];
   const EMO = ['🩺', '👮', '🏛', '🎓', '✈️', '🚗', '💼', '🏥', '🎂', '🏠', '📌', '⚽'];
-  const blank = () => ({ s: '', x: [], o: [], v: [], m: {}, p: [], w: {} });
+  const blank = () => ({ s: '', x: [], o: [], d: [], v: [], m: {}, p: [], w: {} });
   let S = { sc: [], keys: [], me: blank(), vac: [], loaded: false };
-  let view = 'month', cur = todayK(), VM = null, SX = {}, SO = {}, MY = {}, busy = false;
+  let view = 'month', cur = todayK(), VM = null, SX = {}, SO = {}, SD = {}, MY = {}, busy = false;
 
   function pl(n, a) { const m = Math.abs(n) % 100, d = m % 10; return a[(m > 10 && m < 20) ? 2 : d === 1 ? 0 : (d >= 2 && d <= 4) ? 1 : 2]; }
   function toast(m) { try { showToast(m); } catch (e) {} }
@@ -7910,7 +7910,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     if (!j || j.status !== 'ok') throw new Error((j && j.message) || 'Ошибка сервера');
     return j;
   }
-  function reindex() { VM = null; SX = {}; SO = {}; MY = {}; Object.keys(S.me.w || {}).forEach((k) => { MY[k.slice(0, 4)] = 1; }); (S.me.x || []).forEach((k) => { SX[k] = 1; }); (S.me.o || []).forEach((k) => { SO[k] = 1; }); }
+  function reindex() { VM = null; SX = {}; SO = {}; SD = {}; MY = {}; Object.keys(S.me.w || {}).forEach((k) => { MY[k.slice(0, 4)] = 1; }); (S.me.x || []).forEach((k) => { SX[k] = 1; }); (S.me.o || []).forEach((k) => { SO[k] = 1; }); (S.me.d || []).forEach((k) => { if (SO[k]) SD[k] = 1; }); }
   function periods() {
     const out = [];
     (S.me.v || []).forEach((v, i) => out.push({ a: v.a, b: v.b, off: false, i: i }));
@@ -7926,7 +7926,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
   const TYP = {};
   function typH(y) { const key = S.me.s + y; if (TYP[key] !== undefined) return TYP[key]; const sc = sched(y); let best = 0; if (sc) { const cnt = {}; Object.keys(sc.hours).forEach((m) => Object.keys(sc.hours[m] || {}).forEach((d) => { const h = sc.hours[m][d]; if (h > 0) cnt[h] = (cnt[h] || 0) + 1; })); let mx = 0; Object.keys(cnt).forEach((h) => { if (cnt[h] > mx) { mx = cnt[h]; best = +h; } }); } return (TYP[key] = best); }
   let HIDE = false; try { HIDE = !!localStorage.getItem('tt_hide'); } catch (e) {}
-  function st(k) { const h = hrs(k); return HIDE ? { k: k, h: h || 0, has: h !== null, base: h > 0, short: h > 0 && official(+k.slice(0, 4)) && h < typH(+k.slice(0, 4)), vac: false, ext: false, otg: false, mark: null } : { k: k, h: h || 0, has: h !== null, base: h > 0, short: h > 0 && official(+k.slice(0, 4)) && h < typH(+k.slice(0, 4)), vac: !!vmap()[k], ext: !!SX[k], otg: !!SO[k], mark: (S.me.m || {})[k] || null }; }
+  function st(k) { const h = hrs(k); return HIDE ? { k: k, h: h || 0, has: h !== null, base: h > 0, short: h > 0 && official(+k.slice(0, 4)) && h < typH(+k.slice(0, 4)), vac: false, ext: false, otg: false, od: false, mark: null } : { k: k, h: h || 0, has: h !== null, base: h > 0, short: h > 0 && official(+k.slice(0, 4)) && h < typH(+k.slice(0, 4)), vac: !!vmap()[k], ext: !!SX[k], otg: !!SO[k], od: !!(SO[k] && SD[k]), mark: (S.me.m || {})[k] || null }; }
   function colorOf(s) {
     let c = !s.has ? COL.none : s.base ? COL.work : COL.off;
     if (s.short && s.base) c = COL.short;
@@ -8018,7 +8018,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
   function segBtn(v, t) { return '<button type="button" data-a="v:' + v + '" style="min-height:28px; border:0; border-radius:8px; font-size:13px; font-weight:' + (view === v ? '800' : '600') + '; background:' + (view === v ? '#fff' : 'transparent') + '; color:' + (view === v ? '#111827' : '#475569') + '; font-family:inherit;">' + t + '</button>'; }
   function cell(k, big) {
     const s = st(k), c = colorOf(s), tk = todayK() === k;
-    const icons = (s.vac ? '🌴' : '') + (s.otg ? '☕' : '') + (s.mark && s.mark.e ? s.mark.e : '');
+    const icons = (s.vac ? '🌴' : '') + (s.otg ? (s.od ? '📝' : '☕') : '') + (s.mark && s.mark.e ? s.mark.e : '');
     let sty = 'background:' + c[0] + '; color:' + c[1] + '; border:0; border-radius:8px; font-family:inherit; position:relative; padding:0;';
     if (s.vac && s.ext && !s.mark) sty += 'background:linear-gradient(135deg,' + COL.vac[0] + ' 50%,' + COL.ext[0] + ' 50%); color:#111827; text-shadow:0 0 3px #fff,0 0 3px #fff;';
     if (big) sty += 'min-height:46px; font-size:15px; font-weight:' + (tk ? '900' : '600') + ';';
@@ -8097,7 +8097,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
   function byMonth(keys) { const c = {}; keys.forEach((k) => { c[+k.slice(5, 7)] = (c[+k.slice(5, 7)] || 0) + 1; }); return Object.keys(c).map((m) => c[m] + ' ' + MG[m - 1]).join(', '); }
   function legend() {
     const i = (bg, t, ex) => '<span style="display:inline-flex; align-items:center; gap:5px;"><i style="width:12px; height:12px; border-radius:4px; background:' + bg + ';display:inline-block;' + (ex || '') + '"></i>' + t + '</span>';
-    return '<div style="display:flex; flex-wrap:wrap; gap:6px 12px; font-size:11px; color:#334155; margin-top:10px;">' + i(COL.work[0], 'Смена') + i(COL.short[0], 'Укороченный день') + i(COL.ext[0], 'Подработка') + i(COL.vac[0], '🌴 Отпуск') + i('linear-gradient(135deg,' + COL.vac[0] + ' 50%,' + COL.ext[0] + ' 50%)', 'Отпуск + подработка') + i('#fff', '☕ Отгул', 'box-shadow:inset 0 0 0 2px #111827;') + i('#bfdbfe', 'Пометка') + '</div>';
+    return '<div style="display:flex; flex-wrap:wrap; gap:6px 12px; font-size:11px; color:#334155; margin-top:10px;">' + i(COL.work[0], 'Смена') + i(COL.short[0], 'Укороченный день') + i(COL.ext[0], 'Подработка') + i(COL.vac[0], '🌴 Отпуск') + i('linear-gradient(135deg,' + COL.vac[0] + ' 50%,' + COL.ext[0] + ' 50%)', 'Отпуск + подработка') + i('#fff', '☕ Отгул простой', 'box-shadow:inset 0 0 0 2px #111827;') + i('#fff', '📝 Отгул ДО (в табель)', 'box-shadow:inset 0 0 0 2px #111827;') + i('#bfdbfe', 'Пометка') + '</div>';
   }
   function render() {
     const m = root(); const y = +cur.slice(0, 4);
@@ -8197,6 +8197,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
   function clearEvents(what, scope) {
     const inScope = (k) => scope === 'all' || (scope === 'year' ? k.slice(0, 4) === cur.slice(0, 4) : k.slice(0, 7) === cur.slice(0, 7));
     if (what.o) S.me.o = (S.me.o || []).filter((k) => !inScope(k));
+    if (what.o) S.me.d = (S.me.d || []).filter((k) => !inScope(k));
     if (what.m) Object.keys(S.me.m || {}).forEach((k) => { if (inScope(k)) delete S.me.m[k]; });
     if (what.v) S.me.v = (S.me.v || []).filter((v) => !(inScope(v.a) || inScope(v.b)));
     persist(); render(); toast('Готово'); try { Hap.ok(); } catch (e) {}
@@ -8234,7 +8235,13 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     const s = st(k), items = [];
     if (!official(+k.slice(0, 4))) items.push({ text: s.base ? '🟩 Убрать смену' : '🟩 Поставить смену (11 ч)', fn: () => { S.me.w = S.me.w || {}; if (s.base) delete S.me.w[k]; else S.me.w[k] = 11; reindex(); if (!MY[k.slice(0, 4)]) S.me.w[k.slice(0, 4) + '-01-00'] = 0; persist(); render(); if (!s.base) setTimeout(() => suggest(+k.slice(0, 4)), 400); } });
     if (!s.has || !s.base) items.push({ text: s.ext ? '💼 Снять подработку' : '💼 Поставить подработку', cls: 'btn-primary', fn: () => { if (s.ext) S.me.x = S.me.x.filter((z) => z !== k); else S.me.x.push(k); persist(); render(); } });
-    items.push({ text: s.otg ? '☕ Убрать отгул' : '☕ Отгул на этот день', fn: () => { if (s.otg) S.me.o = S.me.o.filter((z) => z !== k); else S.me.o.push(k); persist(); render(); } });
+    if (s.otg) {
+      items.push({ text: s.od ? '☕ Сделать простым отгулом (без табеля)' : '📝 Сделать официальным отгулом ДО (в табель)', fn: () => { setOtg(k, !s.od); persist(); render(); } });
+      items.push({ text: '☕ Убрать отгул', danger: true, fn: () => { unsetOtg(k); persist(); render(); } });
+    } else {
+      items.push({ text: '📝 Официальный отгул ДО (с заявлением, в табель)', fn: () => { setOtg(k, true); persist(); render(); } });
+      items.push({ text: '☕ Простой отгул (за отработанные выходные, без табеля)', fn: () => { setOtg(k, false); persist(); render(); } });
+    }
     if (s.mark) { items.push({ text: '✏️ Изменить пометку', fn: () => rangeDlg('mark', k) }); items.push({ text: '🗑 Убрать пометку', danger: true, fn: () => { delete S.me.m[k]; persist(); render(); } }); }
     else items.push({ text: '📌 Добавить пометку', fn: () => rangeDlg('mark', k) });
     const pv = periods().filter((p) => p.a <= k && p.b >= k)[0];
@@ -8347,10 +8354,12 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
       } catch (e) { toast(String(e.message || e).slice(0, 80)); }
     };
   }
+  function setOtg(k, official) { S.me.o = (S.me.o || []).filter((z) => z !== k).concat([k]); S.me.d = (S.me.d || []).filter((z) => z !== k); if (official) S.me.d.push(k); }
+  function unsetOtg(k) { S.me.o = (S.me.o || []).filter((z) => z !== k); S.me.d = (S.me.d || []).filter((z) => z !== k); }
   function otgMoveDlg(k) {
     dlg('<div style="font-weight:900; font-size:17px; margin-bottom:8px;">☕ Перенести отгул</div><div style="font-size:13px; color:#475569; margin-bottom:8px;">Сейчас: ' + pRu(k) + '</div><input id="tt_on" type="date" value="' + k + '" style="width:100%; height:42px; border:1px solid #cbd5e1; border-radius:10px; padding:0 8px; font-size:15px;"><div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:16px;"><button type="button" class="btn btn-secondary" id="tt_ono">Отмена</button><button type="button" class="btn btn-primary" id="tt_ook">Перенести</button></div>');
     document.getElementById('tt_ono').onclick = closeDlg;
-    document.getElementById('tt_ook').onclick = () => { const n = document.getElementById('tt_on').value; if (!n) return; S.me.o = (S.me.o || []).filter((z) => z !== k && z !== n).concat([n]); closeDlg(); persist(); render(); };
+    document.getElementById('tt_ook').onclick = () => { const n = document.getElementById('tt_on').value; if (!n) return; const was = !!SD[k]; unsetOtg(k); setOtg(n, was); closeDlg(); persist(); render(); };
   }
   function suggest(y) {
     if (S.me.s === 'LEAD' || official(y)) return;
@@ -8385,6 +8394,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     const cur0 = (S.me.m || {})[k0] || null;
     let h = '<div style="font-weight:900; font-size:17px; margin-bottom:10px;">' + names[kind] + '</div>' +
       '<div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;"><label style="font-size:12px; color:#475569;">С<input id="tt_f" type="date" value="' + k0 + '" style="width:100%; height:42px; border:1px solid #cbd5e1; border-radius:10px; padding:0 8px; font-size:15px;"></label><label style="font-size:12px; color:#475569;">По<input id="tt_t" type="date" value="' + k1 + '" style="width:100%; height:42px; border:1px solid #cbd5e1; border-radius:10px; padding:0 8px; font-size:15px;"></label></div>';
+    if (kind === 'otg') h += '<div style="font-size:12px; color:#475569; margin:12px 0 4px;">Вид отгула</div><label style="display:flex; gap:8px; align-items:center; padding:6px 0; font-size:14px;"><input type="radio" name="tt_ot" value="0" checked style="width:20px; height:20px;">☕ Простой: за отработанные выходные, в табель не вносится</label><label style="display:flex; gap:8px; align-items:center; padding:6px 0; font-size:14px;"><input type="radio" name="tt_ot" value="1" style="width:20px; height:20px;">📝 Официальный ДО: с заявлением, вносится в табель</label>';
     if (kind === 'shift') h += '<div style="font-size:12px; color:#475569; margin-top:12px;">Схема: сколько дней работаю подряд и сколько отдыхаю (0 отдыха = все дни рабочие)</div><div style="display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px;"><label style="font-size:12px; color:#475569;">Работаю<input id="tt_sw" type="number" min="1" value="3" style="width:100%; height:42px; border:1px solid #cbd5e1; border-radius:10px; padding:0 8px; font-size:15px;"></label><label style="font-size:12px; color:#475569;">Отдыхаю<input id="tt_so" type="number" min="0" value="3" style="width:100%; height:42px; border:1px solid #cbd5e1; border-radius:10px; padding:0 8px; font-size:15px;"></label><label style="font-size:12px; color:#475569;">Часов<input id="tt_sh" type="number" min="1" max="24" value="11" style="width:100%; height:42px; border:1px solid #cbd5e1; border-radius:10px; padding:0 8px; font-size:15px;"></label></div><label style="display:flex; gap:8px; align-items:center; font-size:13px; margin-top:10px;"><input id="tt_sd" type="checkbox"> Убрать смены в этом периоде</label><div style="font-size:11px; color:#64748b; margin-top:6px;">Первая смена ставится в день «С». Работает для лет, на которые не загружен официальный график.</div>';
     if (kind === 'mark') {
       const pre = (S.me.p || []).map((x, i) => '<button type="button" data-pre="' + i + '" style="border:0; border-radius:999px; padding:6px 11px; background:' + x.c + '; color:#1f2937; font-size:13px; font-weight:700; font-family:inherit;">' + E(x.e) + ' ' + E(x.n) + '</button>').join('');
@@ -8426,7 +8436,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
       } else if (kind === 'ext') {
         let skip = 0; days.forEach((k) => { const s = st(k); if (s.has && s.base) skip++; else if (!SX[k]) { S.me.x.push(k); SX[k] = 1; } });
         if (skip) toast('Рабочие дни по графику пропущены: ' + skip);
-      } else if (kind === 'otg') { days.forEach((k) => { if (!SO[k]) { S.me.o.push(k); SO[k] = 1; } }); }
+      } else if (kind === 'otg') { const off = (document.querySelector('input[name="tt_ot"]:checked') || {}).value === '1'; days.forEach((k) => { setOtg(k, off); SO[k] = 1; }); }
       else if (kind === 'vac') {
         const u = (globalAppData && (globalAppData.currentUser || globalAppData.me)) || {};
         if (u.tab && u.fio) {
@@ -8614,7 +8624,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     const out = [];
     for (let d = 1; d <= dim(y, m); d++) {
       const k = K(y, m, d), h = hrs(k) || 0;
-      if (vmap()[k]) out.push({ c: 'ОТ', h: 0 }); else if (SO[k]) out.push({ c: 'ОД', h: 0 });
+      if (vmap()[k]) out.push({ c: 'ОТ', h: 0 }); else if (SO[k] && SD[k]) out.push({ c: 'ДО', h: 0 });
       else if (h > 0) out.push({ c: 'я/д', h: h }); else out.push({ c: 'в', h: 0 });
     }
     return out;
@@ -8623,11 +8633,11 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     const sc = (S.sc || []).find((s) => s.key === p.key && s.year === y), vs = {}, os = {};
     (p.vac || []).forEach((v) => { if (v.start && v.days) for (let i = 0; i < v.days; i++) vs[KT(T(v.start) + i * DAY)] = 1; });
     (p.v || []).forEach((v) => { for (let t = T(v.a); t <= T(v.b); t += DAY) vs[KT(t)] = 1; });
-    (p.o || []).forEach((k) => { os[k] = 1; });
+    (p.d || []).forEach((k) => { os[k] = 1; });
     const out = [];
     for (let d = 1; d <= dim(y, m); d++) {
       const k = K(y, m, d), h = sc ? ((sc.hours[m] || {})[d] || 0) : 0;
-      if (vs[k]) out.push({ c: 'ОТ', h: 0 }); else if (os[k]) out.push({ c: 'ОД', h: 0 });
+      if (vs[k]) out.push({ c: 'ОТ', h: 0 }); else if (os[k]) out.push({ c: 'ДО', h: 0 });
       else if (h > 0) out.push({ c: 'я/д', h: h }); else out.push({ c: 'в', h: 0 });
     }
     return out;
@@ -8670,51 +8680,70 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
   }
   function tabelTot(days) { let d1 = 0, h1 = 0, d2 = 0, h2 = 0; days.forEach((x, i) => { if (x.c === 'я/д') { if (i < 15) { d1++; h1 += x.h; } else { d2++; h2 += x.h; } } }); return { d1, h1, d2, h2 }; }
   function tabelPageCanvas(sh, people, startNo, leader, pageNo, pages) {
-    const W = 2526, H = 1786, c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d');
-    const F = (n, w) => (w ? w + ' ' : '') + n + 'px -apple-system, "Segoe UI", Roboto, Arial, sans-serif';
-    g.fillStyle = '#fff'; g.fillRect(0, 0, W, H); g.fillStyle = '#111'; g.textBaseline = 'middle';
-    const y = sh.year, m = sh.month, n = dim(y, m), X0 = 60;
-    g.textAlign = 'center'; g.font = F(34, 'bold'); g.fillText(TABEL_ORG, W / 2, 70);
-    g.font = F(40, 'bold'); g.fillText(TABEL_DEPT, W / 2, 125); g.font = F(18); g.fillStyle = '#555'; g.fillText('наименование структурного подразделения', W / 2, 155); g.fillStyle = '#111';
-    g.textAlign = 'left'; g.font = F(40, 'bold'); g.fillText('ТАБЕЛЬ УЧЁТА РАБОЧЕГО ВРЕМЕНИ', X0, 235);
-    g.font = F(28); g.fillText('1. Учёт рабочего времени · ' + TabelX.MONTHS[m - 1] + ' ' + y, X0, 285);
-    g.textAlign = 'right'; g.font = F(26); g.fillText('Дата составления: ' + ruD(K(y, m, n)), W - X0, 225); g.fillText('Отчётный период: с ' + ruD(K(y, m, 1)) + ' по ' + ruD(K(y, m, n)), W - X0, 265);
-    const wNo = 56, wName = 430, wDay = 50, wHalf = 84, wD = 80, wH = 100, hdrH = 110, rowH = 40, TY = 320;
-    const xName = X0 + wNo, xD1 = xName + wName, xH1 = xD1 + wDay * 15, xD2 = xH1 + wHalf, xH2 = xD2 + wDay * 16, xTD = xH2 + wHalf, xTH = xTD + wD, xEnd = xTH + wH;
-    g.strokeStyle = '#222'; g.lineWidth = 2; g.textAlign = 'center';
-    const box = (x, yy, w, h, fill) => { if (fill) { g.fillStyle = fill; g.fillRect(x, yy, w, h); g.fillStyle = '#111'; } g.strokeRect(x, yy, w, h); };
-    const lab = (t, x, yy, w, h, sz) => { g.font = F(sz || 20, '600'); const words = String(t).split(' '), lines = []; let l = ''; words.forEach((wd) => { const tt = l ? l + ' ' + wd : wd; if (g.measureText(tt).width > w - 8 && l) { lines.push(l); l = wd; } else l = tt; }); if (l) lines.push(l); lines.forEach((ln, i) => g.fillText(ln, x + w / 2, yy + h / 2 + (i - (lines.length - 1) / 2) * (sz || 20) * 1.15)); };
-    box(X0, TY, wNo, hdrH, '#f1f5f9'); lab('№ п/п', X0, TY, wNo, hdrH, 18);
-    box(xName, TY, wName, hdrH, '#f1f5f9'); lab('Фамилия, инициалы, должность', xName, TY, wName, hdrH, 22);
-    for (let d = 1; d <= 31; d++) { const x = d <= 15 ? xD1 + (d - 1) * wDay : xD2 + (d - 16) * wDay; box(x, TY, wDay, hdrH, '#f1f5f9'); g.font = F(24, 'bold'); g.fillStyle = '#111'; g.fillText(d <= n ? String(d) : 'Х', x + wDay / 2, TY + hdrH / 2); }
-    box(xH1, TY, wHalf, hdrH, '#fde68a'); lab('Итого за I пол.', xH1, TY, wHalf, hdrH, 18);
-    box(xH2, TY, wHalf, hdrH, '#fde68a'); lab('Итого за II пол.', xH2, TY, wHalf, hdrH, 18);
-    box(xTD, TY, wD, hdrH, '#f1f5f9'); lab('Всего дней', xTD, TY, wD, hdrH, 18);
-    box(xTH, TY, wH, hdrH, '#f1f5f9'); lab('Всего часов', xTH, TY, wH, hdrH, 18);
+    const S2 = 2, W = 1520, H = 1075, c = document.createElement('canvas'); c.width = W * S2; c.height = H * S2; const g = c.getContext('2d'); g.scale(S2, S2);
+    const TM = (n, w) => (w ? w + ' ' : '') + n + 'px "Times New Roman", Times, "Liberation Serif", serif';
+    const CB = (n, w) => (w ? w + ' ' : '') + n + 'px Calibri, Carlito, "Segoe UI", Arial, sans-serif';
+    g.fillStyle = '#fff'; g.fillRect(0, 0, W, H); g.fillStyle = '#000'; g.strokeStyle = '#000'; g.lineWidth = 0.8; g.textBaseline = 'middle'; g.textAlign = 'center';
+    const y = sh.year, m = sh.month, n = dim(y, m);
+    const T0 = (t, x, yy, f) => { g.font = f; g.fillText(t, x, yy); };
+    const R = (x, yy, w, h, fill) => { if (fill) { g.fillStyle = fill; g.fillRect(x, yy, w, h); g.fillStyle = '#000'; } g.strokeRect(x, yy, w, h); };
+    const wrapT = (t, x, yy, w, h, f, lh) => { g.font = f; const ws = String(t).split(' '), L = []; let l = ''; ws.forEach((wd) => { const z = l ? l + ' ' + wd : wd; if (g.measureText(z).width > w - 6 && l) { L.push(l); l = wd; } else l = z; }); if (l) L.push(l); L.forEach((s, i) => g.fillText(s, x + w / 2, yy + h / 2 + (i - (L.length - 1) / 2) * lh)); };
+    // шапка документа
+    T0(TABEL_ORG, 393, 110, TM(17, 'bold')); g.beginPath(); g.moveTo(47, 120); g.lineTo(1442, 120); g.stroke();
+    T0(TABEL_DEPT, 393, 148, TM(19, 'bold')); g.beginPath(); g.moveTo(47, 159); g.lineTo(1442, 159); g.stroke();
+    T0('наименование структурного подразделения', 393, 164, TM(6.5, 'bold'));
+    g.textAlign = 'left'; T0('ТАБЕЛЬ УЧЕТА РАБОЧЕГО ВРЕМЕНИ', 277, 201, TM(12, 'bold')); T0('1. Учет рабочего времени', 50, 234, TM(11, 'bold')); g.textAlign = 'center';
+    R(1134, 184, 60, 26); R(1194, 184, 76, 26); R(1134, 210, 60, 14); R(1194, 210, 76, 14);
+    wrapT('Номер документа', 1134, 184, 60, 26, TM(7.5, 'bold'), 9); wrapT('Дата составления', 1194, 184, 76, 26, TM(7.5, 'bold'), 9); T0(ruD(K(y, m, n)), 1232, 217, TM(9.5, 'bold'));
+    R(1302, 184, 140, 13); R(1302, 197, 70, 13); R(1372, 197, 70, 13); R(1302, 210, 70, 14); R(1372, 210, 70, 14);
+    T0('Отчетный период', 1372, 190.5, TM(8.5, 'bold')); T0('С', 1337, 203.5, TM(8.5, 'bold')); T0('По', 1407, 203.5, TM(8.5, 'bold')); T0(ruD(K(y, m, 1)), 1337, 217, TM(9, 'bold')); T0(ruD(K(y, m, n)), 1407, 217, TM(9, 'bold'));
+    // колонки
+    const xNo = 47, wNo = 33, xNm = 80, wNm = 193, dW = 28.27, x1 = 273, xs1 = x1 + 15 * dW, wS = 41, x2 = xs1 + wS, xs2 = x2 + 16 * dW, wS2 = 45;
+    const xT = xs2 + wS2, wT = [34, 33, 36, 34, 34, 35], xTs = []; let ax = xT; wT.forEach((w) => { xTs.push(ax); ax += w; });
+    const Y0 = 254, Y1 = 267, Y2 = 345, Y3 = 357, RH = 30.5;
+    // шапка таблицы
+    R(xNo, Y0, wNo, Y2 - Y0); R(xNm, Y0, wNm, Y2 - Y0);
+    g.save(); g.translate(60, (Y0 + Y2) / 2); g.rotate(-Math.PI / 2); g.font = TM(6.5); g.fillText('Номер по порядку', 0, 0); g.restore();
+    wrapT('Фамилия, инициалы, должность (специальность, профессия)', xNm, Y0 + 20, wNm, Y2 - Y0 - 40, TM(9), 12);
+    R(x1, Y0, 15 * dW + wS, Y1 - Y0); T0('Отработано за первую половину месяца', x1 + (15 * dW + wS) / 2 - 20, (Y0 + Y1) / 2, TM(7.5));
+    R(x2, Y0, 16 * dW + wS2, Y1 - Y0); T0('Отработано за вторую половину месяца', x2 + (16 * dW + wS2) / 2 - 20, (Y0 + Y1) / 2, TM(7.5));
+    for (let d = 1; d <= 31; d++) { const x = d <= 15 ? x1 + (d - 1) * dW : x2 + (d - 16) * dW; R(x, Y1, dW, Y2 - Y1); T0(d <= n ? String(d) : 'Х', x + dW / 2, (Y1 + Y2) / 2, TM(10.5)); }
+    R(xs1, Y1, wS, Y2 - Y1); wrapT('итого отработано за I половину месяца', xs1, Y1, wS, Y2 - Y1, TM(8), 10.5);
+    R(xs2, Y1, wS2, Y2 - Y1); wrapT('итого отработано за II половину месяца', xs2, Y1, wS2, Y2 - Y1, TM(8), 10.5);
+    R(xT, Y0, ax - xT, 13); T0('Итого отработано за месяц', xT + (ax - xT) / 2, Y0 + 6.5, TM(6.5));
+    R(xTs[0], Y0 + 13, wT[0], Y2 - Y0 - 13); T0('дней', xTs[0] + wT[0] / 2, Y0 + 19.5, TM(6.5));
+    R(xTs[1], Y0 + 13, ax - xTs[1], 13); T0('часов', xTs[1] + (ax - xTs[1]) / 2, Y0 + 19.5, TM(6.5));
+    R(xTs[1], Y0 + 26, wT[1], Y2 - Y0 - 26); T0('всего', xTs[1] + wT[1] / 2, Y0 + 32.5, TM(6.5));
+    R(xTs[2], Y0 + 26, ax - xTs[2], 13); T0('из них', xTs[2] + (ax - xTs[2]) / 2, Y0 + 32.5, TM(6.5));
+    [['сверх-урочных', 2], ['ночных', 3], ['выходных, праздничных', 4], ['', 5]].forEach((q) => { R(xTs[q[1]], Y0 + 39, wT[q[1]], Y2 - Y0 - 39); if (q[0]) wrapT(q[0], xTs[q[1]], Y0 + 39, wT[q[1]], 40, TM(6.5), 8); });
+    // строка номеров колонок
+    R(xNo, Y2, ax - xNo, 12); [['1', 63], ['2', 176], ['3', 484], ['4', 718], ['5', 965], ['6', 1213]].forEach((q) => T0(q[0], q[1], Y2 + 6, TM(6)));
+    // сотрудники
     people.forEach((p, i) => {
-      const yy = TY + hdrH + i * rowH * 2, t = tabelTot(p.days);
-      box(X0, yy, wNo, rowH * 2); g.font = F(24, 'bold'); g.fillText(String(startNo + i + 1), X0 + wNo / 2, yy + rowH);
-      box(xName, yy, wName, rowH * 2); g.fillStyle = '#111'; lab(p.fio + (p.role ? ' (' + p.role + ')' : ''), xName, yy, wName, rowH * 2, 22);
+      const yy = Y3 + i * RH * 2, t = tabelTot(p.days), tot1 = Math.round((t.h1 + t.h2) * 10) / 10;
+      R(xNo, yy, wNo, RH * 2); g.textAlign = 'left'; T0(String(startNo + i + 1), xNo + 8, yy + 7, TM(10)); g.textAlign = 'center';
+      R(xNm, yy, wNm, RH * 2); wrapT(p.fio + ' (' + (p.role || '') + ')', xNm, yy, wNm, RH * 2, CB(14, 'bold'), 17);
       for (let d = 1; d <= 31; d++) {
-        const x = d <= 15 ? xD1 + (d - 1) * wDay : xD2 + (d - 16) * wDay, z = d <= n ? p.days[d - 1] : null;
-        box(x, yy, wDay, rowH, z && z.c !== 'я/д' && z.c !== 'в' ? '#fff7d6' : (!z ? '#e5e7eb' : null)); box(x, yy + rowH, wDay, rowH, !z ? '#e5e7eb' : null);
-        if (z) { g.fillStyle = '#111'; g.font = F(z.c.length > 2 ? 17 : 20, '600'); g.fillText(z.c, x + wDay / 2, yy + rowH / 2); if (z.h) { g.font = F(22); g.fillText(String(z.h), x + wDay / 2, yy + rowH * 1.5); } }
+        const x = d <= 15 ? x1 + (d - 1) * dW : x2 + (d - 16) * dW, z = d <= n ? p.days[d - 1] : null;
+        R(x, yy, dW, RH); R(x, yy + RH, dW, RH);
+        if (z) { T0(z.c, x + dW / 2, yy + RH / 2, TM(z.c.length > 3 ? 9 : 12)); if (z.h) T0(String(z.h), x + dW / 2, yy + RH * 1.5, TM(12)); }
       }
-      box(xH1, yy, wHalf, rowH, '#fef3c7'); box(xH1, yy + rowH, wHalf, rowH, '#fef3c7'); box(xH2, yy, wHalf, rowH, '#fef3c7'); box(xH2, yy + rowH, wHalf, rowH, '#fef3c7');
-      g.fillStyle = '#111'; g.font = F(24, 'bold'); g.fillText(String(t.d1), xH1 + wHalf / 2, yy + rowH / 2); g.fillText(String(Math.round(t.h1 * 10) / 10), xH1 + wHalf / 2, yy + rowH * 1.5); g.fillText(String(t.d2), xH2 + wHalf / 2, yy + rowH / 2); g.fillText(String(Math.round(t.h2 * 10) / 10), xH2 + wHalf / 2, yy + rowH * 1.5);
-      box(xTD, yy, wD, rowH * 2); g.fillText(String(t.d1 + t.d2), xTD + wD / 2, yy + rowH); box(xTH, yy, wH, rowH * 2); g.fillText(String(Math.round((t.h1 + t.h2) * 10) / 10), xTH + wH / 2, yy + rowH);
+      R(xs1, yy, wS, RH, '#ffff00'); R(xs1, yy + RH, wS, RH, '#ffff00'); R(xs2, yy, wS2, RH, '#ffff00'); R(xs2, yy + RH, wS2, RH, '#ffff00');
+      T0(String(t.d1), xs1 + wS / 2, yy + RH / 2, TM(13)); T0(String(Math.round(t.h1 * 10) / 10), xs1 + wS / 2, yy + RH * 1.5, TM(13)); T0(String(t.d2), xs2 + wS2 / 2, yy + RH / 2, TM(13)); T0(String(Math.round(t.h2 * 10) / 10), xs2 + wS2 / 2, yy + RH * 1.5, TM(13));
+      xTs.forEach((x, k) => { R(x, yy, wT[k], RH * 2); });
+      T0(String(t.d1 + t.d2), xTs[0] + wT[0] / 2, yy + RH, TM(13)); T0(String(tot1), xTs[1] + wT[1] / 2, yy + RH, TM(13));
     });
-    // подпись
-    const fy = H - 190; g.textAlign = 'left'; g.font = F(26, 'bold'); g.fillText('Ответственное лицо', X0, fy);
-    g.font = F(26); g.fillText(leader.pos, X0 + 330, fy - 8); g.fillText(leader.short, X0 + 1050, fy - 8);
-    g.lineWidth = 2; [[X0 + 330, 360], [X0 + 760, 240], [X0 + 1050, 260]].forEach((l) => { g.beginPath(); g.moveTo(l[0], fy + 14); g.lineTo(l[0] + l[1], fy + 14); g.stroke(); });
-    g.font = F(18); g.fillStyle = '#555'; g.fillText('(должность)', X0 + 330, fy + 34); g.fillText('(подпись)', X0 + 760, fy + 34); g.fillText('(расшифровка подписи)', X0 + 1050, fy + 34);
-    g.fillStyle = '#111'; g.font = F(24); g.fillText('Работник кадровой службы', X0 + 1500, fy);
-    g.font = F(20); g.fillStyle = '#666'; g.textAlign = 'right'; g.fillText('я/д — явка · в — выходной · ОТ — отпуск · ОД — отгул · стр. ' + pageNo + ' из ' + pages, W - X0, H - 40);
+    // подписи
+    const fy = Y3 + people.length * RH * 2 + 28; g.textAlign = 'left'; T0('Ответственное лицо', 109, fy + 2, TM(11, 'bold')); g.textAlign = 'center';
+    T0(leader.pos, 343, fy - 1, TM(9.5, 'bold')); T0(leader.short, 513, fy - 1, TM(9.5, 'bold')); T0(leader.short, 676, fy - 1, TM(9.5, 'bold'));
+    [[273, 415], [443, 584], [612, 739], [965, 1080], [1106, 1270], [1302, 1442]].forEach((l) => { g.beginPath(); g.moveTo(l[0], fy + 7); g.lineTo(l[1], fy + 7); g.stroke(); });
+    [['(должность)', 313], ['(подпись)', 513], ['(расшифровка)', 662], ['(должность)', 1021], ['(подпись)', 1188], ['(расшифровка)', 1357]].forEach((q) => T0(q[0], q[1], fy + 13, TM(7, 'bold')));
+    g.textAlign = 'left'; T0('Работник кадровой службы', 809, fy + 3, TM(11, 'bold'));
+    g.textAlign = 'right'; T0('я/д — явка · в — выходной · ОТ — отпуск · ДО — отгул (по заявлению) · стр. ' + pageNo + ' из ' + pages, 1442, H - 30, TM(8));
     return c;
   }
   function tabelPdfB64(sheets, leader) {
-    const PER = 14, pgs = [];
+    const PER = 10, pgs = [];
     sheets.forEach((sh) => { const parts = Math.max(1, Math.ceil(sh.people.length / PER)); for (let i = 0; i < parts; i++) pgs.push({ sh: sh, from: i * PER, list: sh.people.slice(i * PER, (i + 1) * PER) }); });
     const pages = pgs.map((p, i) => {
       const c = tabelPageCanvas(p.sh, p.list, p.from, leader, i + 1, pgs.length), d = atob(c.toDataURL('image/jpeg', 0.82).split(',')[1]), jpg = new Uint8Array(d.length);
@@ -8932,9 +8961,10 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
 
 <script id="wn-js">
 (function () {
-  const VER = '20261038';
+  const VER = '20261039';
   // d — дата изменения; a — только для руководителей
   const ITEMS = [
+    { go: 'tt', d: '20261039', i: '📝', a: 0, t: 'Два вида отгула и новый вид PDF табеля', p: 'Отгул теперь бывает двух видов: простой (за отработанные выходные, в табель не вносится) и официальный ДО (с заявлением, вносится в табель с кодом ДО). Вид выбирается при постановке отгула. PDF табеля теперь точно как ваш шаблон.' },
     { go: 'tt', d: '20261038', i: '📗', a: 0, t: 'Табель команды, PDF и график сотрудникам', p: 'Табель Т-12 теперь и в PDF. Руководитель формирует общий табель команды или выбранных сотрудников (месяц или год) и назначает сотрудникам смену: они получат сообщение и смогут изменить её с проверкой своих событий. Кнопка «Очистка / вид» очищает события или оставляет только основные смены. Главный руководитель выгружает отпуска в Excel в формате загрузки.' },
     { go: 'tt', d: '20261037', i: '🔔', a: 0, t: 'Оповещения о правках календаря', p: 'Любая правка в календаре графика (подработки, отгулы, отпуска, пометки, смена графика) теперь отправляется сообщением в Telegram руководителю и главному руководителю. Руководитель видит правки всех сотрудников своей команды.' },
     { go: 'tt', d: '20261037', i: '🧾', a: 0, t: 'Табель Excel и укороченные дни', p: 'В отчёте: «Табель Т-12» в Excel по вашему шаблону, за месяц или год, даты ДД.ММ.ГГГГ, должности и руководитель из приложения. Укороченные дни в календаре подсвечены голубым, по нажатию видно «укороченный день».' },
