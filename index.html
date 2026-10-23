@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Авансовый отчёт">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="app-build" content="20261021-50">
+  <meta name="app-build" content="20261023-51">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -8308,7 +8308,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     if (repMode === 'm') h += '<div style="display:flex; justify-content:space-between; align-items:center; margin:8px 0;"><button type="button" data-ry="-1" style="border:0; background:transparent; font-size:22px; padding:2px 12px;">‹</button><b>' + repYear + ' год</b><button type="button" data-ry="1" style="border:0; background:transparent; font-size:22px; padding:2px 12px;">›</button></div>';
     h += '<div style="margin-top:8px; background:#f8fafc; border-radius:12px; padding:6px 10px;"><div style="display:grid; grid-template-columns:1.5fr repeat(7,minmax(0,1fr)); gap:2px; font-size:10px; font-weight:800; color:#64748b; padding:4px 0; border-bottom:1px solid #e2e8f0;"><span></span><span style="text-align:right">Осн</span><span style="text-align:right">Подр</span><span style="text-align:right">Вых</span><span style="text-align:right">Отп</span><span style="text-align:right">Отг</span><span style="text-align:right">Пом</span><span style="text-align:right">Часы</span></div>' + R.map((x) => row(x.n, x.r)).join('') + (R.length > 1 ? row('Итого', t, true) : '') + '</div>';
     h += '<div style="font-size:11px; color:#64748b; margin-top:6px;">Осн: рабочие дни по графику без отпуска. Подр: подработки. Отп: дни отпуска. Часы: по графику.</div>';
-    h += '<div style="font-weight:800; font-size:13px; margin:14px 0 6px;">Отправить в Telegram</div><div style="display:flex; flex-direction:column; gap:6px;"><button type="button" class="btn btn-secondary" data-snd="text">📝 Текстом</button><button type="button" class="btn btn-secondary" data-snd="orig">📄 Исходный график (PDF)</button><button type="button" class="btn btn-secondary" data-snd="pdf">🎨 Цветной календарь года (PDF)</button></div><button type="button" class="btn btn-primary" id="tt_rc" style="margin-top:10px;">Закрыть</button>';
+    h += '<div style="font-weight:800; font-size:13px; margin:14px 0 6px;">Отправить в Telegram</div><div style="display:flex; flex-direction:column; gap:6px;"><button type="button" class="btn btn-secondary" data-snd="text">📝 Текстом</button><button type="button" class="btn btn-secondary" data-snd="orig">📄 Исходный график (PDF)</button><button type="button" class="btn btn-secondary" data-snd="pdf">🎨 Цветной календарь года (PDF)</button></div><div style="font-weight:800; font-size:13px; margin:14px 0 6px;">Табель Т-12 (Excel, как в шаблоне)</div><div style="display:flex; flex-direction:column; gap:6px;"><button type="button" class="btn btn-secondary" data-snd="xm">📗 За месяц: ' + MN[+cur.slice(5, 7) - 1] + ' ' + cur.slice(0, 4) + '</button><button type="button" class="btn btn-secondary" data-snd="xy">📗 За год ' + (repMode === 'm' ? repYear : +cur.slice(0, 4)) + ' (12 вкладок)</button></div><button type="button" class="btn btn-primary" id="tt_rc" style="margin-top:10px;">Закрыть</button>';
     const m = dlg(h);
     m.onclick = (e) => {
       const a = e.target.closest('[data-rm]'); if (a) { repMode = a.getAttribute('data-rm'); reportDlg(); return; }
@@ -8438,7 +8438,49 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     for (let i = 0; i < pdf.length; i += 0x8000) b += String.fromCharCode.apply(null, pdf.subarray(i, i + 0x8000));
     return btoa(b);
   }
+  // ---------- Табель Т-12 (xlsx по шаблону) ----------
+  const TABEL_LOAD = {};
+  function loadScript(u) { return new Promise((res, rej) => { const x = document.createElement('script'); x.src = u; x.onload = res; x.onerror = () => rej(new Error('Не загрузился модуль табеля')); document.head.appendChild(x); }); }
+  async function tabelLibs() {
+    if (!window.JSZip) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js');
+    if (!window.TabelX) await loadScript('tabel_x.js?v=' + (document.querySelector('meta[name="app-build"]') || {}).content);
+    if (!TABEL_LOAD.A) { const r = await fetch('tabel_assets.json?v=' + (document.querySelector('meta[name="app-build"]') || {}).content); TABEL_LOAD.A = await r.json(); }
+    return TABEL_LOAD.A;
+  }
+  function tabelDays(y, m) {
+    const out = [];
+    for (let d = 1; d <= dim(y, m); d++) {
+      const k = K(y, m, d), h = hrs(k) || 0;
+      if (vmap()[k]) out.push({ c: 'ОТ', h: 0 });
+      else if (SO[k]) out.push({ c: 'ОД', h: 0 });
+      else if (h > 0) out.push({ c: 'я/д', h: h });
+      else out.push({ c: 'в', h: 0 });
+    }
+    return out;
+  }
+  function tabelWho() {
+    const u = (globalAppData && (globalAppData.currentUser || globalAppData.me)) || {};
+    return { fio: String(u.fio || 'Сотрудник').trim(), role: String(u.position || u.role || '').trim() };
+  }
+  async function tabelXlsxB64(scope, y, m) {
+    const A = await tabelLibs(), w = tabelWho();
+    const months = scope === 'y' ? [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] : [m];
+    const sheets = months.map((mm) => ({ name: 'Табель основной ' + TabelX.MONTHS[mm - 1], year: y, month: mm, people: [{ fio: w.fio, role: w.role, days: tabelDays(y, mm) }] }));
+    const bytes = await TabelX.build(window.JSZip, { org: 'ООО"Камелот-А"', dept: '', leaderPos: '', leaderShort: '', sheets: sheets }, A);
+    let b = ''; for (let i = 0; i < bytes.length; i += 0x8000) b += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+    return btoa(b);
+  }
+  async function sendTabel(scope) {
+    const y = scope === 'y' ? (repMode === 'm' ? repYear : +cur.slice(0, 4)) : +cur.slice(0, 4), m = +cur.slice(5, 7);
+    try {
+      Cap.save('Готовлю табель…');
+      const b64 = await tabelXlsxB64(scope, y, m);
+      await api({ action: 'tt_send', mode: 'file', ext: 'xlsx', b64: b64, name: scope === 'y' ? String(y) : TabelX.MONTHS[m - 1] + ' ' + y, caption: 'Табель Т-12: ' + (scope === 'y' ? y + ' год' : TabelX.MONTHS[m - 1] + ' ' + y) });
+      Cap.done('Табель отправлен в Telegram', 1800);
+    } catch (e) { Cap.err(String(e.message || e).slice(0, 60), 4000); }
+  }
   async function send(mode) {
+    if (mode === 'xm' || mode === 'xy') return sendTabel(mode === 'xy' ? 'y' : 'm');
     const y = repMode === 'm' ? repYear : +cur.slice(0, 4);
     try {
       Cap.save('Отправляю в Telegram…');
