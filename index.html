@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Авансовый отчёт">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="app-build" content="20261023-52">
+  <meta name="app-build" content="20261023-53">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -7895,7 +7895,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
   const dim = (y, m) => new Date(Date.UTC(y, m, 0)).getUTCDate();
   const dow = (k) => (new Date(T(k)).getUTCDay() + 6) % 7;
   const KEYNAME = { S1: 'Смена 1', S2: 'Смена 2', LEAD: 'Руководители 5/2' };
-  const COL = { work: ['#7dd69a', '#0b3d1e'], off: ['#ece9e2', '#6b665e'], ext: ['#8b1d3f', '#ffffff'], vac: ['#fbbf24', '#5a3300'], none: ['#faf9f7', '#b8b3aa'] };
+  const COL = { work: ['#7dd69a', '#0b3d1e'], off: ['#ece9e2', '#6b665e'], ext: ['#8b1d3f', '#ffffff'], vac: ['#fbbf24', '#5a3300'], none: ['#faf9f7', '#b8b3aa'], short: ['#67e8f9', '#083344'] };
   const PAL = ['#bfdbfe', '#fbcfe8', '#ddd6fe', '#fed7aa', '#a7f3d0', '#fecaca', '#e5e7eb', '#bae6fd'];
   const EMO = ['🩺', '👮', '🏛', '🎓', '✈️', '🚗', '💼', '🏥', '🎂', '🏠', '📌', '⚽'];
   const blank = () => ({ s: '', x: [], o: [], v: [], m: {}, p: [], w: {} });
@@ -7923,9 +7923,12 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
   function hrs(k) { const sc = sched(+k.slice(0, 4)); if (sc) return (sc.hours[+k.slice(5, 7)] || {})[+k.slice(8)] || 0; if (MY[k.slice(0, 4)]) return (S.me.w || {})[k] || 0; return null; }
   const hasY = (y) => !!sched(y) || !!MY[String(y)];
   const official = (y) => !!sched(y);
-  function st(k) { const h = hrs(k); return { k: k, h: h || 0, has: h !== null, base: h > 0, vac: !!vmap()[k], ext: !!SX[k], otg: !!SO[k], mark: (S.me.m || {})[k] || null }; }
+  const TYP = {};
+  function typH(y) { const key = S.me.s + y; if (TYP[key] !== undefined) return TYP[key]; const sc = sched(y); let best = 0; if (sc) { const cnt = {}; Object.keys(sc.hours).forEach((m) => Object.keys(sc.hours[m] || {}).forEach((d) => { const h = sc.hours[m][d]; if (h > 0) cnt[h] = (cnt[h] || 0) + 1; })); let mx = 0; Object.keys(cnt).forEach((h) => { if (cnt[h] > mx) { mx = cnt[h]; best = +h; } }); } return (TYP[key] = best); }
+  function st(k) { const h = hrs(k); return { k: k, h: h || 0, has: h !== null, base: h > 0, short: h > 0 && official(+k.slice(0, 4)) && h < typH(+k.slice(0, 4)), vac: !!vmap()[k], ext: !!SX[k], otg: !!SO[k], mark: (S.me.m || {})[k] || null }; }
   function colorOf(s) {
     let c = !s.has ? COL.none : s.base ? COL.work : COL.off;
+    if (s.short && s.base) c = COL.short;
     if (s.ext) c = COL.ext;
     if (s.vac) c = COL.vac;
     if (s.mark) c = [s.mark.c, '#1f2937'];
@@ -8092,7 +8095,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
   function byMonth(keys) { const c = {}; keys.forEach((k) => { c[+k.slice(5, 7)] = (c[+k.slice(5, 7)] || 0) + 1; }); return Object.keys(c).map((m) => c[m] + ' ' + MG[m - 1]).join(', '); }
   function legend() {
     const i = (bg, t, ex) => '<span style="display:inline-flex; align-items:center; gap:5px;"><i style="width:12px; height:12px; border-radius:4px; background:' + bg + ';display:inline-block;' + (ex || '') + '"></i>' + t + '</span>';
-    return '<div style="display:flex; flex-wrap:wrap; gap:6px 12px; font-size:11px; color:#334155; margin-top:10px;">' + i(COL.work[0], 'Смена') + i(COL.ext[0], 'Подработка') + i(COL.vac[0], '🌴 Отпуск') + i('linear-gradient(135deg,' + COL.vac[0] + ' 50%,' + COL.ext[0] + ' 50%)', 'Отпуск + подработка') + i('#fff', '☕ Отгул', 'box-shadow:inset 0 0 0 2px #111827;') + i('#bfdbfe', 'Пометка') + '</div>';
+    return '<div style="display:flex; flex-wrap:wrap; gap:6px 12px; font-size:11px; color:#334155; margin-top:10px;">' + i(COL.work[0], 'Смена') + i(COL.short[0], 'Укороченный день') + i(COL.ext[0], 'Подработка') + i(COL.vac[0], '🌴 Отпуск') + i('linear-gradient(135deg,' + COL.vac[0] + ' 50%,' + COL.ext[0] + ' 50%)', 'Отпуск + подработка') + i('#fff', '☕ Отгул', 'box-shadow:inset 0 0 0 2px #111827;') + i('#bfdbfe', 'Пометка') + '</div>';
   }
   function render() {
     const m = root(); const y = +cur.slice(0, 4);
@@ -8166,7 +8169,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
       items.push({ text: '🗑 Убрать этот отпуск', danger: true, fn: () => uiAsk('Убрать отпуск?', pRange(pv.a, pv.b) + (pv.off ? '. Он удалится и из графика отпусков, об этом узнают руководители.' : ''), 'Убрать', () => vacDelete(pv)) });
     } else items.push({ text: '🌴 Отпуск с этого дня', fn: () => rangeDlg('vac', k) });
     if (s.otg) items.push({ text: '↪️ Перенести отгул на другую дату', fn: () => otgMoveDlg(k) });
-    openSheet(pRu(k) + (s.has ? (s.base ? ' · смена ' + s.h + ' ч' : ' · выходной') : ''), items);
+    openSheet(pRu(k) + (s.has ? (s.base ? (s.short ? ' · укороченный день ' + s.h + ' ч (обычно ' + typH(+k.slice(0, 4)) + ' ч)' : ' · смена ' + s.h + ' ч') : ' · выходной') : ''), items);
   }
 
   // ---------- отпуска команды (руководитель) ----------
@@ -8423,7 +8426,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
         const idx = dow(k) + (new Date(y, m - 1, 1).getDay() + 6) % 7 * 0; // день недели даты
         const first = (new Date(y, m - 1, 1).getDay() + 6) % 7, pos = first + d - 1;
         const cx = bx + (pos % 7) * CW, cy = by + 80 + Math.floor(pos / 7) * CH, w = CW - 5, h = CH - 5;
-        let base = s.mark ? [s.mark.c, '#1f2937'] : (s.vac ? RC.vac : s.ext ? RC.ext : !s.has ? RC.none : s.base ? RC.work : RC.off);
+        let base = s.mark ? [s.mark.c, '#1f2937'] : (s.vac ? RC.vac : s.ext ? RC.ext : !s.has ? RC.none : s.base ? (s.short ? RC.short : RC.work) : RC.off);
         g.save(); rr(cx, cy, w, h, 9); g.clip();
         g.fillStyle = base[0]; g.fillRect(cx, cy, w, h);
         const diag = s.vac && s.ext && !s.mark;
@@ -8448,6 +8451,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     g.strokeStyle = '#e5e7eb'; g.lineWidth = 2; g.beginPath(); g.moveTo(42, ly - 8); g.lineTo(W - 42, ly - 8); g.stroke();
     const items = [
       { sw: RC.work[0], t: 'Основные смены', v: r.work + ' дн. · ' + (Math.round(r.hours * 10) / 10) + ' ч' },
+      { sw: RC.short[0], t: 'Укороченные дни', v: yearKeys(y).filter((k) => { const z = st(k); return z.short && z.base && !z.vac; }).length + ' дн.' },
       { sw: RC.ext[0], t: 'Подработки', v: r.extra + ' дн.' },
       { sw: RC.vac[0], t: 'Отпуск', v: r.vac + ' дн.' },
       { sw: RC.off[0], t: 'Выходные по графику', v: r.off + ' дн.', bd: '#cfcac0' },
@@ -8523,13 +8527,13 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
   }
   function tabelWho() {
     const u = (globalAppData && (globalAppData.currentUser || globalAppData.me)) || {};
-    return { fio: String(u.fio || 'Сотрудник').trim(), role: String(u.position || u.role || '').trim() };
+    return { fio: String(u.fio || 'Сотрудник').trim(), role: String(S.myPos || u.position || u.role || '').trim() };
   }
   async function tabelXlsxB64(scope, y, m) {
     const A = await tabelLibs(), w = tabelWho();
     const months = scope === 'y' ? [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] : [m];
     const sheets = months.map((mm) => ({ name: 'Табель основной ' + TabelX.MONTHS[mm - 1], year: y, month: mm, people: [{ fio: w.fio, role: w.role, days: tabelDays(y, mm) }] }));
-    const bytes = await TabelX.build(window.JSZip, { org: 'ООО"Камелот-А"', dept: '', leaderPos: '', leaderShort: '', sheets: sheets }, A);
+    const bytes = await TabelX.build(window.JSZip, { org: 'ООО"Камелот-А"', dept: 'Торговый отдел Томск', leaderPos: (S.leader && S.leader.pos) || 'Руководитель КО', leaderShort: (S.leader && S.leader.short) || '', sheets: sheets }, A);
     let b = ''; for (let i = 0; i < bytes.length; i += 0x8000) b += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
     return btoa(b);
   }
@@ -8558,7 +8562,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
   async function load() {
     try {
       const j = await api({ action: 'tt_get' });
-      S.sc = j.schedules || []; S.keys = j.keys || []; S.vac = j.vac || []; S.team = j.team || null; S.teamVac = j.teamVac || [];
+      S.sc = j.schedules || []; S.keys = j.keys || []; S.vac = j.vac || []; S.team = j.team || null; S.myPos = j.myPos || ''; S.leader = j.leader || null; S.teamVac = j.teamVac || [];
       let me = blank(); try { const o = JSON.parse(j.me || '{}'); me = Object.assign(blank(), o); } catch (e) {}
       S.me = me; if (S.me.s && S.keys.indexOf(S.me.s) < 0) S.me.s = '';
       S.loaded = true; reindex();
@@ -8692,9 +8696,11 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
 
 <script id="wn-js">
 (function () {
-  const VER = '20261036';
+  const VER = '20261037';
   // d — дата изменения; a — только для руководителей
   const ITEMS = [
+    { go: 'tt', d: '20261037', i: '🔔', a: 0, t: 'Оповещения о правках календаря', p: 'Любая правка в календаре графика (подработки, отгулы, отпуска, пометки, смена графика) теперь отправляется сообщением в Telegram руководителю и главному руководителю. Руководитель видит правки всех сотрудников своей команды.' },
+    { go: 'tt', d: '20261037', i: '🧾', a: 0, t: 'Табель Excel и укороченные дни', p: 'В отчёте: «Табель Т-12» в Excel по вашему шаблону, за месяц или год, даты ДД.ММ.ГГГГ, должности и руководитель из приложения. Укороченные дни в календаре подсвечены голубым, по нажатию видно «укороченный день».' },
     { go: 'tt', d: '20261036', i: '👥', a: 0, t: 'Отпуска команды', p: 'Руководитель: после переноса своего отпуска приложение предложит сдвинуть отпуска коллег на столько же дней. Кнопка «Отпуска команды» в «Моём графике»: добавить отпуск себе и выбранным сотрудникам, изменить, сдвинуть, удалить. Сотрудник может сам добавить свой отпуск. Обо всём приходят сообщения в Telegram.' },
     { go: 'tt', d: '20261035', i: '🌴', a: 0, t: 'Отпуск и отгул: правка и перенос', p: 'В «Моём графике» нажмите на день отпуска: можно изменить даты, передвинуть или убрать. Отгул можно перенести. Изменения отпусков из графика приходят сообщением в Telegram вам, руководителю команды и главному руководителю. Руководитель при пересечении отпусков видит, у кого ещё отпуск, и может сдвинуть их или оставить.' },
     { go: 'prof', d: '20261035', i: '👆', a: 0, t: 'Новости открывают нужный раздел', p: 'В «Что нового» нажмите на новость со стрелкой: приложение спросит подтверждение и откроет раздел, где появилась функция.' },
