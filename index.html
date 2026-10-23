@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Авансовый отчёт">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="app-build" content="20261021-45">
+  <meta name="app-build" content="20261021-46">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -3999,9 +3999,12 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
             (r.pdfFileUrl ? '<a href="' + r.pdfFileUrl + '" target="_blank" rel="noopener" style="color:var(--success);">PDF</a> ' : '') +
             (r.fileUrl ? '<a href="' + r.fileUrl + '" target="_blank" rel="noopener" style="color:var(--primary);">Excel</a>' : '') + '</div>').join('');
           const first = arr[0];
+          const prim = (reqsArchive || []).find(x => x.tripId === first.tripId && Number(x.seqNumber || 1) === 1) || first;
+          const pd = String(prim.dates || '').split('—').map(x => x.trim());
+          const reSubj = 'RE: Заявка на ДС. Командировка в ' + formatUniqueCities(prim.city) + ' ' + pd[0] + '-' + (pd[1] || pd[0]) + 'гг';
           html += '<div class="timeline-node-field" style="border-color:#6366f1; background:#eef2ff; margin-top:6px;">' +
             '<b>✉️ Письмо по продлению:</b> ' + esc(names) + '<br><small>Срок продления: ' + esc(first.dates) + ' | ' + esc(formatUniqueCities(first.city)) + '</small>' + links +
-            (first.savedEmailText ? '<button type="button" class="btn btn-primary" style="height:30px; font-size:11px; margin-top:6px;" onclick="openMailBridge({subject:\'Заявка на ДС (Продление). Командировка в ' + esc(formatUniqueCities(first.city)) + ' ' + esc(first.dates) + 'гг\', body: findSiblingText(\'' + first.reqId + '\'), reqIds: findSiblingReqIds(findReq(\'' + first.reqId + '\'))})">✉️ Открыть письмо</button>' : '') +
+            (first.savedEmailText ? '<button type="button" class="btn btn-primary" style="height:30px; font-size:11px; margin-top:6px;" onclick="openMailBridge({subject:\'' + esc(reSubj) + '\', body: findSiblingText(\'' + first.reqId + '\'), reqIds: findSiblingReqIds(findReq(\'' + first.reqId + '\'))})">✉️ Открыть письмо</button>' : '') +
             '</div>';
         });
       })();
@@ -4759,6 +4762,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     }
 
     let overall = 0;
+    const isPro = (document.getElementById('req_type').value === 'prolong');
     box.innerHTML = fnames.map((fio, idx) => {
       const d = currentReqTeamData[fio];
       overall += Number(d.sumTotal || 0);
@@ -4770,6 +4774,15 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
             <div style="font-weight:700; font-size:13px; color:#0f172a;">${d.fio}</div>
             <button type="button" class="btn btn-danger" style="height:24px; width:24px; min-width:24px; font-size:11px;" onclick="removeTeamMemberFromEstimate('${fio.replace(/'/g, "\\'")}')">✕</button>
           </div>
+          ${isPro ? `<details ${(d.city || d.dStart || d.dEnd) ? 'open' : ''} style="margin-bottom:8px; background:#eef2ff; border-radius:8px; padding:6px 8px;">
+            <summary style="font-size:12px; font-weight:700; color:#3730a3; cursor:pointer;">🏙 Другой город или сроки для этого сотрудника</summary>
+            <div class="field" style="margin-top:6px;"><label>Город (если отличается от общего)</label><input type="text" value="${String(d.city || '').replace(/"/g, '&quot;')}" placeholder="например, Екатеринбург" onchange="setMemberOwn(${idx}, 'city', this.value)"></div>
+            <div class="grid-2">
+              <div class="field"><label>Продление с</label><input type="date" value="${ruToIso(d.dStart)}" onchange="setMemberOwn(${idx}, 'dStart', this.value)"></div>
+              <div class="field"><label>Продление по</label><input type="date" value="${ruToIso(d.dEnd)}" onchange="setMemberOwn(${idx}, 'dEnd', this.value)"></div>
+            </div>
+            <small style="color:#64748b;">Пусто — берутся общий город и сроки сверху. Письмо будет общим, с блоками по городам.</small>
+          </details>` : ''}
           <div class="grid-2">
             <div class="field"><label>Проезд (₽)</label><input type="number" id="inp_travel_${idx}" value="${d.sumTravel}" oninput="updateTeamMemberValDirect('${fio}', ${idx}, 'sumTravel', this.value)"></div>
             <div class="field"><label>Жильё в сутки (₽)</label><input type="number" id="inp_rate_${idx}" value="${d.hotelDaily}" oninput="updateTeamMemberValDirect('${fio}', ${idx}, 'hotelDaily', this.value)"></div>
@@ -4794,6 +4807,29 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
       `;
     }).join('');
     document.getElementById('req_total_sum_display').innerText = overall.toLocaleString('ru-RU');
+  }
+
+  function ruToIso(v) { const m = String(v || '').match(/(\d{1,2})\.(\d{1,2})\.(\d{4})/); return m ? m[3] + '-' + m[2].padStart(2, '0') + '-' + m[1].padStart(2, '0') : ''; }
+  function isoToRu(v) { const m = String(v || '').match(/(\d{4})-(\d{2})-(\d{2})/); return m ? m[3] + '.' + m[2] + '.' + m[1] : ''; }
+  // Свой город и сроки сотрудника при продлении
+  function setMemberOwn(idx, key, val) {
+    const fio = Object.keys(currentReqTeamData)[idx];
+    const it = currentReqTeamData[fio];
+    if (!it) return;
+    if (key === 'city') { it.city = String(val || '').trim(); return; }
+    it[key] = isoToRu(val);
+    const s = it.dStart || document.getElementById('req_date_start').value;
+    const e = it.dEnd || document.getElementById('req_date_end').value;
+    const sN = dmyToDayNum(s), eN = dmyToDayNum(e);
+    if (!isNaN(sN) && !isNaN(eN)) {
+      if (eN < sN) { showToast('Дата окончания раньше начала'); it[key] = ''; renderTeamEstimateCards(); return; }
+      const n = eN - sN + 1;
+      it.days = n; it.stayDays = n;
+      it.sumDaily = n * 1500;
+      it.sumHotel = n * (it.hotelDaily || 0);
+      it.sumTotal = Number(it.sumTravel || 0) + it.sumHotel + it.sumDaily;
+    }
+    renderTeamEstimateCards();
   }
 
   function updateTeamMemberValDirect(fio, idx, key, val) {
@@ -8319,9 +8355,10 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
 
 <script id="wn-js">
 (function () {
-  const VER = '20261030';
+  const VER = '20261031';
   // d — дата изменения; a — только для руководителей
   const ITEMS = [
+    { d: '20261031', i: '✉️', a: 0, t: 'Продление в разные города', p: 'В продлении у каждого сотрудника можно указать свой город и сроки. Письмо общее, с блоками по городам. Тема письма теперь «RE:» к теме первичной заявки.' },
     { d: '20261030', i: '🧳', a: 0, t: 'Продление командировок: исправлено', p: 'Продление нескольких сотрудников больше не затирает командировку руководителя: у каждого своя цепочка, расходы и АО-1 не теряются. Руководитель видит в командировке «Письмо по продлению» со ссылками на заявки.' },
     { d: '20261029', i: '🗂', a: 0, t: 'Календарь командировок: компактнее и цветнее', p: 'Под годом теперь одна строка с количеством командировок, а список открывается кнопкой «Ещё». Архивные командировки разноцветные (бледные цвета), у месяцев значки: ⏳ в процессе, ✅ сданы, 📦 в архиве. Годы без командировок (до 2021 и будущие) не показываются. В списке командировок сданные и закончившиеся уходят в «Архив командировок» (документы остаются доступными).' },
     { d: '20261028', i: '📅', a: 0, t: 'Мой график: умное табелирование', p: 'Профиль → «Мой график»: смены месяцем, неделей и годом, подработки (зажмите выходной), отгулы ☕, отпуск 🌴, свои пометки с цветом и значком, отчёты по месяцам и годам и отправка отчёта в Telegram. Смены можно нанести вручную (приложение предложит продолжить схему до конца года), пока нет официального графика. День отпуска с подработкой закрашен пополам. Главный руководитель загружает PDF-графики и Excel отпусков в «Загрузка графиков».' },
