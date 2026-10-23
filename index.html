@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Авансовый отчёт">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="app-build" content="20261021-47">
+  <meta name="app-build" content="20261021-48">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -6770,6 +6770,18 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     if (cu.fio) set.add(sn(cu.fio));
     return { has: (fio) => set.has(sn(fio)), myId: myId };
   }
+  // Руководитель команды сотрудников командировки: «КО Фамилия»
+  function koOfCluster(c) {
+    const g = (typeof globalAppData !== 'undefined' && globalAppData) || {};
+    const names = [];
+    (c.items || []).forEach(it => {
+      const e = (g.employees || []).find(x => sn(x.fio) === sn(it.fio));
+      const t = e && g.teams && g.teams[e.teamOwner];
+      const nm = t && t.name && t.name !== '—' ? String(t.name) : '';
+      if (nm && names.indexOf(nm) < 0) names.push(nm);
+    });
+    return names.join(', ');
+  }
   function build() {
     const g = (typeof globalAppData !== 'undefined' && globalAppData) || {};
     const reports = g.reports || [];
@@ -6872,7 +6884,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     let sum = inYear.length ? plural(inYear.length, 'командировка', 'командировки', 'командировок') : 'командировок в этом году нет';
     if (homeY.length) sum += (inYear.length ? ', ' : '; ') + homeY.length + ' в домашнем городе (без командировки)';
     const dd = (t) => { const d = new Date(t); return String(d.getDate()).padStart(2, '0') + '.' + String(d.getMonth() + 1).padStart(2, '0'); };
-    const lst = inYearAll.slice().sort((a, b) => a.s - b.s).map(c => '<div style="display:flex; align-items:center; gap:6px; margin:3px 0; padding:3px 9px; border-radius:999px; font-size:12px; font-weight:700; background:' + (c.pale ? c.color : c.color + '22') + '; color:' + (c.ink || c.color) + ';"><span>' + (c.home ? '🏠' : '📍') + '</span><span style="flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">' + esc(cityShort(c.city).join(', ')) + '</span><span style="white-space:nowrap;">' + dd(c.s) + '–' + dd(c.e) + '</span></div>').join('');
+    const lst = inYearAll.slice().sort((a, b) => a.s - b.s).map(c => '<div style="display:flex; align-items:center; gap:6px; margin:3px 0; padding:3px 9px; border-radius:999px; font-size:12px; font-weight:700; background:' + (c.pale ? c.color : c.color + '22') + '; color:' + (c.ink || c.color) + ';"><span>' + (c.home ? '🏠' : '📍') + '</span><span style="flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">' + esc(cityShort(c.city).join(', ')) + (koOfCluster(c) ? ' <span style="font-weight:600; opacity:.85;">(' + esc(koOfCluster(c)) + ')</span>' : '') + '</span><span style="white-space:nowrap;">' + dd(c.s) + '–' + dd(c.e) + '</span></div>').join('');
     const moreBtn = inYearAll.length ? '<button type="button" onclick="Cal.toggleMore()" style="border:0; background:transparent; color:#2563eb; font-weight:800; font-size:12px; padding:2px 0; font-family:inherit;">' + (more ? 'Свернуть ▴' : 'Ещё ▾') + '</button>' : '';
     let months = '';
     for (let m = 0; m < 12; m++) months += monthHtml(m);
@@ -8256,18 +8268,112 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     Object.keys(mk).forEach((n) => L.push('Пометка «' + n + '» (' + mk[n].length + '): ' + mk[n].join(', ')));
     return L.join('\n');
   }
-  function pdfHtml(y) {
-    const cellH = (k) => { const s = st(k), c = colorOf(s); return '<td style="width:14%; height:19px; text-align:center; font-size:10px; background:' + c[0] + '; color:' + c[1] + ';' + (s.vac && s.ext && !s.mark ? 'border-bottom:7px solid #7f1d3a;' : '') + (s.otg ? 'border:2px solid #111; font-weight:bold;' : 'border:1px solid #fff;') + '">' + (+k.slice(8)) + '</td>'; };
-    const mon = (m) => { let h = '<table style="width:100%; border-collapse:collapse;"><tr><td colspan="7" style="font-size:11px; font-weight:bold; padding:3px 0;">' + MN[m - 1] + '</td></tr><tr>' + DW.map((x) => '<td style="font-size:8px; color:#666; text-align:center;">' + x + '</td>').join('') + '</tr><tr>'; const lead = dow(K(y, m, 1)); for (let i = 0; i < lead; i++) h += '<td></td>'; let n = lead; monthKeys(y, m).forEach((k) => { if (n % 7 === 0 && n) h += '</tr><tr>'; h += cellH(k); n++; }); return h + '</tr></table>'; };
-    let grid = '<table style="width:100%; border-collapse:separate; border-spacing:8px 6px;">'; for (let r = 0; r < 4; r++) { grid += '<tr>'; for (let c = 0; c < 3; c++) grid += '<td style="vertical-align:top; width:33%;">' + mon(r * 3 + c + 1) + '</td>'; grid += '</tr>'; } grid += '</table>';
+  // ---------- цветной календарь: рисуем картинку в приложении и собираем PDF (цвета не теряются) ----------
+  function calCanvas(y) {
+    const W = 1485, H = 2100, c = document.createElement('canvas'); c.width = W; c.height = H;
+    const g = c.getContext('2d'), F = (sz, w) => (w || 'normal') + ' ' + sz + 'px Arial, Helvetica, sans-serif';
+    const RC = { work: ['#7dd69a', '#0b3d1e'], off: ['#ece9e2', '#6b665e'], ext: ['#8b1d3f', '#ffffff'], vac: ['#fbbf24', '#5a3300'], none: ['#faf9f7', '#b8b3aa'] };
+    const rr = (x, yy, w, h, r) => { g.beginPath(); g.moveTo(x + r, yy); g.arcTo(x + w, yy, x + w, yy + h, r); g.arcTo(x + w, yy + h, x, yy + h, r); g.arcTo(x, yy + h, x, yy, r); g.arcTo(x, yy, x + w, yy, r); g.closePath(); };
+    g.fillStyle = '#ffffff'; g.fillRect(0, 0, W, H);
+    // шапка
+    const hg = g.createLinearGradient(0, 0, W, 0); hg.addColorStop(0, '#14532d'); hg.addColorStop(1, '#1d6f3f');
+    g.fillStyle = hg; g.fillRect(0, 0, W, 150);
+    const who = ((globalAppData && globalAppData.currentUser && globalAppData.currentUser.fio) || (globalAppData && globalAppData.me && globalAppData.me.fio) || '').trim();
+    g.fillStyle = '#fff'; g.textBaseline = 'alphabetic'; g.font = F(64, 'bold'); g.fillText('Табель ' + y, 42, 80);
+    g.font = F(30); g.fillText((who ? who + ' · ' : '') + (KEYNAME[S.me.s] || 'ручной график'), 42, 125);
+    const now = new Date(), p2 = (n) => String(n).padStart(2, '0');
+    g.textAlign = 'right'; g.font = F(24); g.globalAlpha = .85; g.fillText('сформировано ' + p2(now.getDate()) + '.' + p2(now.getMonth() + 1) + '.' + now.getFullYear(), W - 42, 125); g.globalAlpha = 1; g.textAlign = 'left';
+    // месяцы
+    const CW = 60, CH = 48, GX = 70, X0 = 42, Y0 = 178, BH = 384;
+    for (let m = 1; m <= 12; m++) {
+      const col = (m - 1) % 3, row = Math.floor((m - 1) / 3), bx = X0 + col * (CW * 7 + GX), by = Y0 + row * BH;
+      g.fillStyle = '#111827'; g.font = F(34, 'bold'); g.fillText(MN[m - 1], bx, by + 34);
+      g.fillStyle = '#9ca3af'; g.font = F(20, 'bold'); g.textAlign = 'center';
+      DW.forEach((d, i) => g.fillText(d, bx + i * CW + CW / 2, by + 68));
+      g.textAlign = 'left';
+      const n = dim(y, m);
+      for (let d = 1; d <= n; d++) {
+        const k = K(y, m, d), s = st(k), cc = colorOf(s);
+        const idx = dow(k) + (new Date(y, m - 1, 1).getDay() + 6) % 7 * 0; // день недели даты
+        const first = (new Date(y, m - 1, 1).getDay() + 6) % 7, pos = first + d - 1;
+        const cx = bx + (pos % 7) * CW, cy = by + 80 + Math.floor(pos / 7) * CH, w = CW - 5, h = CH - 5;
+        let base = s.mark ? [s.mark.c, '#1f2937'] : (s.vac ? RC.vac : s.ext ? RC.ext : !s.has ? RC.none : s.base ? RC.work : RC.off);
+        g.save(); rr(cx, cy, w, h, 9); g.clip();
+        g.fillStyle = base[0]; g.fillRect(cx, cy, w, h);
+        const diag = s.vac && s.ext && !s.mark;
+        if (diag) {
+          g.fillStyle = RC.vac[0]; g.fillRect(cx, cy, w, h);
+          g.fillStyle = RC.ext[0]; g.beginPath(); g.moveTo(cx + w, cy); g.lineTo(cx + w, cy + h); g.lineTo(cx, cy + h); g.closePath(); g.fill();
+        }
+        g.restore();
+        if (s.otg) { g.strokeStyle = '#5b3a29'; g.lineWidth = 4; rr(cx + 2, cy + 2, w - 4, h - 4, 8); g.stroke(); }
+        g.font = F(23, 'bold'); g.textAlign = 'center'; g.textBaseline = 'middle';
+        const tx = cx + w / 2, ty = cy + h / 2 + 1;
+        if (diag) { g.lineWidth = 5; g.strokeStyle = '#ffffff'; g.lineJoin = 'round'; g.strokeText(String(d), tx, ty); g.fillStyle = '#1f1300'; }
+        else g.fillStyle = base[1];
+        g.fillText(String(d), tx, ty);
+        if (s.mark && s.mark.e) { g.font = F(15); g.fillText(s.mark.e, cx + w - 11, cy + 11); }
+        g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+      }
+    }
+    // легенда и итоги
     const r = stat(yearKeys(y)), yp = periods().filter((p) => p.a.slice(0, 4) === String(y) || p.b.slice(0, 4) === String(y));
-    const sw = (bg, t) => '<span style="display:inline-block; width:11px; height:11px; background:' + bg + '; border:1px solid #999; margin:0 4px 0 10px;"></span>' + t;
-    const mk = {}; r.ml.forEach((k) => { const x = S.me.m[k]; (mk[x.n] = mk[x.n] || { c: x.c, d: [] }).d.push(pDate(k)); });
-    let det = '<p style="font-size:11px;"><b>Основных дней:</b> ' + r.work + ' (часов по графику: ' + r.hours + ', дни с отпуском не считаются)<br><b>Выходных:</b> ' + r.off + '<br><b>Подработок:</b> ' + r.extra + (r.extra ? ' (' + byMonth(r.el) + '): ' + r.el.map(pDate).join(', ') : '') + '<br><b>Отгулов:</b> ' + r.otg + (r.otg ? ': ' + r.gl.map(pDate).join(', ') : '') + '<br><b>Отпуск:</b> ' + r.vac + ' дн.' + (yp.length ? ': ' + yp.map((p) => pLen(p) + ' дн. ' + pRange(p.a, p.b)).join('; ') : '');
-    Object.keys(mk).forEach((n) => { det += '<br><span style="background:' + mk[n].c + '; padding:0 4px;">' + E(n) + '</span> (' + mk[n].d.length + '): ' + mk[n].d.join(', '); });
-    det += '</p>';
-    const me = (getTelegramUser() || {}); const who = (globalAppData && globalAppData.me && globalAppData.me.fio) || '';
-    return '<html><body style="font-family:Arial,sans-serif; padding:14px;"><h2 style="margin:0 0 2px;">Табель ' + y + '</h2><div style="font-size:12px; color:#444; margin-bottom:6px;">' + E(who) + ' · ' + E(KEYNAME[S.me.s] || '') + '</div><div style="font-size:11px; margin-bottom:6px;"><b>Расшифровка:</b>' + sw(COL.work[0], 'смена') + sw(COL.ext[0], 'подработка') + sw(COL.vac[0], 'отпуск') + sw('#fff; border:2px solid #111', 'отгул (обводка)') + sw('#bfdbfe', 'пометка') + sw(COL.off[0], 'выходной') + '</div>' + grid + det + '</body></html>';
+    let ly = Y0 + 4 * BH + 6;
+    g.strokeStyle = '#e5e7eb'; g.lineWidth = 2; g.beginPath(); g.moveTo(42, ly - 8); g.lineTo(W - 42, ly - 8); g.stroke();
+    const items = [
+      { sw: RC.work[0], t: 'Основные смены', v: r.work + ' дн. · ' + (Math.round(r.hours * 10) / 10) + ' ч' },
+      { sw: RC.ext[0], t: 'Подработки', v: r.extra + ' дн.' },
+      { sw: RC.vac[0], t: 'Отпуск', v: r.vac + ' дн.' },
+      { sw: RC.off[0], t: 'Выходные по графику', v: r.off + ' дн.', bd: '#cfcac0' },
+      { sw: '#ffffff', t: 'Отгулы', v: r.otg + ' дн.', otg: 1 }
+    ];
+    const mkNames = {}; r.ml.forEach((k) => { const x = S.me.m[k]; (mkNames[x.n] = mkNames[x.n] || { c: x.c, e: x.e, d: [] }).d.push(k); });
+    Object.keys(mkNames).forEach((n) => items.push({ sw: mkNames[n].c, t: (mkNames[n].e || '') + ' ' + n, v: mkNames[n].d.length + ' дн.' }));
+    const lw = (W - 84) / 3; let lx = 42, lyy = ly + 8, cnt = 0;
+    items.forEach((it) => {
+      if (cnt && cnt % 3 === 0) { lx = 42; lyy += 52; }
+      rr(lx, lyy, 38, 34, 8); g.fillStyle = it.sw; g.fill();
+      if (it.bd) { g.strokeStyle = it.bd; g.lineWidth = 2; g.stroke(); }
+      if (it.otg) { g.strokeStyle = '#5b3a29'; g.lineWidth = 4; rr(lx + 2, lyy + 2, 34, 30, 7); g.stroke(); }
+      g.fillStyle = '#111827'; g.font = F(24, 'bold'); g.fillText(it.t, lx + 50, lyy + 18);
+      g.fillStyle = '#4b5563'; g.font = F(21); g.fillText(it.v, lx + 50, lyy + 42);
+      lx += lw; cnt++;
+    });
+    // подробности
+    let dy = lyy + 100;
+    const wrap = (txt, x, w) => { const words = txt.split(' '); let line = ''; const out = []; words.forEach((wd) => { const t = line ? line + ' ' + wd : wd; if (g.measureText(t).width > w && line) { out.push(line); line = wd; } else line = t; }); if (line) out.push(line); return out; };
+    const rowTxt = (label, body) => { g.font = F(21, 'bold'); const lw2 = g.measureText(label + ' ').width; g.fillStyle = '#111827'; g.fillText(label, 42, dy); g.font = F(21); g.fillStyle = '#374151'; const lines = wrap(body, 42 + lw2, W - 84 - lw2); lines.forEach((ln, i) => { g.fillText(ln, 42 + lw2, dy + i * 28); }); dy += Math.max(1, lines.length) * 28 + 6; };
+    rowTxt('Подработки:', byMonth(r.el) ? (r.extra + ': ' + MS.map((mn, i) => { const L = r.el.filter((k) => +k.slice(5, 7) === i + 1); return L.length ? mn + ' ' + fmtList(L) : ''; }).filter(Boolean).join(' · ')) : '—');
+    rowTxt('Отгулы:', r.gl.length ? r.gl.map((k) => pDate(k)).join(', ') : '—');
+    rowTxt('Отпуск:', yp.length ? yp.map((p) => pLen(p) + ' дн. (' + pRange(p.a, p.b) + ')').join(' · ') : '—');
+    Object.keys(mkNames).forEach((n) => rowTxt((mkNames[n].e || '') + ' ' + n + ':', mkNames[n].d.map((k) => pDate(k)).join(', ')));
+    return c;
+  }
+  // PDF одной страницы из JPEG (без библиотек)
+  function pdfFromJpeg(jpg, pxW, pxH) {
+    const enc = new TextEncoder(), parts = [], offs = []; let len = 0;
+    const add = (u8) => { parts.push(u8); len += u8.length; };
+    const txt = (s) => add(enc.encode(s));
+    const obj = (n, body) => { offs[n] = len; txt(n + ' 0 obj\n' + body + '\nendobj\n'); };
+    txt('%PDF-1.4\n');
+    obj(1, '<< /Type /Catalog /Pages 2 0 R >>');
+    obj(2, '<< /Type /Pages /Kids [3 0 R] /Count 1 >>');
+    obj(3, '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>');
+    offs[4] = len; txt('4 0 obj\n<< /Type /XObject /Subtype /Image /Width ' + pxW + ' /Height ' + pxH + ' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ' + jpg.length + ' >>\nstream\n'); add(jpg); txt('\nendstream\nendobj\n');
+    const cs = 'q 595 0 0 842 0 0 cm /Im0 Do Q';
+    obj(5, '<< /Length ' + cs.length + ' >>\nstream\n' + cs + '\nendstream');
+    const xo = len; let x = 'xref\n0 6\n0000000000 65535 f \n';
+    for (let i = 1; i <= 5; i++) x += String(offs[i]).padStart(10, '0') + ' 00000 n \n';
+    txt(x + 'trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n' + xo + '\n%%EOF');
+    const out = new Uint8Array(len); let o = 0; parts.forEach((u) => { out.set(u, o); o += u.length; });
+    return out;
+  }
+  function calPdfB64(y) {
+    const c = calCanvas(y), d = atob(c.toDataURL('image/jpeg', 0.9).split(',')[1]), jpg = new Uint8Array(d.length);
+    for (let i = 0; i < d.length; i++) jpg[i] = d.charCodeAt(i);
+    const pdf = pdfFromJpeg(jpg, c.width, c.height); let b = '';
+    for (let i = 0; i < pdf.length; i += 0x8000) b += String.fromCharCode.apply(null, pdf.subarray(i, i + 0x8000));
+    return btoa(b);
   }
   async function send(mode) {
     const y = repMode === 'm' ? repYear : +cur.slice(0, 4);
@@ -8275,7 +8381,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
       Cap.save('Отправляю в Telegram…');
       if (mode === 'text') await api({ action: 'tt_send', mode: 'text', text: textReport() });
       else if (mode === 'orig') await api({ action: 'tt_send', mode: 'orig', key: S.me.s, year: y, caption: 'Исходный график: ' + KEYNAME[S.me.s] + ' на ' + y + ' год' });
-      else await api({ action: 'tt_send', mode: 'pdf', html: pdfHtml(y), name: String(y), caption: 'Табель ' + y + ': цветной календарь' });
+      else await api({ action: 'tt_send', mode: 'file', b64: calPdfB64(y), name: String(y), caption: 'Табель ' + y + ': цветной календарь' });
       Cap.done('Отправлено в Telegram', 1800);
     } catch (e) { Cap.err(String(e.message || e).slice(0, 60), 4000); }
   }
@@ -8418,9 +8524,10 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
 
 <script id="wn-js">
 (function () {
-  const VER = '20261032';
+  const VER = '20261033';
   // d — дата изменения; a — только для руководителей
   const ITEMS = [
+    { d: '20261033', i: '🎨', a: 0, t: 'Цветной календарь в Telegram', p: 'Табель из бота теперь настоящий цветной календарь: ячейки закрашены как в приложении, легенда с количеством дней и подробные списки. В календаре командировок рядом с городом указан «КО Фамилия».' },
     { d: '20261032', i: '🟠', a: 0, t: 'Заявка: подсказки по полям', p: 'Незаполненные поля заявки подсвечены, следующее нужное пульсирует. После города сам открывается выбор дат, поле не прячется за клавиатурой.' },
     { d: '20261031', i: '✉️', a: 0, t: 'Продление в разные города', p: 'В продлении у каждого сотрудника можно указать свой город и сроки. Письмо общее, с блоками по городам. Тема письма теперь «RE:» к теме первичной заявки.' },
     { d: '20261030', i: '🧳', a: 0, t: 'Продление командировок: исправлено', p: 'Продление нескольких сотрудников больше не затирает командировку руководителя: у каждого своя цепочка, расходы и АО-1 не теряются. Руководитель видит в командировке «Письмо по продлению» со ссылками на заявки.' },
