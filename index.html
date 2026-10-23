@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Авансовый отчёт">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="app-build" content="20261021-44">
+  <meta name="app-build" content="20261021-45">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -1796,6 +1796,34 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     return res;
   }
 
+  // Продление: находит ЛИЧНУЮ командировку сотрудника, которая относится к той же поездке, что и целевая (руководителя)
+  function findProlongTripFor(emp, targetTripId) {
+    const trips = globalAppData.trips || [];
+    const target = trips.find(t => t.tripId === targetTripId);
+    if (!target) return null;
+    const cleanTab = String(emp.tab || '').replace(/'/g, '').trim();
+    const hasTab = cleanTab && cleanTab !== '—';
+    const sameP = (t) => hasTab ? (String(t.tab || '').replace(/'/g, '').trim() === cleanTab) : (String(t.team || '').trim() === String(emp.fio || '').trim());
+    if (sameP(target)) return target;
+    const tp = String(target.dates || '').split('—').map(x => x.trim());
+    const ts = dmyToDayNum(tp[0]), te = dmyToDayNum(tp[1]);
+    const cityT = formatUniqueCities(target.cities || '');
+    let best = null, bestScore = -1;
+    trips.forEach(t => {
+      if (!sameP(t) || t.status === 'Завершена') return;
+      const pp = String(t.dates || '').split('—').map(x => x.trim());
+      const s = dmyToDayNum(pp[0]), e = dmyToDayNum(pp[1]);
+      if (isNaN(s) || isNaN(e) || isNaN(ts) || isNaN(te)) return;
+      if (s > te + 1 || e < ts - 1) return;
+      let sc = 1;
+      if (formatUniqueCities(t.cities || '') === cityT) sc += 4;
+      if (e === te) sc += 2;
+      if (String(t.authorTgId || '') && String(t.authorTgId) === String(target.authorTgId || '')) sc += 1;
+      if (sc > bestScore) { bestScore = sc; best = t; }
+    });
+    return best;
+  }
+
   function currentExcludeTripId() {
     const isProlong = (document.getElementById('req_type').value === 'prolong');
     return isProlong ? (document.getElementById('req_target_trip_id').value || '') : '';
@@ -2513,6 +2541,8 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
   }
 
   // Заявки одного письма: те же текст и тип (при создании на нескольких сотрудников у каждого своя запись)
+  function findReq(id) { return (globalAppData.requestsArchive || []).find(x => x.reqId === id) || null; }
+  function findSiblingText(id) { const r = findReq(id); return r ? r.savedEmailText : ''; }
   function findSiblingReqIds(rq) {
     if (!rq) return [];
     const all = globalAppData.requestsArchive || [];
@@ -3954,6 +3984,28 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
         `;
       });
 
+      // Письма по продлениям: руководитель видит текст письма и ссылки на заявки каждого продлённого сотрудника
+      (function () {
+        const ids = {}; grp.members.forEach(m => { ids[m.tripId] = 1; });
+        const pr = (reqsArchive || []).filter(rq => ids[rq.tripId] && Number(rq.seqNumber || 1) > 1);
+        if (!pr.length) return;
+        const letters = {};
+        pr.forEach(rq => { const k = (rq.savedEmailText || rq.reqId) + '|' + rq.seqNumber; (letters[k] = letters[k] || []).push(rq); });
+        const esc = (x) => String(x == null ? '' : x).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+        Object.keys(letters).forEach(k => {
+          const arr = letters[k];
+          const names = arr.map(r => String(r.fio).split(' ').slice(0, 2).join(' ')).join(', ');
+          const links = arr.map(r => '<div style="margin-top:3px;"><b>' + esc(String(r.fio).split(' ').slice(0, 2).join(' ')) + '</b>: ' +
+            (r.pdfFileUrl ? '<a href="' + r.pdfFileUrl + '" target="_blank" rel="noopener" style="color:var(--success);">PDF</a> ' : '') +
+            (r.fileUrl ? '<a href="' + r.fileUrl + '" target="_blank" rel="noopener" style="color:var(--primary);">Excel</a>' : '') + '</div>').join('');
+          const first = arr[0];
+          html += '<div class="timeline-node-field" style="border-color:#6366f1; background:#eef2ff; margin-top:6px;">' +
+            '<b>✉️ Письмо по продлению:</b> ' + esc(names) + '<br><small>Срок продления: ' + esc(first.dates) + ' | ' + esc(formatUniqueCities(first.city)) + '</small>' + links +
+            (first.savedEmailText ? '<button type="button" class="btn btn-primary" style="height:30px; font-size:11px; margin-top:6px;" onclick="openMailBridge({subject:\'Заявка на ДС (Продление). Командировка в ' + esc(formatUniqueCities(first.city)) + ' ' + esc(first.dates) + 'гг\', body: findSiblingText(\'' + first.reqId + '\'), reqIds: findSiblingReqIds(findReq(\'' + first.reqId + '\'))})">✉️ Открыть письмо</button>' : '') +
+            '</div>';
+        });
+      })();
+
       html += `</div></div>`;
     });
 
@@ -4625,7 +4677,10 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
     const chkStart = dmyToDayNum(document.getElementById('req_date_start').value);
     const chkEnd = dmyToDayNum(document.getElementById('req_date_end').value);
     if (!isNaN(chkStart) && !isNaN(chkEnd)) {
-      const clashes = getBusyPeriodsForEmployee(emp.fio, emp.tab, currentExcludeTripId()).filter(p => p.s <= chkEnd && p.e >= chkStart);
+      const _tg = currentExcludeTripId();
+      const _own = _tg ? findProlongTripFor(emp, _tg) : null;
+      if (_tg && !_own) { showToast('У ' + shortPersonName(emp.fio) + ' нет действующей командировки рядом с этой поездкой, продлевать нечего. Создайте ему обычную заявку'); return; }
+      const clashes = getBusyPeriodsForEmployee(emp.fio, emp.tab, _own ? _own.tripId : _tg).filter(p => p.s <= chkEnd && p.e >= chkStart);
       if (clashes.length) { showBusyNotice(clashes.map(describeBusyPeriod)); return; }
     }
     if (!emp.bankInn || !emp.bankBik || !emp.bankAcc) promptBankDetailsModal(emp);
@@ -4798,7 +4853,14 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
       return;
     }
 
-    if (targetTripId) teamArr.forEach(m => m.tripId = targetTripId);
+    if (reqType === 'prolong' && targetTripId) {
+      const lost = [];
+      teamArr.forEach(m => {
+        const own = findProlongTripFor(m, targetTripId);
+        if (own) m.tripId = own.tripId; else lost.push(String(m.fio).split(' ').slice(0, 2).join(' '));
+      });
+      if (lost.length) { showToast('Нет командировки для продления: ' + lost.join(', ') + '. Уберите из списка'); return; }
+    } else if (targetTripId) { teamArr.forEach(m => m.tripId = targetTripId); }
 
     Proc.open('Формирую заявку на ДС', ['Сохраняю данные заявки', 'Формирую Excel', 'Загружаю на Диск', 'Уведомляю руководство'], { holdAt: 2, perStep: 4500 });
 
@@ -8257,9 +8319,10 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
 
 <script id="wn-js">
 (function () {
-  const VER = '20261029';
+  const VER = '20261030';
   // d — дата изменения; a — только для руководителей
   const ITEMS = [
+    { d: '20261030', i: '🧳', a: 0, t: 'Продление командировок: исправлено', p: 'Продление нескольких сотрудников больше не затирает командировку руководителя: у каждого своя цепочка, расходы и АО-1 не теряются. Руководитель видит в командировке «Письмо по продлению» со ссылками на заявки.' },
     { d: '20261029', i: '🗂', a: 0, t: 'Календарь командировок: компактнее и цветнее', p: 'Под годом теперь одна строка с количеством командировок, а список открывается кнопкой «Ещё». Архивные командировки разноцветные (бледные цвета), у месяцев значки: ⏳ в процессе, ✅ сданы, 📦 в архиве. Годы без командировок (до 2021 и будущие) не показываются. В списке командировок сданные и закончившиеся уходят в «Архив командировок» (документы остаются доступными).' },
     { d: '20261028', i: '📅', a: 0, t: 'Мой график: умное табелирование', p: 'Профиль → «Мой график»: смены месяцем, неделей и годом, подработки (зажмите выходной), отгулы ☕, отпуск 🌴, свои пометки с цветом и значком, отчёты по месяцам и годам и отправка отчёта в Telegram. Смены можно нанести вручную (приложение предложит продолжить схему до конца года), пока нет официального графика. День отпуска с подработкой закрашен пополам. Главный руководитель загружает PDF-графики и Excel отпусков в «Загрузка графиков».' },
     { d: '20261027', i: '💾', a: 0, t: 'Капсула сохранения', p: 'При любой правке профиля, базы сотрудников, оповещений и настроек сверху выезжает чёрная капсула: «Сохраняю…», затем «Сохранено», а при сбое «Не сохранилось».' },
