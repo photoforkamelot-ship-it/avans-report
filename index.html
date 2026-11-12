@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Авансовый отчёт">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="app-build" content="20261112-61">
+  <meta name="app-build" content="20261112-62">
   <script>
   /* Автообновление: Telegram держит старую копию страницы в кэше. Сверяем номер сборки и при отличии открываем свежую */
   (function () {
@@ -4491,7 +4491,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
 
   // Дата документов отчёта: спрашиваем после нажатия «Скачать Excel» (по умолчанию сегодня или ранее выбранная)
   function docDateIso() {
-    const d = store.passport && store.passport.docDate; // ДД.ММ.ГГГГ
+    const d = window.DOC_DATE; // ДД.ММ.ГГГГ
     const m = String(d || '').match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
     if (m) return m[3] + '-' + m[2] + '-' + m[1];
     const t = new Date(); return t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0') + '-' + String(t.getDate()).padStart(2, '0');
@@ -4503,7 +4503,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
         'Продолжить', function () {
           const v = String((document.getElementById('doc_date_in') || {}).value || '');
           const m = v.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-          if (m) store.passport.docDate = m[3] + '.' + m[2] + '.' + m[1];
+          if (m) window.DOC_DATE = m[3] + '.' + m[2] + '.' + m[1];
           downloadFullTemplateExcelAndNotify(true);
         });
       return;
@@ -4521,7 +4521,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
 
     const payload = {
       action: "submit_report",
-      doc_date: (store.passport && store.passport.docDate) || '',
+      doc_date: window.DOC_DATE || '',
       report_uid: CURRENT_REPORT_UID,
       passport: store.passport,
       expenses: sortedExpenses,
@@ -4582,7 +4582,7 @@ body.desk a[target="_blank"]:hover { background: #fff; box-shadow: 0 2px 8px rgb
 
     const payload = {
       action: "generate_final_print_pdf",
-      doc_date: (store.passport && store.passport.docDate) || '',
+      doc_date: window.DOC_DATE || '',
       report_uid: CURRENT_REPORT_UID,
       passport: store.passport,
       expenses: sortedExpenses,
